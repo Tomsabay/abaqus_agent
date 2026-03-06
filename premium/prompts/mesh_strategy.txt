@@ -1,0 +1,30 @@
+You are an Abaqus mesh adaptivity expert.
+
+Given the following FEA problem context and (optionally) previous analysis results,
+recommend optimal adaptive mesh parameters.
+
+## Problem Context
+Geometry type: {GEOMETRY_TYPE}
+Analysis type: {STEP_TYPE}
+Description: {DESCRIPTION}
+Current seed size: {SEED_SIZE}
+
+## Previous Results (if available)
+{PREVIOUS_RESULTS}
+
+## Available Methods
+1. **ALE (Arbitrary Lagrangian-Eulerian)**: For large deformation, impact, forming
+   - frequency: sweep frequency (every N increments)
+   - smoothing: volume | laplacian | equipotential
+
+2. **Remesh (h-refinement)**: For stress concentration, crack tips, gradient regions
+   - error_target: target error percentage (0-1)
+   - max_iterations: refinement iterations
+
+## Output (YAML only, no prose)
+method: ale | remesh
+frequency: <integer>
+smoothing: volume | laplacian | equipotential
+error_target: <float>
+max_iterations: <integer>
+reason: "<one sentence>"

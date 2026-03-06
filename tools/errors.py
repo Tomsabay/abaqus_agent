@@ -41,6 +41,9 @@ class ErrorCode(str, Enum):
     SPEC_INVALID          = "SPEC_INVALID"
     LLM_GENERATION_FAILED = "LLM_GENERATION_FAILED"
 
+    # Premium / licensing
+    PREMIUM_FEATURE_REQUIRED = "PREMIUM_FEATURE_REQUIRED"
+
     # Generic
     UNKNOWN               = "UNKNOWN"
 
@@ -67,6 +70,7 @@ ERROR_SUGGESTIONS: dict[ErrorCode, str] = {
     ErrorCode.KPI_EXTRACTION_FAILED:"Check kpi_spec types and location set names in the model",
     ErrorCode.SPEC_INVALID:         "Validate spec against schema/spec_schema.json",
     ErrorCode.LLM_GENERATION_FAILED:"Retry with more specific constraints or use a template",
+    ErrorCode.PREMIUM_FEATURE_REQUIRED: "This feature requires a premium license. Set ABAQUS_AGENT_LICENSE_KEY or ABAQUS_AGENT_FEATURES env var",
     ErrorCode.UNKNOWN:              "Inspect logs for details",
 }
 
