@@ -2,6 +2,11 @@
 pyyaml>=6.0
 jsonschema>=4.0
 
+# Server (FastAPI for HTTP, MCP for Model Context Protocol)
+fastapi>=0.100
+uvicorn>=0.20
+mcp>=1.0
+
 # LLM backends (optional, install as needed)
 # anthropic>=0.36
 # openai>=1.0

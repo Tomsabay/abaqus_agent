@@ -1415,8 +1415,25 @@ body::after {
         <!-- Server Config -->
         <div class="settings-group">
           <div class="settings-group-header">服务器</div>
+
           <div class="settings-row">
-            <div class="settings-label">Server URL</div>
+            <div class="settings-label">传输模式 (Transport)</div>
+            <div class="settings-field-row" style="gap:16px">
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--text2)">
+                <input type="radio" name="transport" value="direct" id="transport-direct"> Direct API
+              </label>
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--text2)">
+                <input type="radio" name="transport" value="mcp" id="transport-mcp"> MCP Bridge
+              </label>
+            </div>
+            <div class="settings-desc">
+              Direct API: 直连 FastAPI (port 8000)。
+              MCP Bridge: 通过 MCP 协议桥接 (port 8001)。
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-label">Direct API URL</div>
             <div class="settings-field-row">
               <input type="text" class="settings-input" id="input-server-url"
                 placeholder="http://localhost:8000">
@@ -1424,6 +1441,38 @@ body::after {
             </div>
             <div class="settings-desc">留空则自动检测（推荐）。修改后需刷新页面。</div>
           </div>
+
+          <div class="settings-row" id="mcp-url-row">
+            <div class="settings-label">MCP Bridge URL</div>
+            <div class="settings-field-row">
+              <input type="text" class="settings-input" id="input-mcp-url"
+                placeholder="http://localhost:8001/mcp">
+              <button class="btn-test" id="btn-test-mcp">连接测试</button>
+            </div>
+            <div class="settings-desc">MCP Bridge 地址。留空则自动检测。</div>
+          </div>
+        </div>
+
+        <!-- Premium Features -->
+        <div class="settings-group">
+          <div class="settings-group-header">Premium 功能</div>
+
+          <div class="settings-row">
+            <div class="settings-label">
+              License Key
+              <span class="badge" id="badge-premium">未激活</span>
+            </div>
+            <div class="settings-field-row">
+              <input type="text" class="settings-input" id="input-license-key"
+                placeholder="输入 license key 或 dev-xxx" autocomplete="off">
+              <button class="btn-test" id="btn-activate-premium">激活</button>
+            </div>
+            <div class="settings-desc">
+              dev-xxx 开头的 key 可启用所有功能（开发模式）。
+            </div>
+          </div>
+
+          <div id="premium-features-list" style="margin-top:8px"></div>
         </div>
 
         <!-- Actions -->
@@ -1461,10 +1510,16 @@ function saveSettingsData(data) {
 const cfg = loadSettings();
 
 // ── API base ──────────────────────────────────────────────────────
-const _defaultAPI = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
-  ? `http://${window.location.hostname}:8000`
+const _host = window.location.hostname || 'localhost';
+const _defaultAPI = _host === '127.0.0.1' || _host === 'localhost'
+  ? `http://${_host}:8000`
   : '';
-let API = cfg.serverUrl || _defaultAPI;
+const _defaultMCPAPI = _host === '127.0.0.1' || _host === 'localhost'
+  ? `http://${_host}:8001/mcp`
+  : '';
+let API = cfg.transport === 'mcp'
+  ? (cfg.mcpServerUrl || _defaultMCPAPI)
+  : (cfg.serverUrl || _defaultAPI);
 
 // ── State ────────────────────────────────────────────────────────
 const state = {
@@ -2429,8 +2484,21 @@ function initSettingsPanel() {
   }
   if (s.serverUrl) serverInput.value = s.serverUrl;
 
+  // Transport mode
+  const transport = s.transport || 'direct';
+  document.getElementById(transport === 'mcp' ? 'transport-mcp' : 'transport-direct').checked = true;
+  if (s.mcpServerUrl) document.getElementById('input-mcp-url').value = s.mcpServerUrl;
+
+  // Premium license key
+  if (s.licenseKey) {
+    document.getElementById('input-license-key').value = s.licenseKey;
+  }
+
   // Also sync the llm-backend selector hint
   updateLLMBackendHint(s);
+
+  // Load premium feature status
+  loadPremiumFeatures();
 }
 
 function updateKeyBadge(provider, hasKey) {
@@ -2458,8 +2526,17 @@ document.getElementById('btn-save-settings').addEventListener('click', () => {
   const anthropicKey = document.getElementById('input-anthropic-key').value.trim();
   const openaiKey = document.getElementById('input-openai-key').value.trim();
   const serverUrl = document.getElementById('input-server-url').value.trim();
+  const mcpServerUrl = document.getElementById('input-mcp-url').value.trim();
+  const transport = document.getElementById('transport-mcp').checked ? 'mcp' : 'direct';
+  const licenseKey = document.getElementById('input-license-key').value.trim();
 
-  saveSettingsData({ anthropicKey, openaiKey, serverUrl });
+  saveSettingsData({ anthropicKey, openaiKey, serverUrl, mcpServerUrl, transport, licenseKey });
+
+  // Update API base URL immediately
+  API = transport === 'mcp'
+    ? (mcpServerUrl || _defaultMCPAPI)
+    : (serverUrl || _defaultAPI);
+
   updateKeyBadge('anthropic', !!anthropicKey);
   updateKeyBadge('openai', !!openaiKey);
   updateLLMBackendHint({ anthropicKey, openaiKey });
@@ -2537,6 +2614,79 @@ document.getElementById('btn-test-server').addEventListener('click', async () =>
   btn.textContent = '连接测试'; btn.disabled = false;
 });
 
+// ── Test MCP Bridge connection ────────────────────────────────────
+document.getElementById('btn-test-mcp').addEventListener('click', async () => {
+  const url = document.getElementById('input-mcp-url').value.trim() || _defaultMCPAPI;
+  const btn = document.getElementById('btn-test-mcp');
+  btn.textContent = '测试中...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${url.replace(/\/mcp\/?$/, '')}/mcp/health`, { signal: AbortSignal.timeout(3000) });
+    const d = await res.json();
+    toast(`MCP Bridge 连接成功: ${d.status} · transport: ${d.transport || 'mcp'}`, 'ok');
+  } catch {
+    toast('MCP Bridge 连接失败', 'error');
+  }
+  btn.textContent = '连接测试'; btn.disabled = false;
+});
+
+// ── Premium activation ───────────────────────────────────────────
+document.getElementById('btn-activate-premium').addEventListener('click', async () => {
+  const key = document.getElementById('input-license-key').value.trim();
+  if (!key) { toast('请先输入 License Key', 'error'); return; }
+  const btn = document.getElementById('btn-activate-premium');
+  btn.textContent = '激活中...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/premium/activate?license_key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+    });
+    const d = await res.json();
+    if (d.valid) {
+      toast('Premium 功能已激活', 'ok');
+      updateKeyBadge('premium', true);
+      loadPremiumFeatures();
+      // Save key
+      const s = loadSettings();
+      s.licenseKey = key;
+      saveSettingsData(s);
+    } else {
+      toast('License Key 无效: ' + (d.error || ''), 'error');
+    }
+  } catch {
+    toast('激活失败，请检查服务器连接', 'error');
+  }
+  btn.textContent = '激活'; btn.disabled = false;
+});
+
+// ── Load premium feature status ──────────────────────────────────
+async function loadPremiumFeatures() {
+  const container = document.getElementById('premium-features-list');
+  if (!container || !state.serverOnline) return;
+  try {
+    const res = await fetch(`${API}/api/premium/features`);
+    const d = await res.json();
+    const features = d.features || {};
+    const names = Object.keys(features);
+    if (!names.length) {
+      container.innerHTML = '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Premium 模块未加载</div>';
+      return;
+    }
+    container.innerHTML = names.map(name => {
+      const f = features[name];
+      const enabled = f.enabled;
+      const color = enabled ? 'var(--green)' : 'var(--text3)';
+      const icon = enabled ? '●' : '○';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-family:var(--mono);font-size:11px">
+        <span style="color:${color}">${icon}</span>
+        <span style="color:var(--text2)">${f.display_name || name}</span>
+        <span style="color:${color};font-size:9px">${enabled ? 'ENABLED' : 'DISABLED'}</span>
+      </div>`;
+    }).join('');
+    // Update badge
+    const anyEnabled = names.some(n => features[n].enabled);
+    updateKeyBadge('premium', anyEnabled);
+  } catch {}
+}
+
 // ── Init settings and history on load ────────────────────────────
 initSettingsPanel();
 // Restore history badge
@@ -2575,15 +2725,22 @@ syncHighlight();
 
 // ── Server health check ──────────────────────────────────────────
 async function checkServer() {
+  const s = loadSettings();
+  const transport = s.transport || 'direct';
+  const healthUrl = transport === 'mcp'
+    ? `${API.replace(/\/mcp\/?$/, '')}/mcp/health`
+    : `${API}/health`;
   try {
-    const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(1500) });
+    const res = await fetch(healthUrl, { signal: AbortSignal.timeout(2000) });
     if (!res.ok) throw new Error();
     const data = await res.json();
     state.serverOnline = true;
     document.querySelector('.status-dot').style.background = 'var(--green)';
+    const mode = transport === 'mcp' ? 'MCP' : 'API';
     document.querySelector('.topbar-info').textContent =
-      `ABAQUS ${data.abaqus_available ? '✓' : '✗ sim'} · ${data.cases?.length || 0} cases`;
+      `${mode} · ABAQUS ${data.abaqus_available ? '✓' : '✗ sim'} · ${data.cases?.length || 0} cases`;
     loadBenchmarkFromAPI();
+    loadPremiumFeatures();
   } catch {
     state.serverOnline = false;
     document.querySelector('.status-dot').style.background = 'var(--yellow)';
