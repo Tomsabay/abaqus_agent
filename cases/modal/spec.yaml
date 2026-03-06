@@ -1,0 +1,38 @@
+meta:
+  abaqus_release: "2024"
+  model_name: "ModalBeam"
+  units: "mm_MPa_t"
+  description: "Free-free modal analysis of a 3D beam, first 6 natural frequencies"
+
+geometry:
+  type: cantilever_block
+  L: 200.0
+  W: 20.0
+  H: 10.0
+  seed_size: 10.0
+
+material:
+  name: Steel
+  E: 210000.0
+  nu: 0.3
+  density: 7.85e-9   # t/mm^3
+
+analysis:
+  solver: standard
+  step_type: Frequency
+  num_eigenmodes: 6
+  cpus: 2
+
+bc_load: {}   # free-free (no BC for modal)
+
+outputs:
+  kpis:
+    - name: freq_1
+      type: eigenfrequency
+      location: mode_1
+    - name: freq_2
+      type: eigenfrequency
+      location: mode_2
+    - name: freq_3
+      type: eigenfrequency
+      location: mode_3

@@ -1,0 +1,17 @@
+{
+  "kpis": {
+    "RF_Z_MAX": {
+      "value": 1000.0,
+      "rtol": 0.50,
+      "atol": 50.0,
+      "unit": "N",
+      "note": "Approximate, update after first run"
+    },
+    "U_Z_MIN": {
+      "value": -2.0,
+      "rtol": 0.05,
+      "atol": 0.1,
+      "unit": "mm"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "kpis": {
+    "freq_1": {
+      "value": 0.0,
+      "rtol": 0.01,
+      "atol": 1.0,
+      "unit": "Hz",
+      "note": "Rigid body mode - should be near zero"
+    },
+    "freq_2": {
+      "value": 1000.0,
+      "rtol": 0.30,
+      "atol": 50.0,
+      "unit": "Hz",
+      "note": "First bending mode (approximate, update after first run)"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+# Core dependencies (no Abaqus required for unit tests)
+pyyaml>=6.0
+jsonschema>=4.0
+
+# LLM backends (optional, install as needed)
+# anthropic>=0.36
+# openai>=1.0
+
+# Testing
+pytest>=7.0
+pytest-cov>=4.0
+
+# Code quality
+ruff>=0.1

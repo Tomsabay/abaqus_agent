@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Abaqus outputs (large files, never commit)
+*.odb
+*.cae
+*.jnl
+*.lck
+*.rpy
+*.dat
+*.msg
+*.sta
+*.log
+*.com
+*.sim
+*.prt
+*.mdl
+*.stt
+*.inp.bak
+
+# Run artifacts
+cases/*/runs/
+reports/*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.key

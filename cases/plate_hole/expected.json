@@ -1,0 +1,17 @@
+{
+  "kpis": {
+    "MISES_HOLE_EDGE": {
+      "value": 300.0,
+      "rtol": 0.15,
+      "atol": 5.0,
+      "unit": "MPa",
+      "note": "Kt~3 * 100 MPa nominal"
+    },
+    "U_X_MAX": {
+      "value": 0.048,
+      "rtol": 0.10,
+      "atol": 0.005,
+      "unit": "mm"
+    }
+  }
+}
