@@ -74,6 +74,8 @@ class GenerateSpecRequest(BaseModel):
     text: str
     abaqus_release: str = "2024"
     llm_backend: str = "template"
+    anthropic_key: str = ""   # Optional: override ANTHROPIC_API_KEY env var
+    openai_key: str = ""      # Optional: override OPENAI_API_KEY env var
 
 class ValidateSpecRequest(BaseModel):
     spec_yaml: str
@@ -111,7 +113,9 @@ async def generate_spec(req: GenerateSpecRequest):
     try:
         # Try real LLM first, fall back to template
         spec_dict, missing = await _generate_spec_async(
-            req.text, req.abaqus_release, req.llm_backend
+            req.text, req.abaqus_release, req.llm_backend,
+            anthropic_key=req.anthropic_key,
+            openai_key=req.openai_key,
         )
         spec_yaml = yaml.dump(spec_dict, allow_unicode=True, default_flow_style=False)
         valid, errors = validate_spec(spec_dict)
@@ -470,13 +474,33 @@ def _make_run_id(spec_yaml: str) -> str:
     return hashlib.sha256(spec_yaml.encode()).hexdigest()[:16]
 
 
-async def _generate_spec_async(text: str, release: str, backend: str) -> tuple[dict, list]:
+async def _generate_spec_async(
+    text: str, release: str, backend: str,
+    anthropic_key: str = "", openai_key: str = "",
+) -> tuple[dict, list]:
     """Generate spec from NL text, using LLM or template."""
+    import os
     if backend in ("anthropic", "openai"):
         try:
             from agent.llm_planner import LLMPlanner
-            planner = LLMPlanner(backend=backend)
-            return planner.generate(text)
+            # Temporarily override env var if key provided from frontend
+            env_backup = {}
+            if backend == "anthropic" and anthropic_key:
+                env_backup["ANTHROPIC_API_KEY"] = os.environ.get("ANTHROPIC_API_KEY", "")
+                os.environ["ANTHROPIC_API_KEY"] = anthropic_key
+            elif backend == "openai" and openai_key:
+                env_backup["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY", "")
+                os.environ["OPENAI_API_KEY"] = openai_key
+            try:
+                planner = LLMPlanner(backend=backend)
+                return planner.generate(text)
+            finally:
+                # Restore env
+                for k, v in env_backup.items():
+                    if v:
+                        os.environ[k] = v
+                    else:
+                        os.environ.pop(k, None)
         except Exception:
             pass  # fall through to template
 

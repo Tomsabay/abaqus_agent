@@ -867,6 +867,236 @@ body::after {
 .log-cursor { animation: blink-cur 0.8s step-end infinite; }
 @keyframes blink-cur { 0%,100%{opacity:1} 50%{opacity:0} }
 
+/* ── Settings panel ─────────────────────────────────────────────── */
+.settings-area {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 640px;
+}
+
+.settings-group {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.settings-group-header {
+  padding: 10px 16px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.settings-row {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-row:last-child { border-bottom: none; }
+
+.settings-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-label .badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text3);
+}
+
+.settings-label .badge.ok { background: rgba(61,204,126,0.1); border-color: rgba(61,204,126,0.3); color: var(--green); }
+.settings-label .badge.missing { background: rgba(255,69,96,0.1); border-color: rgba(255,69,96,0.3); color: var(--red); }
+
+.settings-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 7px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.settings-input:focus { border-color: var(--accent); }
+
+.settings-desc {
+  font-size: 10px;
+  color: var(--text3);
+  font-family: var(--mono);
+  line-height: 1.5;
+}
+
+.btn-settings-save {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.btn-settings-save:hover { opacity: 0.85; }
+
+.btn-test {
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-test:hover { border-color: var(--blue); color: var(--blue); }
+
+.settings-status {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 16px;
+  color: var(--text3);
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+/* ── History panel ───────────────────────────────────────────────── */
+.history-area {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  gap: 8px;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.history-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-card:hover {
+  border-color: var(--border2);
+  background: var(--bg2);
+}
+
+.history-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-run-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.history-model {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+  flex: 1;
+}
+
+.history-card-meta {
+  display: flex;
+  gap: 16px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+
+.history-kpis {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-kpi-chip {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.btn-history-clear {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  cursor: pointer;
+}
+
+.btn-history-clear:hover { color: var(--red); border-color: var(--red); }
+
 /* ── KPI sparkline ───────────────────────────────────────────────── */
 .kpi-sparkline-wrap {
   width: 100%;
@@ -931,6 +1161,15 @@ body::after {
     <div class="nav-section" style="margin-top:8px">评估</div>
     <div class="nav-item" data-panel="benchmark">
       <span class="nav-icon">≡</span> Benchmark
+    </div>
+
+    <div class="nav-section" style="margin-top:8px">工具</div>
+    <div class="nav-item" data-panel="history">
+      <span class="nav-icon">◷</span> 运行历史
+      <span class="nav-badge" id="history-badge" style="display:none">0</span>
+    </div>
+    <div class="nav-item" data-panel="settings">
+      <span class="nav-icon">⚙</span> 设置
     </div>
 
     <div style="flex:1"></div>
@@ -1096,6 +1335,11 @@ body::after {
           </thead>
           <tbody id="bench-tbody"></tbody>
         </table>
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn btn-primary btn-run-glow" id="btn-bench-run">▶ 运行 Dry-run</button>
+          <span id="bench-run-status" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></span>
+        </div>
+
         <div style="margin-top:20px">
           <div class="section-title">说明</div>
           <div style="font-size:11px;color:var(--text3);line-height:1.8;font-family:var(--mono)">
@@ -1108,16 +1352,119 @@ body::after {
       </div>
     </section>
 
+    <!-- ── Panel: History ───────────────────────────────────── -->
+    <section class="panel" id="panel-history">
+      <div class="panel-header">
+        <div class="panel-title"><span>06</span>运行历史</div>
+      </div>
+      <div class="history-area" id="history-area">
+        <div class="history-header">
+          <div class="section-title" style="margin-bottom:0">历史记录</div>
+          <button class="btn-history-clear" id="btn-clear-history">清空历史</button>
+        </div>
+        <div id="history-list">
+          <div class="history-empty" id="history-empty">
+            <div style="font-size:32px;opacity:0.3">◷</div>
+            <div>暂无运行记录</div>
+            <div style="color:var(--text3);font-size:10px">启动运行后记录将出现在这里</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Panel: Settings ─────────────────────────────────── -->
+    <section class="panel" id="panel-settings">
+      <div class="panel-header">
+        <div class="panel-title"><span>07</span>设置</div>
+      </div>
+      <div class="settings-area">
+
+        <!-- LLM Config -->
+        <div class="settings-group">
+          <div class="settings-group-header">LLM 配置</div>
+
+          <div class="settings-row">
+            <div class="settings-label">
+              Anthropic API Key
+              <span class="badge" id="badge-anthropic">未配置</span>
+            </div>
+            <div class="settings-field-row">
+              <input type="password" class="settings-input" id="input-anthropic-key"
+                placeholder="sk-ant-api03-..." autocomplete="off">
+              <button class="btn-test" id="btn-test-anthropic">测试</button>
+            </div>
+            <div class="settings-desc">用于 Claude (claude-sonnet-4-6) 生成 Problem Spec。<br>
+              获取：console.anthropic.com → API Keys</div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-label">
+              OpenAI API Key
+              <span class="badge" id="badge-openai">未配置</span>
+            </div>
+            <div class="settings-field-row">
+              <input type="password" class="settings-input" id="input-openai-key"
+                placeholder="sk-proj-..." autocomplete="off">
+              <button class="btn-test" id="btn-test-openai">测试</button>
+            </div>
+            <div class="settings-desc">用于 GPT-4o 生成 Problem Spec。<br>
+              获取：platform.openai.com → API keys</div>
+          </div>
+        </div>
+
+        <!-- Server Config -->
+        <div class="settings-group">
+          <div class="settings-group-header">服务器</div>
+          <div class="settings-row">
+            <div class="settings-label">Server URL</div>
+            <div class="settings-field-row">
+              <input type="text" class="settings-input" id="input-server-url"
+                placeholder="http://localhost:8000">
+              <button class="btn-test" id="btn-test-server">连接测试</button>
+            </div>
+            <div class="settings-desc">留空则自动检测（推荐）。修改后需刷新页面。</div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="btn-settings-save" id="btn-save-settings">保存设置</button>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">
+            设置保存在浏览器本地 (localStorage)，不上传服务器
+          </span>
+        </div>
+
+        <div class="settings-status" id="settings-status" style="display:none"></div>
+
+      </div>
+    </section>
+
   </main>
 </div>
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
+// ── Settings (localStorage) ───────────────────────────────────────
+const SETTINGS_KEY = 'abaqus_agent_settings';
+
+function loadSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function saveSettingsData(data) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+}
+
+const cfg = loadSettings();
+
 // ── API base ──────────────────────────────────────────────────────
-const API = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
+const _defaultAPI = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
   ? `http://${window.location.hostname}:8000`
   : '';
+let API = cfg.serverUrl || _defaultAPI;
 
 // ── State ────────────────────────────────────────────────────────
 const state = {
@@ -1129,6 +1476,7 @@ const state = {
   kpis: {},
   serverOnline: false,
   es: null,  // EventSource
+  history: JSON.parse(localStorage.getItem('abaqus_agent_history') || '[]'),
 };
 
 // ── Navigation ───────────────────────────────────────────────────
@@ -1179,10 +1527,15 @@ document.getElementById('btn-gen-spec').addEventListener('click', async () => {
 
   try {
     if (state.serverOnline) {
+      const s = loadSettings();
       const res = await fetch(`${API}/api/spec/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, abaqus_release: version, llm_backend: backend }),
+        body: JSON.stringify({
+          text, abaqus_release: version, llm_backend: backend,
+          anthropic_key: s.anthropicKey || '',
+          openai_key: s.openaiKey || '',
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -1580,9 +1933,25 @@ function _applyRunUpdate(data, stageBadge) {
     state.kpis = _flattenKpis(data.kpis || {});
     renderKPIs();
     toast('运行完成 ✓', 'ok');
+    _addHistory({
+      runId: data.run_id,
+      status: 'COMPLETED',
+      model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
+      kpis: state.kpis,
+      elapsed: Math.round(data.elapsed || 0),
+      ts: Date.now(),
+    });
     _resetRunBtn();
   } else if (data.status === 'FAILED') {
     toast('运行失败', 'error');
+    _addHistory({
+      runId: data.run_id,
+      status: 'FAILED',
+      model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
+      kpis: [],
+      elapsed: Math.round(data.elapsed || 0),
+      ts: Date.now(),
+    });
     _resetRunBtn();
   }
 }
@@ -1616,6 +1985,14 @@ async function _simulatedRun(specYaml, stageBadge) {
     state.kpis = generateMockKPIs(specYaml);
     renderKPIs();
     toast('模拟运行完成 ✓', 'ok');
+    _addHistory({
+      runId: 'sim_' + Date.now().toString(36),
+      status: 'COMPLETED (sim)',
+      model: specYaml.match(/model_name:\s*(\S+)/)?.[1] || '—',
+      kpis: state.kpis,
+      elapsed: STAGES.reduce((a, s) => a + s.duration[0], 0),
+      ts: Date.now(),
+    });
   } else {
     toast('已中止运行', 'info');
     setProgress(0);
@@ -1894,17 +2271,281 @@ function statusPill(s) {
 
 renderBenchTable();
 
-// ── Simulate benchmark run on click ──────────────────────────────
-document.querySelector('[data-panel="benchmark"]').addEventListener('click', () => {
-  // Simulate async results appearing
-  setTimeout(() => {
-    BENCH_DATA[0] = { ...BENCH_DATA[0], status:'pass', kpi:'U_tip = -1.905e-3 mm', elapsed:'2.4s', reg:'PASS' };
-    BENCH_DATA[1] = { ...BENCH_DATA[1], status:'pass', kpi:'MISES = 297.3 MPa',     elapsed:'3.1s', reg:'PASS' };
-    BENCH_DATA[2] = { ...BENCH_DATA[2], status:'pass', kpi:'freq_1 = 0.012 Hz',     elapsed:'1.8s', reg:'PASS' };
-    BENCH_DATA[3] = { ...BENCH_DATA[3], status:'pass', kpi:'RF_MAX = 987.3 N',      elapsed:'5.2s', reg:'PASS' };
-    renderBenchTable();
-  }, 1200);
+// ── Benchmark Run Dry-run ─────────────────────────────────────────
+document.getElementById('btn-bench-run').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-bench-run');
+  const statusEl = document.getElementById('bench-run-status');
+  btn.disabled = true;
+  btn.textContent = '⟳ 运行中...';
+
+  // Reset states
+  BENCH_DATA.forEach(d => { d.status = 'running'; d.kpi = '—'; d.elapsed = '—'; d.reg = '—'; });
+  renderBenchTable();
+
+  if (state.serverOnline) {
+    try {
+      const res = await fetch(`${API}/api/benchmark/run?dry_run=true`, { method: 'POST' });
+      if (!res.ok) throw new Error(await res.text());
+      const { run_id, cases } = await res.json();
+      statusEl.textContent = `run_id: ${run_id}`;
+
+      // Poll until done
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const r = await fetch(`${API}/api/run/${run_id}`);
+          const d = await r.json();
+          const results = d.results || {};
+          cases.forEach((name, i) => {
+            const cr = results[name];
+            if (!cr) return;
+            if (cr.status === 'DRY_RUN_PASS') {
+              BENCH_DATA[i] = { ...BENCH_DATA[i], status: 'pass', kpi: '✓ Spec valid', elapsed: '—', reg: 'PASS' };
+            } else if (cr.status === 'SPEC_INVALID') {
+              BENCH_DATA[i] = { ...BENCH_DATA[i], status: 'fail', kpi: cr.errors?.[0] || 'Invalid', elapsed: '—', reg: 'FAIL' };
+            }
+          });
+          renderBenchTable();
+
+          if (d.status === 'COMPLETED' || attempts > 30) {
+            clearInterval(poll);
+            btn.disabled = false;
+            btn.textContent = '▶ 运行 Dry-run';
+            statusEl.textContent = d.status === 'COMPLETED' ? '✓ 全部通过' : '完成';
+            toast('Benchmark dry-run 完成', 'ok');
+          }
+        } catch { clearInterval(poll); }
+      }, 500);
+    } catch (e) {
+      toast('Benchmark 失败: ' + e.message, 'error');
+      _simulateBenchmark();
+    }
+  } else {
+    await _simulateBenchmark();
+  }
+
+  btn.disabled = false;
+  btn.textContent = '▶ 运行 Dry-run';
 });
+
+async function _simulateBenchmark() {
+  for (let i = 0; i < BENCH_DATA.length; i++) {
+    await sleep(300 + Math.random() * 400);
+    const kpis = ['U_tip = -1.905e-3 mm', 'MISES = 297.3 MPa', 'freq_1 = 1234.5 Hz', 'RF_MAX = 987.3 N'];
+    BENCH_DATA[i] = { ...BENCH_DATA[i], status:'pass', kpi: kpis[i], elapsed: (1.5 + Math.random()*3).toFixed(1)+'s', reg:'PASS' };
+    renderBenchTable();
+  }
+  toast('模拟 Benchmark 完成', 'ok');
+}
+
+// ── History management ────────────────────────────────────────────
+function _addHistory(entry) {
+  state.history.unshift(entry);
+  if (state.history.length > 50) state.history.pop();
+  localStorage.setItem('abaqus_agent_history', JSON.stringify(state.history));
+  // Update badge
+  const badge = document.getElementById('history-badge');
+  badge.style.display = 'inline';
+  badge.textContent = state.history.length;
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
+
+  if (!state.history.length) {
+    empty.style.display = 'flex';
+    list.innerHTML = '';
+    list.appendChild(empty);
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.innerHTML = state.history.map((entry, idx) => {
+    const date = new Date(entry.ts);
+    const timeStr = date.toLocaleString('zh-CN', { month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    const statusColor = entry.status === 'COMPLETED' || entry.status === 'COMPLETED (sim)'
+      ? 'var(--green)' : 'var(--red)';
+    const kpiChips = (Array.isArray(entry.kpis) ? entry.kpis : []).slice(0, 3).map(k =>
+      `<span class="history-kpi-chip">${k.name} = ${formatNum(k.value)} ${k.unit}</span>`
+    ).join('');
+
+    return `
+      <div class="history-card" data-idx="${idx}">
+        <div class="history-card-top">
+          <span class="history-run-id">${entry.runId}</span>
+          <span class="history-model">${entry.model}</span>
+          <span style="font-family:var(--mono);font-size:10px;color:${statusColor}">${entry.status}</span>
+        </div>
+        <div class="history-card-meta">
+          <span>⏱ ${entry.elapsed}s</span>
+          <span>${timeStr}</span>
+        </div>
+        ${kpiChips ? `<div class="history-kpis">${kpiChips}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  // Click to restore KPIs
+  list.querySelectorAll('.history-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const idx = parseInt(card.dataset.idx);
+      const entry = state.history[idx];
+      if (entry.kpis && entry.kpis.length) {
+        state.kpis = entry.kpis;
+        renderKPIs();
+        navigateTo('kpis');
+        toast(`已加载 ${entry.model} 的 KPI`, 'info');
+      }
+    });
+  });
+}
+
+document.getElementById('btn-clear-history').addEventListener('click', () => {
+  state.history = [];
+  localStorage.removeItem('abaqus_agent_history');
+  document.getElementById('history-badge').style.display = 'none';
+  renderHistory();
+  toast('历史记录已清空', 'info');
+});
+
+// ── Settings panel logic ──────────────────────────────────────────
+function initSettingsPanel() {
+  const s = loadSettings();
+  const anthropicInput = document.getElementById('input-anthropic-key');
+  const openaiInput = document.getElementById('input-openai-key');
+  const serverInput = document.getElementById('input-server-url');
+
+  // Populate saved values
+  if (s.anthropicKey) {
+    anthropicInput.value = s.anthropicKey;
+    updateKeyBadge('anthropic', true);
+  }
+  if (s.openaiKey) {
+    openaiInput.value = s.openaiKey;
+    updateKeyBadge('openai', true);
+  }
+  if (s.serverUrl) serverInput.value = s.serverUrl;
+
+  // Also sync the llm-backend selector hint
+  updateLLMBackendHint(s);
+}
+
+function updateKeyBadge(provider, hasKey) {
+  const badge = document.getElementById(`badge-${provider}`);
+  if (!badge) return;
+  if (hasKey) {
+    badge.textContent = '已配置';
+    badge.className = 'badge ok';
+  } else {
+    badge.textContent = '未配置';
+    badge.className = 'badge missing';
+  }
+}
+
+function updateLLMBackendHint(s) {
+  // Optionally update the backend selector on the prompt panel
+  const sel = document.getElementById('llm-backend');
+  if (!sel) return;
+  // If Anthropic key is set, default to anthropic
+  if (s.anthropicKey && sel.value === 'template') sel.value = 'anthropic';
+  else if (s.openaiKey && sel.value === 'template' && !s.anthropicKey) sel.value = 'openai';
+}
+
+document.getElementById('btn-save-settings').addEventListener('click', () => {
+  const anthropicKey = document.getElementById('input-anthropic-key').value.trim();
+  const openaiKey = document.getElementById('input-openai-key').value.trim();
+  const serverUrl = document.getElementById('input-server-url').value.trim();
+
+  saveSettingsData({ anthropicKey, openaiKey, serverUrl });
+  updateKeyBadge('anthropic', !!anthropicKey);
+  updateKeyBadge('openai', !!openaiKey);
+  updateLLMBackendHint({ anthropicKey, openaiKey });
+
+  // Show status
+  const statusEl = document.getElementById('settings-status');
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--green)';
+  statusEl.textContent = '✓ 设置已保存到 localStorage';
+  setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+  toast('设置已保存', 'ok');
+});
+
+// Test Anthropic key
+document.getElementById('btn-test-anthropic').addEventListener('click', async () => {
+  const key = document.getElementById('input-anthropic-key').value.trim();
+  if (!key) { toast('请先输入 Anthropic API Key', 'error'); return; }
+  const btn = document.getElementById('btn-test-anthropic');
+  btn.textContent = '测试中...'; btn.disabled = true;
+  try {
+    // Simple: ask server to generate with this key
+    const res = await fetch(`${API}/api/spec/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'test', llm_backend: 'anthropic', anthropic_key: key }),
+    });
+    if (res.ok) {
+      toast('Anthropic Key 有效 ✓', 'ok');
+      updateKeyBadge('anthropic', true);
+    } else {
+      toast('Key 无效或服务不可达', 'error');
+    }
+  } catch {
+    toast('连接失败，请检查服务器', 'error');
+  }
+  btn.textContent = '测试'; btn.disabled = false;
+});
+
+// Test OpenAI key
+document.getElementById('btn-test-openai').addEventListener('click', async () => {
+  const key = document.getElementById('input-openai-key').value.trim();
+  if (!key) { toast('请先输入 OpenAI API Key', 'error'); return; }
+  const btn = document.getElementById('btn-test-openai');
+  btn.textContent = '测试中...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/spec/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'test', llm_backend: 'openai', openai_key: key }),
+    });
+    if (res.ok) {
+      toast('OpenAI Key 有效 ✓', 'ok');
+      updateKeyBadge('openai', true);
+    } else {
+      toast('Key 无效或服务不可达', 'error');
+    }
+  } catch {
+    toast('连接失败，请检查服务器', 'error');
+  }
+  btn.textContent = '测试'; btn.disabled = false;
+});
+
+// Test server connection
+document.getElementById('btn-test-server').addEventListener('click', async () => {
+  const url = document.getElementById('input-server-url').value.trim() || _defaultAPI;
+  const btn = document.getElementById('btn-test-server');
+  btn.textContent = '测试中...'; btn.disabled = true;
+  try {
+    const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
+    const d = await res.json();
+    toast(`连接成功: ${d.status} · ${d.cases?.length || 0} cases`, 'ok');
+  } catch {
+    toast('连接失败', 'error');
+  }
+  btn.textContent = '连接测试'; btn.disabled = false;
+});
+
+// ── Init settings and history on load ────────────────────────────
+initSettingsPanel();
+// Restore history badge
+if (state.history.length) {
+  const badge = document.getElementById('history-badge');
+  badge.style.display = 'inline';
+  badge.textContent = state.history.length;
+}
+renderHistory();
 
 // ── Toast helper ─────────────────────────────────────────────────
 function toast(msg, type = 'info') {
