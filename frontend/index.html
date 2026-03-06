@@ -829,6 +829,67 @@ body::after {
 .v-ok   { color: var(--green); }
 .v-err  { color: var(--red); }
 .v-item { padding: 2px 0; }
+
+/* ── YAML syntax highlight overlay ──────────────────────────────── */
+#spec-highlight {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 14px;
+  padding-left: 52px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+  tab-size: 2;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: transparent;
+  box-sizing: border-box;
+  word-wrap: normal;
+}
+
+/* Make the textarea transparent so highlight shows through */
+.code-editor textarea {
+  color: transparent !important;
+  caret-color: #A8D8A8;
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 2;
+  background: transparent;
+}
+
+/* ── Log cursor blink ────────────────────────────────────────────── */
+.log-cursor { animation: blink-cur 0.8s step-end infinite; }
+@keyframes blink-cur { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── KPI sparkline ───────────────────────────────────────────────── */
+.kpi-sparkline-wrap {
+  width: 100%;
+  background: #0F0F18;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px 8px;
+}
+
+.kpi-sparkline-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+#kpi-sparkline-canvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+}
 </style>
 </head>
 <body>
@@ -961,6 +1022,7 @@ body::after {
         </div>
         <div class="code-editor" style="flex:1">
           <div class="line-numbers" id="line-numbers">1</div>
+          <pre id="spec-highlight" aria-hidden="true"></pre>
           <textarea id="spec-editor" spellcheck="false"
             placeholder="# 生成 Spec 后将显示在此处，可手动编辑...
 
@@ -1146,6 +1208,7 @@ document.getElementById('btn-gen-spec').addEventListener('click', async () => {
   document.getElementById('spec-editor').value = specYaml;
   updateLineNumbers();
   updateSpecMeta(specYaml);
+  syncHighlight();
 
   btn.disabled = false;
   btn.textContent = '⚡ 生成 Spec';
@@ -1232,15 +1295,91 @@ ${kpis.join('\n')}
 `;
 }
 
+// ── YAML syntax highlighter ──────────────────────────────────────
+function highlightYaml(text) {
+  const lines = text.split('\n');
+  return lines.map(line => {
+    // Escape HTML entities first
+    let safe = line
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Comments
+    if (/^\s*#/.test(safe)) {
+      return `<span style="color:#5C6370;font-style:italic">${safe}</span>`;
+    }
+
+    // Key: value lines
+    const keyValMatch = safe.match(/^(\s*)([\w\-]+)(\s*:\s*)(.*)$/);
+    if (keyValMatch) {
+      const indent = keyValMatch[1];
+      const key = keyValMatch[2];
+      const colon = keyValMatch[3];
+      let rest = keyValMatch[4];
+
+      // Inline comment at end of value
+      let inlineComment = '';
+      const commentIdx = rest.indexOf(' #');
+      if (commentIdx !== -1) {
+        inlineComment = `<span style="color:#5C6370;font-style:italic">${rest.slice(commentIdx)}</span>`;
+        rest = rest.slice(0, commentIdx);
+      }
+
+      // Classify value
+      let coloredVal = rest;
+      if (/^(true|false|null|yes|no|on|off)$/i.test(rest.trim())) {
+        coloredVal = `<span style="color:#BB9AF7">${rest}</span>`;
+      } else if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(rest.trim())) {
+        coloredVal = `<span style="color:#FF9E64">${rest}</span>`;
+      } else if (rest.trim() !== '') {
+        coloredVal = `<span style="color:#9ECE6A">${rest}</span>`;
+      }
+
+      return `${indent}<span style="color:#79B8FF">${key}</span>${colon}${coloredVal}${inlineComment}`;
+    }
+
+    // List items starting with -
+    const listMatch = safe.match(/^(\s*-\s*)(.*)$/);
+    if (listMatch) {
+      const prefix = listMatch[1];
+      const rest = listMatch[2];
+      let coloredRest = rest;
+      if (/^(true|false|null|yes|no|on|off)$/i.test(rest.trim())) {
+        coloredRest = `<span style="color:#BB9AF7">${rest}</span>`;
+      } else if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(rest.trim())) {
+        coloredRest = `<span style="color:#FF9E64">${rest}</span>`;
+      } else if (rest.trim() !== '') {
+        coloredRest = `<span style="color:#9ECE6A">${rest}</span>`;
+      }
+      return `${prefix}${coloredRest}`;
+    }
+
+    return safe;
+  }).join('\n');
+}
+
+function syncHighlight() {
+  const pre = document.getElementById('spec-highlight');
+  if (!pre) return;
+  const text = specEditor.value;
+  pre.innerHTML = highlightYaml(text) + '\n';
+  // Sync scroll
+  pre.scrollTop = specEditor.scrollTop;
+  pre.scrollLeft = specEditor.scrollLeft;
+}
+
 // ── Spec editor line numbers ─────────────────────────────────────
 const specEditor = document.getElementById('spec-editor');
 specEditor.addEventListener('input', () => {
   updateLineNumbers();
   updateSpecMeta(specEditor.value);
   state.spec = specEditor.value;
+  syncHighlight();
 });
 specEditor.addEventListener('scroll', () => {
   document.getElementById('line-numbers').scrollTop = specEditor.scrollTop;
+  syncHighlight();
 });
 
 function updateLineNumbers() {
@@ -1331,7 +1470,14 @@ function renderPipeline() {
     const s = state.stageResults[stage.id] || {};
     const statusClass = s.status || 'pending';
     const timeStr = s.elapsed ? `${s.elapsed}ms` : '';
-    const logHtml = s.log ? `<div class="stage-log">${s.log}</div>` : '';
+    const isRunning = statusClass === 'running';
+    let logContent = s.log || '';
+    if (isRunning && logContent) {
+      logContent += `<span class="log-cursor">▌</span>`;
+    } else if (isRunning && !logContent) {
+      logContent = `<span class="log-cursor">▌</span>`;
+    }
+    const logHtml = (logContent) ? `<div class="stage-log">${logContent}</div>` : '';
     const icon = statusClass === 'done' ? '✓' : statusClass === 'running' ? '◉' :
                  statusClass === 'error' ? '✗' : String(idx + 1);
 
@@ -1570,6 +1716,13 @@ function renderKPIs() {
 
   html += '</div>';
 
+  // Sparkline chart placeholder
+  html += `
+    <div class="kpi-sparkline-wrap">
+      <div class="kpi-sparkline-title">KPI 对比图 · 实际值 vs 期望值</div>
+      <canvas id="kpi-sparkline-canvas"></canvas>
+    </div>`;
+
   // Summary
   const passCount = kpis.filter(k => {
     const relErr = k.expected !== 0 ? Math.abs((k.value - k.expected) / k.expected) : Math.abs(k.value);
@@ -1588,6 +1741,97 @@ function renderKPIs() {
     </div>`;
 
   area.innerHTML = html;
+
+  // Draw sparkline after DOM update
+  drawKpiSparkline(kpis);
+}
+
+function drawKpiSparkline(kpis) {
+  const canvas = document.getElementById('kpi-sparkline-canvas');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || canvas.parentElement.clientWidth;
+  const H = 160;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Background
+  ctx.fillStyle = '#0F0F18';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!kpis.length) return;
+
+  const padL = 12, padR = 12, padT = 16, padB = 32;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+
+  const n = kpis.length;
+  const groupW = chartW / n;
+  const barW = Math.min(groupW * 0.3, 24);
+  const gap = 4;
+
+  // Find max absolute value for scaling
+  let maxVal = 0;
+  kpis.forEach(k => {
+    maxVal = Math.max(maxVal, Math.abs(k.value), k.expected !== null ? Math.abs(k.expected) : 0);
+  });
+  if (maxVal === 0) maxVal = 1;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + chartH - (i / 4) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+  }
+
+  kpis.forEach((kpi, i) => {
+    const cx = padL + i * groupW + groupW / 2;
+
+    // Actual bar
+    const aH = Math.max(2, (Math.abs(kpi.value) / maxVal) * chartH);
+    const aX = cx - barW - gap / 2;
+    const aY = padT + chartH - aH;
+    ctx.fillStyle = '#FF6B2B';
+    ctx.fillRect(aX, aY, barW, aH);
+
+    // Expected bar
+    if (kpi.expected !== null && kpi.expected !== 0) {
+      const eH = Math.max(2, (Math.abs(kpi.expected) / maxVal) * chartH);
+      const eX = cx + gap / 2;
+      const eY = padT + chartH - eH;
+      ctx.fillStyle = '#4D8EFF';
+      ctx.fillRect(eX, eY, barW, eH);
+    }
+
+    // KPI name label
+    ctx.fillStyle = '#4A4A6A';
+    ctx.font = '9px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    const label = kpi.name.length > 8 ? kpi.name.slice(0, 7) + '…' : kpi.name;
+    ctx.fillText(label, cx, H - padB + 14);
+  });
+
+  // Legend
+  const legY = H - 6;
+  ctx.fillStyle = '#FF6B2B';
+  ctx.fillRect(padL, legY - 7, 10, 7);
+  ctx.fillStyle = '#8888A8';
+  ctx.font = '9px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('实际', padL + 13, legY);
+
+  ctx.fillStyle = '#4D8EFF';
+  ctx.fillRect(padL + 50, legY - 7, 10, 7);
+  ctx.fillStyle = '#8888A8';
+  ctx.fillText('期望', padL + 63, legY);
 }
 
 function formatNum(n) {
@@ -1684,8 +1928,9 @@ function navigateTo(panel) {
 // ── Utility ──────────────────────────────────────────────────────
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ── Init line numbers ────────────────────────────────────────────
+// ── Init line numbers & highlight ───────────────────────────────
 updateLineNumbers();
+syncHighlight();
 
 // ── Server health check ──────────────────────────────────────────
 async function checkServer() {
