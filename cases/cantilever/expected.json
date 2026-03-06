@@ -1,0 +1,17 @@
+{
+  "kpis": {
+    "U_tip": {
+      "value": -2.0e-3,
+      "rtol": 0.10,
+      "atol": 1e-6,
+      "unit": "mm",
+      "note": "Analytical: PL^3/(3EI) = 1*10*100^3/(3*210000*(10^4/12)) ~ 1.9e-3 mm"
+    },
+    "MISES_MAX": {
+      "value": 0.6,
+      "rtol": 0.20,
+      "atol": 0.01,
+      "unit": "MPa"
+    }
+  }
+}

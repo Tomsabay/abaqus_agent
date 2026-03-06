@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AbaqusAgentProblemSpec",
+  "description": "Abaqus automation agent problem specification schema",
+  "type": "object",
+  "required": ["meta", "geometry", "material", "analysis", "bc_load", "outputs"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["abaqus_release", "model_name"],
+      "properties": {
+        "abaqus_release": { "type": "string", "enum": ["2023", "2024", "2025"] },
+        "model_name":     { "type": "string", "minLength": 1 },
+        "units":          { "type": "string", "default": "mm_MPa_t" },
+        "description":    { "type": "string" },
+        "missing_questions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 5
+        }
+      },
+      "additionalProperties": false
+    },
+    "geometry": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "cantilever_block",
+            "plate_with_hole",
+            "axisymmetric_disk",
+            "custom_inp"
+          ]
+        },
+        "L": { "type": "number", "exclusiveMinimum": 0 },
+        "W": { "type": "number", "exclusiveMinimum": 0 },
+        "H": { "type": "number", "exclusiveMinimum": 0 },
+        "R": { "type": "number", "exclusiveMinimum": 0 },
+        "seed_size": { "type": "number", "exclusiveMinimum": 0 },
+        "inp_path": { "type": "string" }
+      }
+    },
+    "material": {
+      "type": "object",
+      "required": ["name", "E", "nu"],
+      "properties": {
+        "name":    { "type": "string" },
+        "E":       { "type": "number", "exclusiveMinimum": 0 },
+        "nu":      { "type": "number", "minimum": 0, "exclusiveMaximum": 0.5 },
+        "density": { "type": "number", "exclusiveMinimum": 0 },
+        "yield_stress": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "analysis": {
+      "type": "object",
+      "required": ["solver", "step_type"],
+      "properties": {
+        "solver": {
+          "type": "string",
+          "enum": ["standard", "explicit"]
+        },
+        "step_type": {
+          "type": "string",
+          "enum": ["Static", "Frequency", "Dynamic_Explicit", "Dynamic_Implicit"]
+        },
+        "cpus":      { "type": "integer", "minimum": 1, "default": 1 },
+        "mp_mode":   { "type": "string", "enum": ["threads", "mpi"], "default": "threads" },
+        "memory":    { "type": "string", "default": "90%" },
+        "time_period": { "type": "number", "exclusiveMinimum": 0 },
+        "num_eigenmodes": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "bc_load": {
+      "type": "object",
+      "properties": {
+        "fixed_face":  { "type": "string" },
+        "load_face":   { "type": "string" },
+        "load_type":   { "type": "string", "enum": ["pressure", "concentrated_force", "displacement"] },
+        "value":       { "type": "number" },
+        "direction":   { "type": "integer", "enum": [1, 2, 3] }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "required": ["kpis"],
+      "properties": {
+        "kpis": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "properties": {
+              "name":     { "type": "string" },
+              "type":     { "type": "string" },
+              "location": { "type": "string" },
+              "component":{ "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

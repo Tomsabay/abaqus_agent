@@ -1,0 +1,42 @@
+meta:
+  abaqus_release: "2024"
+  model_name: "ExplicitImpact"
+  units: "mm_MPa_t"
+  description: "Explicit dynamic: rigid indenter impacting an elastic block (micro-scale)"
+
+geometry:
+  type: cantilever_block
+  L: 20.0
+  W: 20.0
+  H: 10.0
+  seed_size: 2.0
+
+material:
+  name: AluminumBlock
+  E: 70000.0
+  nu: 0.33
+  density: 2.7e-9   # t/mm^3
+
+analysis:
+  solver: explicit
+  step_type: Dynamic_Explicit
+  time_period: 1.0e-4    # seconds
+  cpus: 2
+  mp_mode: threads
+
+bc_load:
+  fixed_face: "z=0"
+  load_type:  displacement
+  value: -2.0
+  direction: 3
+
+outputs:
+  kpis:
+    - name: RF_Z_MAX
+      type: reaction_force_max
+      location: fixed_face
+      component: RF3
+    - name: U_Z_MIN
+      type: field_min
+      location: top_face
+      component: U3

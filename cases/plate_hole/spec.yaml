@@ -1,0 +1,42 @@
+meta:
+  abaqus_release: "2024"
+  model_name: "PlateWithHole"
+  units: "mm_MPa_t"
+  description: "2D plane-stress plate with central hole under uniaxial tension"
+
+geometry:
+  type: plate_with_hole
+  L: 100.0   # mm - half length (symmetry)
+  W: 50.0    # mm - half width (symmetry)
+  R: 10.0    # mm - hole radius
+  seed_size: 3.0
+
+material:
+  name: Steel
+  E: 210000.0
+  nu: 0.3
+
+analysis:
+  solver: standard
+  step_type: Static
+  cpus: 2
+
+bc_load:
+  fixed_face: "x=0_symmetry"
+  load_face:  "x=L"
+  load_type:  pressure
+  value: -100.0   # MPa tension
+
+outputs:
+  kpis:
+    - name: MISES_HOLE_EDGE
+      type: field_max
+      location: hole_edge_set
+    - name: U_X_MAX
+      type: field_max
+      location: whole_model
+      component: U1
+    - name: SCF
+      type: derived_stress_concentration
+      location: hole_edge_set
+      note: "Kt = MISES_HOLE_EDGE / nominal_stress; analytical ~3.0 for R/W=0.2"
