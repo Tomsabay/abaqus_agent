@@ -31,7 +31,11 @@
             "cantilever_block",
             "plate_with_hole",
             "axisymmetric_disk",
-            "custom_inp"
+            "custom_inp",
+            "shell_plate",
+            "beam_frame",
+            "composite_plate",
+            "cohesive_layer"
           ]
         },
         "L": { "type": "number", "exclusiveMinimum": 0 },
@@ -39,7 +43,57 @@
         "H": { "type": "number", "exclusiveMinimum": 0 },
         "R": { "type": "number", "exclusiveMinimum": 0 },
         "seed_size": { "type": "number", "exclusiveMinimum": 0 },
-        "inp_path": { "type": "string" }
+        "inp_path": { "type": "string" },
+        "thickness": { "type": "number", "exclusiveMinimum": 0 },
+        "profile": {
+          "type": "object",
+          "description": "Beam cross-section profile (premium: beam_frame)",
+          "properties": {
+            "type": { "type": "string", "enum": ["rectangular", "circular", "I_beam", "pipe"] },
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 },
+            "radius": { "type": "number", "exclusiveMinimum": 0 },
+            "flange_width": { "type": "number", "exclusiveMinimum": 0 },
+            "flange_thickness": { "type": "number", "exclusiveMinimum": 0 },
+            "web_thickness": { "type": "number", "exclusiveMinimum": 0 },
+            "wall_thickness": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "layup": {
+          "type": "array",
+          "description": "Composite layup definition (premium: composite_plate)",
+          "items": {
+            "type": "object",
+            "required": ["material", "thickness", "orientation"],
+            "properties": {
+              "material": { "type": "string" },
+              "thickness": { "type": "number", "exclusiveMinimum": 0 },
+              "orientation": { "type": "number" }
+            }
+          }
+        },
+        "cohesive_thickness": { "type": "number", "exclusiveMinimum": 0 },
+        "num_segments": { "type": "integer", "minimum": 2 },
+        "points": {
+          "type": "array",
+          "description": "Beam frame node coordinates",
+          "items": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 3
+          }
+        },
+        "connections": {
+          "type": "array",
+          "description": "Beam frame element connectivity",
+          "items": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
       }
     },
     "material": {
@@ -50,9 +104,33 @@
         "E":       { "type": "number", "exclusiveMinimum": 0 },
         "nu":      { "type": "number", "minimum": 0, "exclusiveMaximum": 0.5 },
         "density": { "type": "number", "exclusiveMinimum": 0 },
-        "yield_stress": { "type": "number", "exclusiveMinimum": 0 }
+        "yield_stress": { "type": "number", "exclusiveMinimum": 0 },
+        "conductivity":   { "type": "number", "exclusiveMinimum": 0, "description": "Thermal conductivity (premium: coupling)" },
+        "specific_heat":  { "type": "number", "exclusiveMinimum": 0, "description": "Specific heat (premium: coupling)" },
+        "expansion_coeff": { "type": "number", "description": "Thermal expansion coefficient (premium: coupling)" },
+        "electrical_conductivity": { "type": "number", "exclusiveMinimum": 0, "description": "Electrical conductivity (premium: coupling)" },
+        "fracture_energy": { "type": "number", "exclusiveMinimum": 0, "description": "Fracture energy Gc (premium: cohesive)" },
+        "max_traction": { "type": "number", "exclusiveMinimum": 0, "description": "Max traction for cohesive (premium: cohesive)" }
       },
       "additionalProperties": false
+    },
+    "materials": {
+      "type": "array",
+      "description": "Multiple materials for composite layup (premium: composite_plate)",
+      "items": {
+        "type": "object",
+        "required": ["name", "E", "nu"],
+        "properties": {
+          "name": { "type": "string" },
+          "E":    { "type": "number", "exclusiveMinimum": 0 },
+          "E1":   { "type": "number", "exclusiveMinimum": 0, "description": "Longitudinal modulus" },
+          "E2":   { "type": "number", "exclusiveMinimum": 0, "description": "Transverse modulus" },
+          "G12":  { "type": "number", "exclusiveMinimum": 0, "description": "Shear modulus" },
+          "nu":   { "type": "number", "minimum": 0, "exclusiveMaximum": 0.5 },
+          "nu12": { "type": "number", "minimum": 0, "exclusiveMaximum": 0.5 },
+          "density": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
     },
     "analysis": {
       "type": "object",
@@ -64,13 +142,32 @@
         },
         "step_type": {
           "type": "string",
-          "enum": ["Static", "Frequency", "Dynamic_Explicit", "Dynamic_Implicit"]
+          "enum": [
+            "Static", "Frequency", "Dynamic_Explicit", "Dynamic_Implicit",
+            "Coupled_Temperature_Displacement", "Coupled_Thermal_Electrical"
+          ]
         },
         "cpus":      { "type": "integer", "minimum": 1, "default": 1 },
         "mp_mode":   { "type": "string", "enum": ["threads", "mpi"], "default": "threads" },
         "memory":    { "type": "string", "default": "90%" },
         "time_period": { "type": "number", "exclusiveMinimum": 0 },
-        "num_eigenmodes": { "type": "integer", "minimum": 1 }
+        "num_eigenmodes": { "type": "integer", "minimum": 1 },
+        "nlgeom": { "type": "boolean", "default": false },
+        "initial_temperature": { "type": "number", "description": "Initial temperature for coupled analysis (premium: coupling)" },
+        "steady_state": { "type": "boolean", "description": "Steady-state coupled analysis (premium: coupling)" },
+        "adaptive_mesh": {
+          "type": "object",
+          "description": "Adaptive mesh controls (premium: adaptivity)",
+          "properties": {
+            "enabled":     { "type": "boolean", "default": false },
+            "method":      { "type": "string", "enum": ["ale", "remesh"], "default": "ale" },
+            "frequency":   { "type": "integer", "minimum": 1, "default": 10 },
+            "smoothing":   { "type": "string", "enum": ["volume", "laplacian", "equipotential"], "default": "volume" },
+            "error_target": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+            "max_iterations": { "type": "integer", "minimum": 1, "default": 3 }
+          }
+        },
+        "max_retries": { "type": "integer", "minimum": 0, "maximum": 5, "default": 0, "description": "Auto-repair retry count (premium: autorepair)" }
       },
       "additionalProperties": false
     },
@@ -79,9 +176,20 @@
       "properties": {
         "fixed_face":  { "type": "string" },
         "load_face":   { "type": "string" },
-        "load_type":   { "type": "string", "enum": ["pressure", "concentrated_force", "displacement"] },
+        "load_type":   { "type": "string", "enum": ["pressure", "concentrated_force", "displacement", "temperature", "heat_flux", "body_heat_flux"] },
         "value":       { "type": "number" },
-        "direction":   { "type": "integer", "enum": [1, 2, 3] }
+        "direction":   { "type": "integer", "enum": [1, 2, 3] },
+        "thermal_bc": {
+          "type": "object",
+          "description": "Thermal boundary conditions (premium: coupling)",
+          "properties": {
+            "type": { "type": "string", "enum": ["temperature", "heat_flux", "convection", "radiation"] },
+            "face": { "type": "string" },
+            "value": { "type": "number" },
+            "film_coeff": { "type": "number", "exclusiveMinimum": 0 },
+            "sink_temperature": { "type": "number" }
+          }
+        }
       }
     },
     "outputs": {
@@ -102,6 +210,33 @@
             }
           }
         }
+      }
+    },
+    "parametric": {
+      "type": "object",
+      "description": "Parametric sweep configuration (premium: parametric)",
+      "properties": {
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "values"],
+            "properties": {
+              "path":   { "type": "string", "description": "Dot-notation path to parameter, e.g. geometry.L" },
+              "values": { "type": "array", "items": { "type": "number" } },
+              "min":    { "type": "number" },
+              "max":    { "type": "number" },
+              "steps":  { "type": "integer", "minimum": 2 }
+            }
+          }
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["full_factorial", "latin_hypercube", "sobol", "one_at_a_time"],
+          "default": "full_factorial"
+        },
+        "n_samples": { "type": "integer", "minimum": 1 },
+        "max_parallel": { "type": "integer", "minimum": 1, "default": 4 }
       }
     }
   },

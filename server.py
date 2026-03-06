@@ -459,6 +459,41 @@ def _compare_kpis(actual: dict, run_id: str) -> dict:
     return {"passed": True, "comparisons": comparisons}
 
 
+# ── Premium feature endpoints ─────────────────────────────────────
+
+@app.get("/api/premium/features")
+def get_premium_features():
+    """Return status of all premium features."""
+    try:
+        from premium.licensing import feature_gate, PREMIUM_FEATURES
+        from premium.feature_registry import list_premium_capabilities
+        return {
+            "features": {
+                name: {
+                    "display_name": PREMIUM_FEATURES[name],
+                    "enabled": feature_gate.is_enabled(name),
+                }
+                for name in PREMIUM_FEATURES
+            },
+            "capabilities": list_premium_capabilities(),
+        }
+    except ImportError:
+        return {"features": {}, "capabilities": {}, "error": "Premium module not available"}
+
+
+@app.post("/api/premium/activate")
+def activate_premium(license_key: str = ""):
+    """Activate premium features with a license key."""
+    try:
+        from premium.licensing import feature_gate
+        if license_key:
+            valid = feature_gate.set_license_key(license_key)
+            return {"valid": valid, "features": feature_gate.enabled_features()}
+        return {"valid": False, "error": "No license key provided"}
+    except ImportError:
+        return {"valid": False, "error": "Premium module not available"}
+
+
 # ── Utility ───────────────────────────────────────────────────────
 
 def _check_abaqus() -> bool:

@@ -99,34 +99,131 @@ class AbaqusOrchestrator:
 
     def run(self) -> dict:
         """Execute the full pipeline. Returns final result dict."""
-        try:
-            self._stage_validate()
-            build_result = self._stage_build()
-            inp_path = build_result["inp_path"]
+        # Check for parametric sweep (premium)
+        if self._is_parametric():
+            return self._run_parametric()
 
-            if self.runner_cfg.get("syntaxcheck_first", True):
-                self._stage_syntaxcheck(inp_path, build_result["workdir"])
+        max_retries = self.spec.get("analysis", {}).get("max_retries", 0)
+        attempt = 0
 
-            submit_result = self._stage_submit(inp_path, build_result["workdir"])
-            self._stage_monitor(submit_result)
+        while attempt <= max_retries:
+            try:
+                self._stage_validate()
+                build_result = self._stage_build()
+                inp_path = build_result["inp_path"]
 
-            odb_path = build_result["workdir"] / f"{self.spec['meta']['model_name']}.odb"
-            kpi_result = self._stage_extract(odb_path)
+                if self.runner_cfg.get("syntaxcheck_first", True):
+                    self._stage_syntaxcheck(inp_path, build_result["workdir"])
 
-            if self.expected:
-                self._stage_compare(kpi_result.get("kpis", {}))
+                submit_result = self._stage_submit(inp_path, build_result["workdir"])
+                self._stage_monitor(submit_result)
 
-            self.result["status"] = "COMPLETED"
-        except AbaqusAgentError as e:
-            self.result["status"] = "FAILED"
-            self.result["error"] = e.to_dict()
-        except Exception as e:
-            self.result["status"] = "ERROR"
-            self.result["error"] = {"error_code": "UNKNOWN", "message": str(e)}
+                odb_path = build_result["workdir"] / f"{self.spec['meta']['model_name']}.odb"
+                kpi_result = self._stage_extract(odb_path)
+
+                if self.expected:
+                    self._stage_compare(kpi_result.get("kpis", {}))
+
+                self.result["status"] = "COMPLETED"
+                if attempt > 0:
+                    self.result["autorepair"] = {"attempts": attempt, "repaired": True}
+                break
+
+            except AbaqusAgentError as e:
+                # Try auto-repair if retries remain (premium)
+                if attempt < max_retries and self._try_autorepair(e, attempt, max_retries):
+                    attempt += 1
+                    self.on_progress("autorepair", {"attempt": attempt, "max": max_retries})
+                    continue
+
+                self.result["status"] = "FAILED"
+                self.result["error"] = e.to_dict()
+                break
+            except Exception as e:
+                self.result["status"] = "ERROR"
+                self.result["error"] = {"error_code": "UNKNOWN", "message": str(e)}
+                break
 
         self.result["finished_at"] = datetime.now().isoformat()
         self._save_result()
         return self.result
+
+    def _is_parametric(self) -> bool:
+        """Check if this spec has a parametric sweep configuration."""
+        parametric = self.spec.get("parametric")
+        return bool(parametric and parametric.get("parameters"))
+
+    def _run_parametric(self) -> dict:
+        """Run parametric sweep (premium feature)."""
+        try:
+            from premium.licensing import feature_gate
+            feature_gate.require("parametric")
+            from premium.parametric.sweep_engine import run_sweep
+            from premium.parametric.aggregator import save_report
+        except ImportError:
+            self.result["status"] = "FAILED"
+            self.result["error"] = {"error_code": "PREMIUM_FEATURE_REQUIRED",
+                                     "message": "Parametric sweep requires premium license"}
+            self._save_result()
+            return self.result
+
+        self.on_progress("parametric_sweep", {"status": "starting"})
+        workdir = self.workdir or self.spec_path.parent / "runs" / "parametric"
+
+        def sweep_progress(idx, total, status, data):
+            self.on_progress("parametric_sweep", {
+                "index": idx, "total": total, "status": status})
+
+        sweep_result = run_sweep(
+            self.spec,
+            workdir=workdir,
+            max_parallel=self.spec.get("parametric", {}).get("max_parallel", 4),
+            on_progress=sweep_progress,
+        )
+
+        save_report(sweep_result, workdir)
+
+        self.result["status"] = "COMPLETED"
+        self.result["parametric"] = sweep_result.get("summary", {})
+        self.result["kpis"] = sweep_result.get("summary", {}).get("kpi_statistics", {})
+        self.result["finished_at"] = datetime.now().isoformat()
+        self._save_result()
+        return self.result
+
+    def _try_autorepair(self, error: AbaqusAgentError, attempt: int, max_retries: int) -> bool:
+        """Attempt auto-repair of a failed job (premium feature)."""
+        try:
+            from premium.licensing import feature_gate
+            if not feature_gate.is_enabled("autorepair"):
+                return False
+            from premium.autorepair.retry_loop import autorepair_hook
+        except ImportError:
+            return False
+
+        context = {
+            "spec": self.spec,
+            "workdir": self.workdir,
+            "job_name": self.spec.get("meta", {}).get("model_name", ""),
+            "error": error,
+            "attempt": attempt,
+            "max_retries": max_retries,
+        }
+
+        context = autorepair_hook(context)
+
+        if context.get("should_retry") and context.get("repaired_spec"):
+            self.spec = context["repaired_spec"]
+            self.result["stages"]["autorepair"] = context.get("diagnosis", {})
+
+            # Clear cached .inp for rebuild
+            if self.workdir:
+                model_name = self.spec.get("meta", {}).get("model_name", "")
+                inp = Path(self.workdir) / f"{model_name}.inp"
+                if inp.exists():
+                    inp.unlink()
+            return True
+
+        return False
 
     # -------------------------------------------------------------------------
     # Pipeline stages
