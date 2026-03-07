@@ -4,14 +4,13 @@
 
 `abaqus_agent` 项目代码已全部完成，包括：
 - 7 阶段 FEA 管线、MCP 架构、5 个 Premium 功能、Web 前端、API
-- 打包配置 `pyproject.toml`（hatchling 构建，包名 `abaqus-agent`，版本 `0.1.0`）
-- CI/CD：`ci.yml`（测试 + lint）、`publish.yml`（tag 触发自动发 PyPI）
+- CI/CD：`ci.yml`（测试 + lint）
 - Docker、Makefile、社区模板、CHANGELOG、CONTRIBUTING 全部就位
 - 本地已有 `v0.1.0` tag
 
 **当前状态**：代码在 `main` 分支（remote），本地在 `claude/research-llm-simulation-3a3GX` 分支。所有代码文件已提交，工作区干净。
 
-**目标**：将项目正式发布到 GitHub + PyPI，让用户可以 `pip install abaqus-agent`。
+**目标**：将项目正式发布到 GitHub，创建 Release，让别人能找到和使用这个项目。
 
 ---
 
@@ -33,52 +32,54 @@ pytest tests/ -v
 
 # 跑 lint
 ruff check .
-
-# 试构建包
-pip install build
-python -m build
-
-# 确认 dist/ 下有 .whl 和 .tar.gz
-ls dist/
 ```
 
-**检查点**：测试全通过、lint 无报错、dist/ 下有两个文件。如果有失败，先修再继续。
+**检查点**：测试全通过、lint 无报错。如果有失败，先修再继续。
 
 ---
 
-### Step 2: 确认 GitHub 仓库设置
-
-在浏览器打开 https://github.com/Tomsabay/abaqus_agent 或用 `gh` CLI：
+### Step 2: 设置 GitHub 仓库描述和 Topics
 
 ```bash
-# 确认仓库存在且可推送
-gh repo view Tomsabay/abaqus_agent
-
-# 设置仓库描述和话题标签
+# 设置仓库描述
 gh repo edit Tomsabay/abaqus_agent \
-  --description "LLM-powered automation agent for Abaqus FEA — natural language to simulation results" \
-  --add-topic abaqus,fea,simulation,llm,automation,mcp,fastapi,python
+  --description "LLM-powered automation agent for Abaqus FEA — Natural language → CAE model → Solver → KPI report"
+
+# 添加话题标签（让别人搜 abaqus topic 时能找到）
+gh repo edit Tomsabay/abaqus_agent \
+  --add-topic abaqus,llm,abaqus-python-script,finite-element-analysis,ai-agent,cae,fea
 ```
+
+如果 `gh` 没有装，也可以手动操作：
+1. 打开 https://github.com/Tomsabay/abaqus_agent/settings
+2. 在 "About" 区域填写 Description
+3. 在 "Topics" 区域添加标签
 
 ---
 
-### Step 3: 配置 PyPI Trusted Publisher（关键步骤！）
+### Step 3: 截取 Dashboard 截图（提升 README 视觉冲击力）
 
-**这一步必须在 PyPI 网站上手动操作，龙虾无法自动完成，需要人工操作。**
+```bash
+# 1. 启动服务
+python server.py
 
-1. 登录 https://pypi.org/manage/account/publishing/
-2. 点击 "Add a new pending publisher"
-3. 填写：
-   - PyPI Project Name: `abaqus-agent`
-   - Owner: `Tomsabay`
-   - Repository name: `abaqus_agent`
-   - Workflow name: `publish.yml`
-   - Environment name: 留空
-4. 提交
+# 2. 浏览器打开 http://localhost:8000
 
-**为什么**：`publish.yml` 使用 OIDC trusted publisher（无需 API token），但必须先在 PyPI 注册这个仓库的发布权限。
+# 3. 加载 cantilever case，跑一遍流水线
 
-> **如果你（Tom）还没有 PyPI 账号**：先去 https://pypi.org/account/register/ 注册一个，开启 2FA。
+# 4. 截图（推荐包含：深色主题 + YAML 编辑器 + KPI 图表 + 实时日志）
+#    - macOS: Cmd+Shift+4
+#    - Windows: Win+Shift+S
+#    - 如果要录 GIF：用 LICEcap、Kap 或 gifcap
+
+# 5. 保存截图到 docs/assets/dashboard.png
+
+# 6. 更新 README.md，把 ASCII 示意图替换为：
+#    ![Dashboard](docs/assets/dashboard.png)
+#
+#    找到 README 中 "## Dashboard Preview" 部分，
+#    删掉 ASCII 框图和 HTML 注释，替换为上面的图片引用
+```
 
 ---
 
@@ -94,53 +95,33 @@ git log --oneline -5
 # 如果 main 分支落后于 claude/* 分支，需要合并：
 git merge claude/research-llm-simulation-3a3GX --no-edit
 
+# 提交截图（如果 Step 3 做了的话）
+git add docs/assets/dashboard.png README.md
+git commit -m "docs: add dashboard screenshot to README"
+
 # 推送到 GitHub
 git push origin main
 ```
 
 ---
 
-### Step 5: 推送 v0.1.0 Tag 触发 PyPI 发布
+### Step 5: 创建并推送 v0.1.0 Tag
 
 ```bash
-# 确认 tag 存在
+# 确认 tag 状态
 git tag -l
 
 # 如果 v0.1.0 tag 已存在但指向旧 commit，需要重建：
 git tag -d v0.1.0
 git tag -a v0.1.0 -m "Release v0.1.0 — LLM-powered Abaqus FEA automation"
 
-# 推送 tag 到 GitHub（这会触发 publish.yml 自动发布到 PyPI）
+# 推送 tag 到 GitHub
 git push origin v0.1.0
 ```
 
-**检查点**：推送后去 GitHub Actions 页面确认 `Publish to PyPI` workflow 运行成功。
-
-```bash
-# 用 CLI 查看 workflow 状态
-gh run list --workflow=publish.yml --limit=1
-# 等几分钟，查看详情
-gh run view <run-id>
-```
-
 ---
 
-### Step 6: 验证 PyPI 发布成功
-
-```bash
-# 等 5 分钟后检查
-pip install abaqus-agent==0.1.0
-
-# 验证安装成功
-abaqus-agent --help 2>/dev/null || python -c "import server; print('OK')"
-
-# 查看 PyPI 页面
-# https://pypi.org/project/abaqus-agent/
-```
-
----
-
-### Step 7: 创建 GitHub Release
+### Step 6: 创建 GitHub Release
 
 ```bash
 gh release create v0.1.0 \
@@ -160,49 +141,39 @@ First public release of **abaqus-agent** — an LLM-powered automation agent for
 - **Safety**: AST-based static guard + schema validation + Abaqus syntaxcheck gate
 - **5 premium features**: parametric sweeps, mesh adaptivity, multi-physics coupling, extended geometry, auto-repair
 
-### Install
-\`\`\`bash
-pip install abaqus-agent          # core
-pip install abaqus-agent[llm]     # + LLM backends
-pip install abaqus-agent[mcp]     # + MCP server
-pip install abaqus-agent[all]     # everything
-\`\`\`
-
-### Quick Start
-\`\`\`bash
-abaqus-agent                      # start web server on port 8000
-pytest tests/ -v                  # run test suite
-python run_benchmark.py --dry-run # validate benchmark specs
-\`\`\`
-EOF
-)" \
-  --latest \
-  dist/*
+### Install from source
+```bash
+git clone https://github.com/Tomsabay/abaqus_agent.git
+cd abaqus_agent
+pip install -e ".[all]"
+abaqus-agent  # start web server on port 8000
 ```
 
-这条命令会：
-- 创建 GitHub Release 页面
-- 附带构建产物（.whl 和 .tar.gz）
-- 标记为最新版本
+### Docker
+```bash
+docker compose up -d
+# API at http://localhost:8000
+```
+EOF
+)" \
+  --latest
+```
 
 ---
 
-### Step 8: 验证一切正常
+### Step 7: 验证一切正常
 
 ```bash
-# 1. PyPI 页面可访问
-# https://pypi.org/project/abaqus-agent/0.1.0/
-
-# 2. GitHub Release 页面可访问
+# 1. GitHub Release 页面可访问
 gh release view v0.1.0
 
-# 3. pip install 可用
-pip install abaqus-agent --upgrade
-
-# 4. CI 绿色
+# 2. CI 绿色
 gh run list --workflow=ci.yml --limit=1
 
-# 5. Docker 构建可用（可选）
+# 3. 仓库描述和 Topics 正确显示
+gh repo view Tomsabay/abaqus_agent
+
+# 4. Docker 构建可用（可选）
 docker build -t abaqus-agent .
 docker run --rm -p 8000:8000 abaqus-agent
 ```
@@ -213,26 +184,12 @@ docker run --rm -p 8000:8000 abaqus-agent
 
 | 问题 | 解决方案 |
 |------|---------|
-| `publish.yml` 失败报 "trusted publisher not found" | Step 3 没做或填错了，去 PyPI 重新配置 |
-| `publish.yml` 失败报 "project already exists" | 包名被占用，需改 `pyproject.toml` 中的 `name` |
 | `pytest` 有测试失败 | 先修测试再发布，不要带着失败发布 |
 | `ruff check` 报错 | `ruff check . --fix` 自动修复，然后重新 commit |
-| `git push origin v0.1.0` 被拒 | 检查是否有 branch protection rules，或 token 权限不足 |
+| `git push origin main` 被拒 | 检查 token 权限，或先 `git pull origin main --rebase` |
+| `gh` 命令不存在 | `brew install gh`（macOS）或 `apt install gh`（Ubuntu） |
+| `gh release create` 报错 "tag already exists" | tag 已推但没建 release，去掉 tag 参数直接建 |
 | Docker build 失败 | 检查 `requirements.txt` 和 `Dockerfile`，确保依赖版本正确 |
-
----
-
-## 文件路径参考
-
-| 文件 | 用途 |
-|------|------|
-| `/home/user/abaqus_agent/pyproject.toml` | 包名、版本、依赖 |
-| `/home/user/abaqus_agent/.github/workflows/publish.yml` | PyPI 自动发布 |
-| `/home/user/abaqus_agent/.github/workflows/ci.yml` | 测试 + lint |
-| `/home/user/abaqus_agent/CHANGELOG.md` | 版本日志 |
-| `/home/user/abaqus_agent/Dockerfile` | Docker 构建 |
-| `/home/user/abaqus_agent/Makefile` | 快捷命令 |
-| `/home/user/abaqus_agent/server.py` | CLI 入口 `abaqus-agent` |
 
 ---
 
@@ -241,8 +198,8 @@ docker run --rm -p 8000:8000 abaqus-agent
 如果一切顺利，核心操作就 4 步：
 
 1. `pytest tests/ -v && ruff check .` — 验证代码
-2. **人工去 PyPI 配 Trusted Publisher**（Step 3）
-3. `git push origin main && git push origin v0.1.0` — 触发发布
+2. `gh repo edit ...` — 设置仓库描述和 Topics
+3. `git push origin main && git push origin v0.1.0` — 推送代码和 tag
 4. `gh release create v0.1.0 ...` — 创建 GitHub Release
 
-其他都是验证和善后。
+截图是加分项，有时间就做，没时间先跳过（README 里有 ASCII 示意图兜底）。
