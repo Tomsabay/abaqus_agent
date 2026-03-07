@@ -477,14 +477,16 @@ html, body {
   font-size: 10px;
   color: var(--text2);
   line-height: 1.6;
-  max-height: 80px;
+  max-height: 160px;
   overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .log-line { white-space: pre; }
 .log-ok { color: var(--green); }
 .log-warn { color: var(--yellow); }
-.log-err { color: var(--red); }
+.log-err, .log-error { color: var(--red); }
 .log-info { color: var(--blue); }
 
 /* ── Pipeline summary bar ───────────────────────────────────────── */
@@ -1873,8 +1875,11 @@ function renderPipeline() {
   const container = document.getElementById('pipeline-stages');
   document.getElementById('pipeline-empty').style.display = 'none';
 
+  // Include dynamic stages from real Abaqus (e.g., autorepair, compare_kpis)
+  const allStages = [...STAGES, ...(state._dynamicStages || [])];
+
   container.innerHTML = '';
-  STAGES.forEach((stage, idx) => {
+  allStages.forEach((stage, idx) => {
     const s = state.stageResults[stage.id] || {};
     const statusClass = s.status || 'pending';
     const timeStr = s.elapsed ? `${s.elapsed}ms` : '';
@@ -1975,17 +1980,29 @@ function _applyRunUpdate(data, stageBadge) {
   const stages = data.stages || {};
   let done = 0;
   Object.entries(stages).forEach(([id, s]) => {
-    const logs = (s.logs || []).map(l =>
-      `<span class="log-${l.level||'info'}">${l.text}</span>`).join('\n');
+    const logs = (s.logs || []).map(l => {
+      const lvl = l.level || 'info';
+      const escaped = (l.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<span class="log-${lvl}">${escaped}</span>`;
+    }).join('\n');
     state.stageResults[id] = { status: s.status, log: logs, elapsed: s.elapsed_ms };
     if (s.status === 'done') done++;
   });
-  stageBadge.textContent = `${done}/${STAGES.length}`;
+
+  // Handle dynamic stages from real Abaqus (e.g., autorepair)
+  const dynamicStageIds = Object.keys(stages).filter(
+    id => !STAGES.find(s => s.id === id)
+  );
+  state._dynamicStages = dynamicStageIds.map(id => ({
+    id, label: id, desc: stages[id].desc || id
+  }));
+
+  stageBadge.textContent = `${done}/${STAGES.length + dynamicStageIds.length}`;
   renderPipeline();
 
   if (data.status === 'COMPLETED') {
     setProgress(100);
-    state.kpis = _flattenKpis(data.kpis || {});
+    state.kpis = _flattenKpis(data.kpis || {}, data.regression || {});
     renderKPIs();
     toast('运行完成 ✓', 'ok');
     _addHistory({
@@ -2011,13 +2028,20 @@ function _applyRunUpdate(data, stageBadge) {
   }
 }
 
-function _flattenKpis(kpisObj) {
-  return Object.entries(kpisObj).map(([name, v]) => ({
-    name,
-    value: typeof v === 'object' ? v.value : v,
-    unit: typeof v === 'object' ? (v.unit || '—') : '—',
-    expected: null, rtol: 0.10, type: 'field'
-  }));
+function _flattenKpis(kpisObj, regression) {
+  const comparisons = (regression && regression.comparisons) || {};
+  return Object.entries(kpisObj).map(([name, v]) => {
+    const comp = comparisons[name] || {};
+    return {
+      name,
+      value: typeof v === 'object' ? v.value : v,
+      unit: typeof v === 'object' ? (v.unit || '—') : (comp.unit || '—'),
+      expected: comp.expected != null ? comp.expected : null,
+      rtol: comp.rtol != null ? comp.rtol : 0.10,
+      type: 'field',
+      regStatus: comp.status || null,
+    };
+  });
 }
 
 async function _simulatedRun(specYaml, stageBadge) {
