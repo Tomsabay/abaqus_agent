@@ -1,8 +1,10 @@
 """
 core/pipeline.py
 ----------------
-Pipeline execution logic extracted from server.py.
-Shared between FastAPI server and MCP server.
+Pipeline execution logic shared between FastAPI server and MCP server.
+
+When Abaqus is available: uses the real AbaqusOrchestrator (runner/ + post/).
+When Abaqus is not available: falls back to simulated stages.
 """
 from __future__ import annotations
 
@@ -64,6 +66,10 @@ STAGE_LOGS = {
     ],
 }
 
+# ── Stage descriptions for progress display ───────────────────────
+
+STAGE_DESCS = {s[0]: s[1] for s in STAGES}
+
 
 def simulate_stage(stage_id: str, model: str, release: str,
                    solver: str, run_id: str) -> dict:
@@ -78,16 +84,138 @@ def simulate_stage(stage_id: str, model: str, release: str,
     return {"status": "done", "logs": logs, "elapsed_ms": random.randint(200, 1500)}
 
 
-async def run_stage_real(stage_id: str, run: dict) -> dict:
-    """Attempt real Abaqus execution for a stage."""
-    return simulate_stage(
-        stage_id,
-        run["spec"].get("meta", {}).get("model_name", "Model"),
-        run["spec"].get("meta", {}).get("abaqus_release", "2024"),
-        run["spec"].get("analysis", {}).get("solver", "standard"),
-        run["run_id"],
+# ── Real Abaqus pipeline (via orchestrator) ───────────────────────
+
+async def _run_pipeline_real(
+    run_id: str,
+    runs: dict,
+    on_stage_update: Callable[[str, dict], Awaitable[None]] | None = None,
+) -> None:
+    """Run the real Abaqus pipeline using AbaqusOrchestrator."""
+    from agent.orchestrator import AbaqusOrchestrator
+
+    run = runs[run_id]
+    run["status"] = "RUNNING"
+    spec = run["spec"]
+    runner_cfg = run.get("runner_cfg", {})
+
+    # Map orchestrator stages to pipeline stage IDs
+    _STAGE_ORDER = [
+        "validate_spec", "build_model", "syntaxcheck",
+        "submit_job", "monitor_job", "extract_kpis",
+    ]
+
+    def _on_progress(stage: str, data: dict):
+        """Sync callback from orchestrator → update run state."""
+        desc = STAGE_DESCS.get(stage, stage)
+        logs = []
+
+        # Convert orchestrator progress data to log entries
+        if isinstance(data, dict):
+            for key, val in data.items():
+                if key == "ok" and val:
+                    logs.append({"level": "ok", "text": f"✓ {stage} 完成"})
+                elif key == "inp":
+                    logs.append({"level": "ok", "text": f"INP_WRITTEN: {val}"})
+                elif key == "warnings":
+                    logs.append({"level": "warn", "text": f"⚠ {val} warnings"})
+                elif key == "status":
+                    logs.append({"level": "info", "text": f"status: {val}"})
+                elif key == "kpis":
+                    for kname, kval in val.items():
+                        logs.append({"level": "ok", "text": f"  {kname} = {kval}"})
+                elif key == "passed":
+                    level = "ok" if val else "error"
+                    logs.append({"level": level, "text": f"regression: {'PASS' if val else 'FAIL'}"})
+                elif key not in ("attempt", "max", "index", "total"):
+                    logs.append({"level": "info", "text": f"{key}: {val}"})
+
+        if not logs:
+            logs = [{"level": "info", "text": f"{stage}: {data}" if data else f"{stage}..."}]
+
+        # Determine progress percentage
+        if stage in _STAGE_ORDER:
+            idx = _STAGE_ORDER.index(stage)
+            run["progress_pct"] = round((idx + 1) / len(_STAGE_ORDER) * 100)
+        elif stage == "autorepair":
+            pass  # keep current progress
+        elif stage == "compare_kpis":
+            run["progress_pct"] = 100
+
+        # Update stage status
+        existing = run["stages"].get(stage, {"status": "running", "desc": desc, "logs": []})
+        existing_logs = existing.get("logs", [])
+        existing_logs.extend(logs)
+
+        run["stages"][stage] = {
+            "status": "done" if data.get("ok") or data.get("passed") is not None or
+                      data.get("inp") or data.get("kpis") or data.get("status") == "completed"
+                      else "running",
+            "desc": desc,
+            "logs": existing_logs,
+        }
+
+    # Set initial running state for all stages
+    for stage_id, desc, _, _ in STAGES:
+        run["stages"][stage_id] = {"status": "pending", "desc": desc, "logs": []}
+
+    if on_stage_update:
+        await on_stage_update("start", _run_snapshot(run))
+
+    # Run orchestrator in thread pool (it's synchronous)
+    loop = asyncio.get_event_loop()
+    orch = AbaqusOrchestrator(
+        spec_dict=spec,
+        runner_cfg=runner_cfg,
+        on_progress=_on_progress,
     )
 
+    try:
+        result = await loop.run_in_executor(None, orch.run)
+    except Exception as e:
+        run["status"] = "FAILED"
+        run["finished_at"] = time.time()
+        run["stages"]["submit_job"] = {
+            "status": "error",
+            "desc": STAGE_DESCS.get("submit_job", ""),
+            "logs": [{"level": "error", "text": str(e)}],
+        }
+        if on_stage_update:
+            await on_stage_update("error", _run_snapshot(run))
+        return
+
+    # Map orchestrator result back to run state
+    run["status"] = result.get("status", "FAILED")
+    run["kpis"] = result.get("kpis", {})
+    run["regression"] = result.get("regression", {})
+    run["finished_at"] = time.time()
+    run["progress_pct"] = 100 if run["status"] == "COMPLETED" else run.get("progress_pct", 0)
+
+    # Mark all completed stages
+    if run["status"] == "COMPLETED":
+        for stage_id in _STAGE_ORDER:
+            if stage_id in run["stages"]:
+                run["stages"][stage_id]["status"] = "done"
+
+    if result.get("error"):
+        error_info = result["error"]
+        # Find the failing stage and mark it
+        error_stage = None
+        for s in reversed(_STAGE_ORDER):
+            if s in run["stages"] and run["stages"][s]["status"] == "running":
+                error_stage = s
+                break
+        if error_stage:
+            run["stages"][error_stage]["status"] = "error"
+            run["stages"][error_stage]["logs"].append(
+                {"level": "error", "text": error_info.get("message", str(error_info))}
+            )
+
+    if on_stage_update:
+        await on_stage_update("done", _run_snapshot(run))
+
+
+# ── Main pipeline entry point ─────────────────────────────────────
 
 async def run_pipeline(
     run_id: str,
@@ -95,14 +223,21 @@ async def run_pipeline(
     on_stage_update: Callable[[str, dict], Awaitable[None]] | None = None,
 ) -> None:
     """
-    Execute the Abaqus pipeline (simulation or real).
+    Execute the Abaqus pipeline.
+
+    When Abaqus is available: calls the real AbaqusOrchestrator.
+    When not available: falls back to simulated stages.
 
     Args:
         run_id: Run identifier
         runs: Shared runs dict (mutated in-place)
         on_stage_update: Optional async callback(stage_id, full_run_snapshot)
-                         called after each stage completes.
     """
+    if check_abaqus():
+        await _run_pipeline_real(run_id, runs, on_stage_update)
+        return
+
+    # ── Fallback: simulated pipeline ──────────────────────────────
     run = runs[run_id]
     run["status"] = "RUNNING"
     spec = run["spec"]
@@ -110,7 +245,6 @@ async def run_pipeline(
     release = spec.get("meta", {}).get("abaqus_release", "2024")
     solver = spec.get("analysis", {}).get("solver", "standard")
 
-    abaqus_available = check_abaqus()
     total = len(STAGES)
 
     for i, (stage_id, desc, dur_min, dur_max) in enumerate(STAGES):
@@ -122,10 +256,7 @@ async def run_pipeline(
 
         await asyncio.sleep(dur_min + random.random() * (dur_max - dur_min))
 
-        if abaqus_available:
-            result = await run_stage_real(stage_id, run)
-        else:
-            result = simulate_stage(stage_id, model, release, solver, run_id)
+        result = simulate_stage(stage_id, model, release, solver, run_id)
 
         run["stages"][stage_id] = {
             "status": result["status"],
@@ -160,6 +291,7 @@ def _run_snapshot(run: dict) -> dict:
         "progress_pct": run.get("progress_pct", 0),
         "stages": run.get("stages", {}),
         "kpis": run.get("kpis", {}),
+        "regression": run.get("regression", {}),
         "elapsed": time.time() - run.get("started_at", time.time()),
     }
 

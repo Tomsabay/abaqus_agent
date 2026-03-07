@@ -41,28 +41,37 @@ class AbaqusOrchestrator:
 
     Parameters
     ----------
-    spec_path       : Path to spec.yaml
+    spec_path       : Path to spec.yaml (or None if spec_dict provided)
     workdir         : Override working directory
     expected_path   : Path to expected.json for regression comparison
     runner_cfg_path : Path to runner.json (cpus, timeout, etc.)
     on_progress     : Optional callback(stage: str, data: dict)
+    spec_dict       : Spec dict directly (alternative to spec_path)
+    runner_cfg      : Runner config dict directly (alternative to runner_cfg_path)
     """
 
     def __init__(
         self,
-        spec_path: str | Path,
+        spec_path: str | Path | None = None,
         workdir: str | Path | None = None,
         expected_path: str | Path | None = None,
         runner_cfg_path: str | Path | None = None,
         on_progress: Callable[[str, dict], None] | None = None,
+        spec_dict: dict | None = None,
+        runner_cfg: dict | None = None,
     ):
-        self.spec_path    = Path(spec_path).resolve()
+        if spec_dict:
+            self.spec = spec_dict
+            self.spec_path = None
+        elif spec_path:
+            self.spec_path = Path(spec_path).resolve()
+            with open(self.spec_path, encoding="utf-8") as f:
+                self.spec = yaml.safe_load(f)
+        else:
+            raise ValueError("Either spec_path or spec_dict must be provided")
+
         self.workdir      = Path(workdir) if workdir else None
         self.on_progress  = on_progress or (lambda s, d: None)
-
-        # Load spec
-        with open(self.spec_path, encoding="utf-8") as f:
-            self.spec = yaml.safe_load(f)
 
         # Load runner config (with defaults)
         self.runner_cfg = {
@@ -73,7 +82,9 @@ class AbaqusOrchestrator:
             "allow_license_queue": False,
             "syntaxcheck_first": True,
         }
-        if runner_cfg_path:
+        if runner_cfg:
+            self.runner_cfg.update(runner_cfg)
+        elif runner_cfg_path:
             with open(runner_cfg_path, encoding="utf-8") as f:
                 self.runner_cfg.update(json.load(f))
 
@@ -85,7 +96,7 @@ class AbaqusOrchestrator:
 
         # Pipeline result accumulator
         self.result: dict = {
-            "spec_path": str(self.spec_path),
+            "spec_path": str(self.spec_path) if self.spec_path else None,
             "started_at": datetime.now().isoformat(),
             "stages": {},
             "kpis": {},
@@ -243,6 +254,17 @@ class AbaqusOrchestrator:
 
     def _stage_build(self) -> dict:
         self.on_progress("build_model", {})
+        # If no spec_path, write spec to workdir for build_model
+        if not self.spec_path:
+            if not self.workdir:
+                import tempfile
+                self.workdir = Path(tempfile.mkdtemp(prefix="abaqus_run_"))
+            self.workdir.mkdir(parents=True, exist_ok=True)
+            self.spec_path = self.workdir / "spec.yaml"
+            self.spec_path.write_text(
+                yaml.dump(self.spec, allow_unicode=True, default_flow_style=False),
+                encoding="utf-8",
+            )
         result = build_model(self.spec_path, self.workdir)
         self.result["stages"]["build_model"] = {k: str(v) for k, v in result.items()}
         self.workdir = result["workdir"]
