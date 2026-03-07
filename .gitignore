@@ -26,6 +26,11 @@ build/
 *.stt
 *.inp.bak
 
+# Coverage / test artifacts
+.coverage
+coverage.xml
+htmlcov/
+
 # Run artifacts
 cases/*/runs/
 reports/*.json
