@@ -26,11 +26,11 @@ from typing import Callable
 
 import yaml
 
-from runner.build_model import build_model
-from runner.syntaxcheck import syntaxcheck_inp
-from runner.submit_job import submit_job
-from runner.monitor_job import monitor_job, JobStatus
 from post.extract_kpis import extract_kpis
+from runner.build_model import build_model
+from runner.monitor_job import JobStatus, monitor_job
+from runner.submit_job import submit_job
+from runner.syntaxcheck import syntaxcheck_inp
 from tools.errors import AbaqusAgentError, ErrorCode
 from tools.schema_validator import validate_spec
 
@@ -169,8 +169,8 @@ class AbaqusOrchestrator:
         try:
             from premium.licensing import feature_gate
             feature_gate.require("parametric")
-            from premium.parametric.sweep_engine import run_sweep
             from premium.parametric.aggregator import save_report
+            from premium.parametric.sweep_engine import run_sweep
         except ImportError:
             self.result["status"] = "FAILED"
             self.result["error"] = {"error_code": "PREMIUM_FEATURE_REQUIRED",

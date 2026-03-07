@@ -43,12 +43,33 @@ Documentation = "https://github.com/Tomsabay/abaqus_agent#readme"
 Repository = "https://github.com/Tomsabay/abaqus_agent"
 Issues = "https://github.com/Tomsabay/abaqus_agent/issues"
 
+[tool.hatch.build.targets.wheel]
+packages = ["agent", "core", "post", "premium", "runner", "tools"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "agent/",
+    "core/",
+    "post/",
+    "premium/",
+    "runner/",
+    "tools/",
+    "schema/",
+    "server.py",
+    "mcp_server.py",
+    "mcp_bridge.py",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+]
+
 [tool.ruff]
 target-version = "py310"
-line-length = 100
+line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

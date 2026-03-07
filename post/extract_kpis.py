@@ -16,7 +16,6 @@ import json
 import sys
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
 # Outer-agent API (subprocess caller)
 # ---------------------------------------------------------------------------
@@ -39,7 +38,6 @@ def extract_kpis(
         odb_path  : str
     """
     import subprocess
-    import tempfile
 
     odb_path = Path(odb_path).resolve()
     workdir  = Path(workdir) if workdir else odb_path.parent

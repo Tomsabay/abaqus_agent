@@ -13,11 +13,9 @@ from __future__ import annotations
 
 import hashlib
 import os
-import time
 from pathlib import Path
 
 from tools.errors import AbaqusAgentError, ErrorCode
-
 
 # All premium features and their display names
 PREMIUM_FEATURES = {

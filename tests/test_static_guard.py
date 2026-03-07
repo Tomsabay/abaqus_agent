@@ -5,14 +5,14 @@ Unit tests for the static security guard.
 No Abaqus required.
 """
 
-import pytest
-import tempfile
+import sys
 from pathlib import Path
 
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tools.static_guard import check_script_string, GuardResult
+from tools.static_guard import GuardResult, check_script_string
 
 
 class TestStaticGuard:
@@ -112,8 +112,8 @@ mdb.models['Model-1'].Material(name='Steel')
         assert r.passed
 
     def test_nonexistent_file_raises(self):
-        from tools.static_guard import check_script
         from tools.errors import AbaqusAgentError, ErrorCode
+        from tools.static_guard import check_script
         with pytest.raises(AbaqusAgentError) as exc_info:
             check_script("/nonexistent/path/script.py")
         assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
