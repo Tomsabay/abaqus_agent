@@ -34,6 +34,7 @@ htmlcov/
 # Run artifacts
 cases/*/runs/
 reports/*.json
+reports/*.md
 
 # IDE
 .vscode/
