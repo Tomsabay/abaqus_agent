@@ -1,28 +1,60 @@
 # Abaqus Agent
 
+[![CI](https://github.com/Tomsabay/abaqus_agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Tomsabay/abaqus_agent/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/abaqus-agent)](https://pypi.org/project/abaqus-agent/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![Python](https://img.shields.io/pypi/pyversions/abaqus-agent)](https://pypi.org/project/abaqus-agent/)
+
 > **LLM-powered automation agent for Abaqus FEA.**
-> Natural language → Problem Spec → CAE model → Solver → KPI report.
+> Natural language -> Problem Spec -> CAE model -> Solver -> KPI report.
+
+---
+
+## Installation
+
+```bash
+pip install abaqus-agent            # Core
+pip install abaqus-agent[mcp]       # + MCP server support
+pip install abaqus-agent[llm]       # + LLM backends (Anthropic, OpenAI)
+pip install abaqus-agent[all]       # Everything including dev tools
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/Tomsabay/abaqus_agent.git
+cd abaqus_agent
+pip install -e ".[dev,mcp]"
+```
+
+### Docker
+
+```bash
+docker compose up -d
+# API at http://localhost:8000
+# MCP bridge at http://localhost:8001
+```
 
 ---
 
 ## Architecture
 
 ```
-User (NL) → LLMPlanner → spec.yaml
-                              ↓
+User (NL) -> LLMPlanner -> spec.yaml
+                              |
                        validate_spec (schema)
-                              ↓
-                       build_model (CAE noGUI → .inp)
-                              ↓
+                              |
+                       build_model (CAE noGUI -> .inp)
+                              |
                        syntaxcheck (no license consumed)
-                              ↓
+                              |
                        submit_job (analysis execution)
-                              ↓
+                              |
                        monitor_job (.sta / .log polling)
-                              ↓
-                       extract_kpis (abaqus python → ODB)
-                              ↓
-                       compare_expected → result.json + benchmark report
+                              |
+                       extract_kpis (abaqus python -> ODB)
+                              |
+                       compare_expected -> result.json + benchmark report
 ```
 
 **Design principles**
@@ -30,78 +62,28 @@ User (NL) → LLMPlanner → spec.yaml
 | Principle | Implementation |
 |-----------|---------------|
 | Low-cost fail-fast | `syntaxcheck` gate before solver (no license consumed) |
-| Idempotency | `run_id = sha256(spec)` — re-run reads cached artifacts |
+| Idempotency | `run_id = sha256(spec)` -- re-run reads cached artifacts |
 | Safety | Static AST guard blocks forbidden imports/calls before execution |
-| Structured errors | `AbaqusAgentError(ErrorCode, message, suggestion)` — every failure is diagnosable |
-| Separation of runtimes | Outer Python (orchestrator) ↔ Abaqus Python (CAE/ODB) communicate via files |
-
----
-
-## Project Structure
-
-```
-abaqus-agent/
-├── schema/
-│   └── spec_schema.json        # JSON Schema for Problem Spec
-├── cases/
-│   ├── cantilever/             # Case 1: 3D static cantilever
-│   ├── plate_hole/             # Case 2: 2D plate with hole (stress concentration)
-│   ├── modal/                  # Case 3: Modal / frequency analysis
-│   └── explicit_impact/        # Case 4: Explicit dynamic impact
-│       ├── spec.yaml
-│       ├── expected.json       # KPI tolerance definitions
-│       └── runner.json         # cpus, timeout, license queue config
-├── runner/
-│   ├── build_model.py          # D3: CAE noGUI → .inp
-│   ├── syntaxcheck.py          # D4: syntaxcheck (no token consumed)
-│   ├── submit_job.py           # D5: analysis execution
-│   └── monitor_job.py          # D7: .sta/.log status polling
-├── post/
-│   ├── extract_kpis.py         # D6: ODB → KPI dict (via abaqus python)
-│   └── upgrade_odb.py          # ODB version check + upgrade
-├── tools/
-│   ├── errors.py               # ErrorCode enum + AbaqusAgentError
-│   ├── static_guard.py         # D9: AST security guard
-│   └── schema_validator.py     # Spec validation
-├── agent/
-│   ├── orchestrator.py         # End-to-end pipeline
-│   └── llm_planner.py          # NL → spec.yaml (OpenAI / Anthropic / template)
-├── prompts/
-│   ├── spec_generator.txt      # Prompt: NL → spec YAML
-│   ├── script_generator.txt    # Prompt: spec → CAE script
-│   └── failure_analyzer.txt    # Prompt: log → root cause + fix
-├── tests/
-│   ├── test_schema.py
-│   ├── test_static_guard.py
-│   ├── test_errors.py
-│   └── test_monitor_job.py
-├── run_benchmark.py            # Benchmark runner + report generator
-└── requirements.txt
-```
+| Structured errors | `AbaqusAgentError(ErrorCode, message, suggestion)` -- every failure is diagnosable |
+| Separation of runtimes | Outer Python (orchestrator) <-> Abaqus Python (CAE/ODB) communicate via files |
 
 ---
 
 ## Quick Start
 
-### 1. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Run unit tests (no Abaqus required)
+### 1. Run unit tests (no Abaqus required)
 
 ```bash
 pytest tests/ -v
 ```
 
-### 3. Validate all benchmark specs (no Abaqus)
+### 2. Validate all benchmark specs (no Abaqus)
 
 ```bash
 python run_benchmark.py --dry-run
 ```
 
-### 4. Run a single case end-to-end (requires Abaqus)
+### 3. Run a single case end-to-end (requires Abaqus)
 
 ```bash
 python agent/orchestrator.py cases/cantilever/spec.yaml \
@@ -109,23 +91,74 @@ python agent/orchestrator.py cases/cantilever/spec.yaml \
     cases/cantilever/runner.json
 ```
 
-### 5. Run full benchmark suite
+### 4. Start the API server
 
 ```bash
-python run_benchmark.py
+abaqus-agent
+# or: uvicorn server:app --reload --port 8000
 ```
 
-### 6. NL → Spec generation
+### 5. NL -> Spec generation
 
 ```bash
 # Template fallback (no LLM key needed)
-python agent/llm_planner.py "100mm悬臂梁，端部施加1MPa压力，输出梁端挠度"
+python agent/llm_planner.py "100mm cantilever beam, 1MPa tip pressure, output tip deflection"
 
-# With Anthropic (set ANTHROPIC_API_KEY)
-ANTHROPIC_API_KEY=sk-... python agent/llm_planner.py "..."
+# With Anthropic
+ANTHROPIC_API_KEY=... python agent/llm_planner.py "..."
 
-# With OpenAI (set OPENAI_API_KEY)
-OPENAI_API_KEY=sk-... python agent/llm_planner.py "..."
+# With OpenAI
+OPENAI_API_KEY=... python agent/llm_planner.py "..."
+```
+
+---
+
+## Project Structure
+
+```
+abaqus-agent/
++-- schema/
+|   +-- spec_schema.json        # JSON Schema for Problem Spec
++-- cases/
+|   +-- cantilever/             # Case 1: 3D static cantilever
+|   +-- plate_hole/             # Case 2: 2D plate with hole (stress concentration)
+|   +-- modal/                  # Case 3: Modal / frequency analysis
+|   +-- explicit_impact/        # Case 4: Explicit dynamic impact
++-- core/
+|   +-- pipeline.py             # Shared pipeline logic
+|   +-- helpers.py              # Utility functions
+|   +-- spec_generator.py       # NL -> spec generation
++-- runner/
+|   +-- build_model.py          # CAE noGUI -> .inp
+|   +-- syntaxcheck.py          # syntaxcheck (no token consumed)
+|   +-- submit_job.py           # analysis execution
+|   +-- monitor_job.py          # .sta/.log status polling
++-- post/
+|   +-- extract_kpis.py         # ODB -> KPI dict (via abaqus python)
+|   +-- upgrade_odb.py          # ODB version check + upgrade
++-- tools/
+|   +-- errors.py               # ErrorCode enum + AbaqusAgentError
+|   +-- static_guard.py         # AST security guard
+|   +-- schema_validator.py     # Spec validation
++-- agent/
+|   +-- orchestrator.py         # End-to-end pipeline
+|   +-- llm_planner.py          # NL -> spec.yaml
++-- premium/
+|   +-- licensing.py            # Feature gating
+|   +-- coupling/               # Multi-physics coupling
+|   +-- adaptivity/             # Automatic mesh adaptivity
+|   +-- parametric/             # Batch parametric sweeps
+|   +-- geometry_ext/           # Extended geometry types
+|   +-- autorepair/             # Advanced failure auto-repair
++-- prompts/                    # LLM system prompts
++-- frontend/                   # Web UI
++-- server.py                   # FastAPI REST API
++-- mcp_server.py               # MCP server (AI agent integration)
++-- mcp_bridge.py               # HTTP-to-MCP bridge
++-- run_benchmark.py            # Benchmark runner + report generator
++-- pyproject.toml              # Python packaging
++-- Dockerfile                  # Container support
++-- Makefile                    # Common commands
 ```
 
 ---
@@ -187,26 +220,10 @@ outputs:
 
 | Case | Type | Solver | Key KPI | Analytical Reference |
 |------|------|--------|---------|---------------------|
-| `cantilever` | 3D static | Standard | Tip deflection U2 | PL³/(3EI) |
-| `plate_hole` | 2D plane stress | Standard | Max Mises at hole | Kt ≈ 3.0 |
+| `cantilever` | 3D static | Standard | Tip deflection U2 | PL^3/(3EI) |
+| `plate_hole` | 2D plane stress | Standard | Max Mises at hole | Kt ~ 3.0 |
 | `modal` | Frequency | Standard | Natural frequencies | Euler beam theory |
-| `explicit_impact` | Dynamic | Explicit | Reaction force, displacement | — |
-
-### expected.json format
-
-```json
-{
-  "kpis": {
-    "U_tip": {
-      "value": -2.0e-3,
-      "rtol": 0.10,
-      "atol": 1e-6,
-      "unit": "mm",
-      "note": "Analytical: PL^3/(3EI)"
-    }
-  }
-}
-```
+| `explicit_impact` | Dynamic | Explicit | Reaction force, displacement | -- |
 
 ---
 
@@ -223,19 +240,7 @@ All LLM-generated scripts pass through a 3-layer gate before execution:
 
 3. **Abaqus syntaxcheck**
    - `.inp` validated by Abaqus before job submission
-   - **Does not consume license tokens** (official docs)
-
----
-
-## Abaqus Version Compatibility
-
-| Abaqus Release | Python Runtime | Notes |
-|---------------|----------------|-------|
-| ≤ 2023 | Python 2.7.15 | Legacy; limited third-party package support |
-| 2024+ | Python 3.10.5 | Use `abqPy2to3` for script migration; `abqPip` for packages |
-| 2025 | Python 3.10.x | Continued Py3 |
-
-Use `abqPy2to3` migration tool for pre-2024 scripts when upgrading.
+   - Does not consume license tokens
 
 ---
 
@@ -254,6 +259,27 @@ Full list: `tools/errors.py`
 
 ---
 
+## Abaqus Version Compatibility
+
+| Abaqus Release | Python Runtime | Notes |
+|---------------|----------------|-------|
+| <= 2023 | Python 2.7.15 | Legacy; limited third-party package support |
+| 2024+ | Python 3.10.5 | Use `abqPy2to3` for script migration; `abqPip` for packages |
+| 2025 | Python 3.10.x | Continued Py3 |
+
+---
+
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+- [Bug Reports](https://github.com/Tomsabay/abaqus_agent/issues/new?template=bug_report.yml)
+- [Feature Requests](https://github.com/Tomsabay/abaqus_agent/issues/new?template=feature_request.yml)
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+
+---
+
 ## Commercial Deployment
 
 > **License compliance note**: Abaqus license terms restrict running the software
@@ -267,29 +293,25 @@ Full list: `tools/errors.py`
 
 ---
 
-## Roadmap (2-week MVP)
+## Roadmap
 
-- [x] D1: Problem Spec schema + 4 benchmark cases
-- [x] D2-D3: build_model (CAE noGUI → .inp)
-- [x] D4: syntaxcheck gate
-- [x] D5: submit_job (analysis execution)
-- [x] D6: extract_kpis (ODB via abaqus python)
-- [x] D7: monitor_job (.sta/.log polling) + error classification
-- [x] D8: 4 benchmark cases with expected KPIs
-- [x] D9: Static guard + schema validator
-- [x] D10: Structured logging (result.json per run)
-- [x] D11: LLM integration (OpenAI / Anthropic / template fallback)
-- [x] D12: Benchmark runner + Markdown report
-- [x] D13: Test suite (unit tests, no Abaqus required)
-- [ ] D14: CI/CD config + first trial user run
+- [x] 7-stage pipeline (validate -> build -> syntaxcheck -> submit -> monitor -> extract -> compare)
+- [x] 4 benchmark cases with analytical references
+- [x] Static AST security guard + schema validation
+- [x] LLM integration (Anthropic / OpenAI / template fallback)
+- [x] MCP server + HTTP bridge for AI agent integration
+- [x] FastAPI REST API with SSE streaming
+- [x] Web frontend
+- [x] 5 premium features (coupling, adaptivity, parametric, geometry, autorepair)
+- [x] 197 unit tests
+- [x] CI/CD + PyPI packaging
+- [ ] Multi-step auto-repair with failure analysis loop
+- [ ] Additional geometry types (shell, wire, assembly)
+- [ ] Cloud deployment templates (AWS, Azure)
+- [ ] Abaqus 2025 Python 3 migration tooling
 
 ---
 
-## References
+## License
 
-- Abaqus Scripting User's Guide — CAE API, ODB access, examples
-- Abaqus/CAE Execution — `noGUI`, passing arguments, license checkout
-- Abaqus/Standard and Explicit Execution — `syntaxcheck`, `cpus`, `mp_mode`, `background`
-- Abaqus Scripting Reference — `odbAccess.openOdb`, `isUpgradeRequiredForOdb`, `upgradeOdb`
-- License Management Parameters — DSLS/FlexNet, SimUnit, queuing
-- Abaqus 2024 What's New — Python 3.10.5 upgrade, `abqPy2to3`, `abqPip`
+Apache 2.0 -- see [LICENSE](LICENSE) for details.
