@@ -41,8 +41,9 @@ def upgrade_odb_if_needed(
     _write_inner_script(inner_script)
 
     result_file = odb_path.parent / "_upgrade_result.json"
+    from tools.abaqus_cmd import get_abaqus_cmd
     cmd = [
-        "abaqus", "python", str(inner_script),
+        get_abaqus_cmd(), "python", str(inner_script),
         "--",
         str(odb_path), str(upgraded_path), str(result_file),
     ]

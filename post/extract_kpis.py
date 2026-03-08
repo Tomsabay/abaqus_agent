@@ -36,7 +36,6 @@ def extract_kpis(odb_path, kpi_spec, workdir=None):
         errors    : list  - any extraction errors
         odb_path  : str
     """
-    import shutil
     import subprocess
 
     odb_path = Path(odb_path).resolve()
@@ -49,8 +48,9 @@ def extract_kpis(odb_path, kpi_spec, workdir=None):
     result_file = workdir / "_kpi_result.json"
     this_script = Path(__file__).resolve()
 
+    from tools.abaqus_cmd import get_abaqus_cmd
     cmd = [
-        (shutil.which("abaqus") or "abaqus"), "python", str(this_script),
+        get_abaqus_cmd(), "python", str(this_script),
         "--", str(odb_path), str(kpi_spec_file), str(result_file),
     ]
 
