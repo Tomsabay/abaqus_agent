@@ -41,6 +41,24 @@ class TestHelpers:
         assert CASES_DIR.exists()
         assert CASES_DIR.is_dir()
 
+    def test_get_abaqus_cmd_returns_string(self):
+        from tools.abaqus_cmd import get_abaqus_cmd
+        result = get_abaqus_cmd()
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_get_abaqus_cmd_consistent_with_check(self):
+        """get_abaqus_cmd should return a resolved path when abaqus is found."""
+        from core.helpers import check_abaqus
+        from tools.abaqus_cmd import get_abaqus_cmd
+        cmd = get_abaqus_cmd()
+        if check_abaqus():
+            # When abaqus is installed, should return a resolved path (not bare "abaqus")
+            assert cmd != "abaqus"
+        else:
+            # When not installed, falls back to "abaqus"
+            assert cmd == "abaqus"
+
 
 # ── core.pipeline ─────────────────────────────────────────────────
 

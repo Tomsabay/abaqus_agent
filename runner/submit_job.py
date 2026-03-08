@@ -10,13 +10,14 @@ Supports background mode, timeout, and license queue control.
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
+import time
 import uuid
 from pathlib import Path
 
 from tools.errors import AbaqusAgentError, ErrorCode
+
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -158,9 +159,9 @@ def _build_cmd(
     background: bool,
     interactive: bool,
 ) -> list[str]:
-    _abq = shutil.which("abaqus") or "abaqus"
+    from tools.abaqus_cmd import get_abaqus_cmd
     cmd = [
-        _abq,
+        get_abaqus_cmd(),
         f"job={job_name}",
         f"input={inp_path}",
         f"cpus={cpus}",
