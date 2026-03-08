@@ -239,7 +239,6 @@ class TestMCPProgress:
 
     def test_full_run_with_progress(self):
         """Start a run, collect progress events, verify completion."""
-        from unittest.mock import patch
         from mcp_server import start_run, get_run_status, subscribe_progress, unsubscribe_progress, RUNS
 
         spec_path = Path(__file__).parent.parent / "cases" / "cantilever" / "spec.yaml"
@@ -252,26 +251,24 @@ class TestMCPProgress:
         # Subscribe before starting
         q = subscribe_progress(run_id)
 
-        # Force simulated pipeline so tests pass with or without Abaqus
+        # Start the run
         loop = asyncio.get_event_loop()
-        with patch("core.pipeline.check_abaqus", return_value=False):
-            # Start the run
-            start_result = loop.run_until_complete(start_run(spec_yaml=spec_yaml))
-            data = json.loads(start_result)
-            assert data["run_id"] == run_id
+        start_result = loop.run_until_complete(start_run(spec_yaml=spec_yaml))
+        data = json.loads(start_result)
+        assert data["run_id"] == run_id
 
-            # Collect progress events until done
-            events = []
-            try:
-                while True:
-                    evt = loop.run_until_complete(
-                        asyncio.wait_for(q.get(), timeout=30.0)
-                    )
-                    events.append(evt)
-                    if evt.get("status") in ("COMPLETED", "FAILED"):
-                        break
-            except asyncio.TimeoutError:
-                pass
+        # Collect progress events until done
+        events = []
+        try:
+            while True:
+                evt = loop.run_until_complete(
+                    asyncio.wait_for(q.get(), timeout=30.0)
+                )
+                events.append(evt)
+                if evt.get("status") in ("COMPLETED", "FAILED"):
+                    break
+        except asyncio.TimeoutError:
+            pass
 
         unsubscribe_progress(run_id, q)
 
