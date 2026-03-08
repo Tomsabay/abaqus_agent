@@ -82,3 +82,17 @@ class TestSchemaValidation:
         }
         valid, errors = validate_spec(spec)
         assert valid, f"Unexpected errors: {errors}"
+
+    def test_abaqus_2026_release_valid(self):
+        """Abaqus 2026 should be accepted by the schema."""
+        spec = {
+            "meta": {"abaqus_release": "2026", "model_name": "Test2026"},
+            "geometry": {"type": "cantilever_block", "L": 100, "W": 10, "H": 10},
+            "material": {"name": "Steel", "E": 210000, "nu": 0.3},
+            "analysis": {"solver": "standard", "step_type": "Static"},
+            "bc_load": {"fixed_face": "x=0", "load_face": "x=L",
+                        "load_type": "pressure", "value": -1.0},
+            "outputs": {"kpis": [{"name": "U_tip", "type": "nodal_displacement"}]},
+        }
+        valid, errors = validate_spec(spec)
+        assert valid, f"Abaqus 2026 should be valid: {errors}"
