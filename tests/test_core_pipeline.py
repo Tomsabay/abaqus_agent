@@ -97,6 +97,7 @@ class TestPipeline:
         assert "U_tip" in result["comparisons"]
 
     def test_run_pipeline_async(self):
+        from unittest.mock import patch
         from core.pipeline import run_pipeline
         import yaml
 
@@ -123,9 +124,11 @@ class TestPipeline:
         async def on_update(stage_id, snapshot):
             events.append((stage_id, snapshot["status"]))
 
-        asyncio.get_event_loop().run_until_complete(
-            run_pipeline(run_id, runs, on_stage_update=on_update)
-        )
+        # Force simulated pipeline so tests pass with or without Abaqus
+        with patch("core.pipeline.check_abaqus", return_value=False):
+            asyncio.get_event_loop().run_until_complete(
+                run_pipeline(run_id, runs, on_stage_update=on_update)
+            )
 
         assert runs[run_id]["status"] == "COMPLETED"
         assert runs[run_id]["progress_pct"] == 100
@@ -135,6 +138,7 @@ class TestPipeline:
         assert events[-1][0] == "done"
 
     def test_run_pipeline_no_callback(self):
+        from unittest.mock import patch
         from core.pipeline import run_pipeline
         import yaml
 
@@ -155,9 +159,11 @@ class TestPipeline:
             "progress_pct": 0,
         }
 
-        asyncio.get_event_loop().run_until_complete(
-            run_pipeline(run_id, runs)
-        )
+        # Force simulated pipeline so tests pass with or without Abaqus
+        with patch("core.pipeline.check_abaqus", return_value=False):
+            asyncio.get_event_loop().run_until_complete(
+                run_pipeline(run_id, runs)
+            )
 
         assert runs[run_id]["status"] == "COMPLETED"
 

@@ -75,7 +75,7 @@ p_coh.generateMesh()
 # Cohesive Section
 mdb.models['{model_name}'].CohesiveSection(
     name='CohesiveSection-1',
-    material=mdb.models['{model_name}'].materials.keys()[0],
+    material=list(mdb.models['{model_name}'].materials.keys())[0],
     response=TRACTION_SEPARATION,
     outOfPlaneThickness=None)
 
