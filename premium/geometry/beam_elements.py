@@ -70,7 +70,7 @@ mdb.models['{model_name}'].BeamSection(
     integration=DURING_ANALYSIS,
     poissonRatio=0.0,
     profile='BeamProfile-1',
-    material=mdb.models['{model_name}'].materials.keys()[0],
+    material=list(mdb.models['{model_name}'].materials.keys())[0],
     temperatureVar=LINEAR,
     consistentMassMatrix=False)
 
