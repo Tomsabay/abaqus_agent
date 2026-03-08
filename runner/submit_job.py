@@ -159,8 +159,9 @@ def _build_cmd(
     background: bool,
     interactive: bool,
 ) -> list[str]:
+    from tools.abaqus_cmd import get_abaqus_cmd
     cmd = [
-        "abaqus",
+        get_abaqus_cmd(),
         f"job={job_name}",
         f"input={inp_path}",
         f"cpus={cpus}",

@@ -40,9 +40,11 @@ def syntaxcheck_inp(inp_path: str | Path, workdir: str | Path | None = None) -> 
     job_name = inp_path.stem + "_syntaxcheck"
     log_path = workdir / f"{job_name}.log"
 
+    from tools.abaqus_cmd import get_abaqus_cmd
+
     # Official: abaqus job=<name> input=<path> syntaxcheck
     cmd = [
-        "abaqus",
+        get_abaqus_cmd(),
         f"job={job_name}",
         f"input={inp_path}",
         "syntaxcheck",

@@ -51,8 +51,9 @@ def extract_kpis(
     result_file = workdir / "_kpi_result.json"
     this_script = Path(__file__).resolve()
 
+    from tools.abaqus_cmd import get_abaqus_cmd
     cmd = [
-        "abaqus", "python", str(this_script),
+        get_abaqus_cmd(), "python", str(this_script),
         "--", str(odb_path), str(kpi_spec_file), str(result_file),
     ]
 

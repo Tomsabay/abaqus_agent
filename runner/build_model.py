@@ -402,7 +402,8 @@ mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
 def _run_cae_nougui(script_path: Path, workdir: Path, abaqus_release: str) -> None:
     """Execute abaqus cae noGUI=<script> and capture output."""
     log_path = workdir / "build_model_script.log"
-    cmd = ["abaqus", f"cae", f"noGUI={script_path}", "--", str(workdir), "spec"]
+    from tools.abaqus_cmd import get_abaqus_cmd
+    cmd = [get_abaqus_cmd(), "cae", f"noGUI={script_path}", "--", str(workdir), "spec"]
     try:
         result = subprocess.run(
             cmd,
