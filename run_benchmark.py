@@ -23,14 +23,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import yaml
-
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from tools.schema_validator import validate_spec
-from tools.static_guard import check_script_string
-
 
 CASES_DIR    = Path(__file__).parent / "cases"
 REPORTS_DIR  = Path(__file__).parent / "reports"
@@ -86,7 +82,7 @@ def run_case(case: dict, dry_run: bool = False) -> dict:
         result["elapsed_seconds"] = time.time() - t0
         return result
 
-    print(f"  [validate_spec] OK")
+    print("  [validate_spec] OK")
 
     if dry_run:
         result["status"] = "DRY_RUN_PASS"
@@ -131,11 +127,11 @@ def run_case(case: dict, dry_run: bool = False) -> dict:
 def generate_report(results: list[dict]) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     lines = [
-        f"# Abaqus Agent Benchmark Report",
+        "# Abaqus Agent Benchmark Report",
         f"Generated: {now}",
-        f"",
-        f"## Summary",
-        f"",
+        "",
+        "## Summary",
+        "",
     ]
 
     total   = len(results)
@@ -144,17 +140,17 @@ def generate_report(results: list[dict]) -> str:
     reg_pass = sum(1 for r in results if r.get("regression", {}).get("passed") is True)
 
     lines += [
-        f"| Metric | Value |",
-        f"|--------|-------|",
+        "| Metric | Value |",
+        "|--------|-------|",
         f"| Total cases | {total} |",
         f"| Pipeline passed | {passed} / {total} |",
         f"| Regression passed | {reg_pass} / {total} |",
         f"| Failed / Error | {failed} |",
-        f"",
-        f"## Case Details",
-        f"",
-        f"| Case | Status | Elapsed | KPIs | Regression |",
-        f"|------|--------|---------|------|------------|",
+        "",
+        "## Case Details",
+        "",
+        "| Case | Status | Elapsed | KPIs | Regression |",
+        "|------|--------|---------|------|------------|",
     ]
 
     for r in results:
@@ -172,8 +168,8 @@ def generate_report(results: list[dict]) -> str:
         if comparisons:
             lines.append(f"### {r['case']}")
             lines += [
-                f"| KPI | Expected | Actual | Rel Err | Status |",
-                f"|-----|----------|--------|---------|--------|",
+                "| KPI | Expected | Actual | Rel Err | Status |",
+                "|-----|----------|--------|---------|--------|",
             ]
             for kpi, comp in comparisons.items():
                 exp = comp.get("expected", "-")

@@ -10,11 +10,11 @@ to diagnose failures and suggest parameter changes.
 from __future__ import annotations
 
 import os
-import yaml
 from pathlib import Path
 
-from premium.autorepair.log_parser import ParseResult, DiagnosticCategory
+import yaml
 
+from premium.autorepair.log_parser import DiagnosticCategory, ParseResult
 
 FAILURE_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompts" / "failure_analyzer.txt"
 PREMIUM_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "failure_repair.txt"

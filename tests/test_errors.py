@@ -5,12 +5,12 @@ Unit tests for error codes and AbaqusAgentError.
 No Abaqus required.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tools.errors import AbaqusAgentError, ErrorCode, ERROR_SUGGESTIONS
+from tools.errors import ERROR_SUGGESTIONS, AbaqusAgentError, ErrorCode
 
 
 class TestErrorCodes:

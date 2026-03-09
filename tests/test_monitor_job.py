@@ -5,12 +5,12 @@ Unit tests for .sta / .log parsing in monitor_job.
 No Abaqus required (uses fixture files).
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from runner.monitor_job import _parse_sta, _parse_messages, _status_from_log, JobStatus
+from runner.monitor_job import JobStatus, _parse_messages, _parse_sta, _status_from_log
 
 
 class TestParseStaFile:

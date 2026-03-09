@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -35,16 +36,15 @@ from pathlib import Path
 import yaml
 from mcp.server.fastmcp import FastMCP
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
-from tools.schema_validator import validate_spec
-from core.helpers import check_abaqus, list_cases, make_run_id, CASES_DIR
+from core.helpers import CASES_DIR, check_abaqus, list_cases, make_run_id
 from core.pipeline import (
-    run_pipeline, run_benchmark_async, mock_kpis, compare_kpis,
-    STAGES as PIPELINE_STAGES,
+    run_benchmark_async,
+    run_pipeline,
 )
 from core.spec_generator import generate_spec_async
+from tools.schema_validator import validate_spec
 
 # ── MCP Server ────────────────────────────────────────────────────
 
@@ -202,8 +202,8 @@ async def health_check() -> str:
 @mcp.tool(description="Get premium feature status and capabilities")
 async def get_premium_features() -> str:
     try:
-        from premium.licensing import feature_gate, PREMIUM_FEATURES
         from premium.feature_registry import list_premium_capabilities
+        from premium.licensing import PREMIUM_FEATURES, feature_gate
         return json.dumps({
             "features": {
                 name: {
@@ -263,8 +263,8 @@ async def get_benchmark_cases() -> str:
 @mcp.resource("premium://features", description="Premium feature status")
 async def get_premium_features_resource() -> str:
     try:
-        from premium.licensing import feature_gate, PREMIUM_FEATURES
         from premium.feature_registry import list_premium_capabilities
+        from premium.licensing import PREMIUM_FEATURES, feature_gate
         return json.dumps({
             "features": {
                 name: {

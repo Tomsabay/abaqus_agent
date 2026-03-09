@@ -21,7 +21,6 @@ import yaml
 
 from tools.errors import AbaqusAgentError, ErrorCode
 
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -144,7 +143,10 @@ def _write_cae_script(spec: dict, script_path: Path, workdir: Path) -> None:
     # Generate additional material code for coupled analyses
     extra_material_code = ""
     try:
-        from premium.coupling.coupled_materials import needs_thermal_properties, generate_thermal_material_code
+        from premium.coupling.coupled_materials import (
+            generate_thermal_material_code,
+            needs_thermal_properties,
+        )
         if needs_thermal_properties(spec):
             extra_material_code = generate_thermal_material_code(mat, model_name)
     except ImportError:
@@ -402,7 +404,7 @@ mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
 def _run_cae_nougui(script_path: Path, workdir: Path, abaqus_release: str) -> None:
     """Execute abaqus cae noGUI=<script> and capture output."""
     log_path = workdir / "build_model_script.log"
-    cmd = ["abaqus", f"cae", f"noGUI={script_path}", "--", str(workdir), "spec"]
+    cmd = ["abaqus", "cae", f"noGUI={script_path}", "--", str(workdir), "spec"]
     try:
         result = subprocess.run(
             cmd,

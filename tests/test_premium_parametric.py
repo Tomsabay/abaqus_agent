@@ -3,11 +3,15 @@ Tests for batch parametric sweeps (premium).
 No Abaqus installation required.
 """
 
-import pytest
 
+from premium.parametric.aggregator import _pearson_correlation, compute_sensitivity
 from premium.parametric.doe import generate_samples
-from premium.parametric.sweep_engine import generate_sweep_specs, _apply_sample, _set_nested, _get_nested
-from premium.parametric.aggregator import compute_sensitivity, _pearson_correlation
+from premium.parametric.sweep_engine import (
+    _apply_sample,
+    _get_nested,
+    _set_nested,
+    generate_sweep_specs,
+)
 
 
 class TestDOE:

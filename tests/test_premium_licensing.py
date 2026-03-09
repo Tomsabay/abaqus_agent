@@ -4,9 +4,10 @@ No Abaqus installation required.
 """
 
 import os
+
 import pytest
 
-from premium.licensing import FeatureGate, PREMIUM_FEATURES, feature_gate
+from premium.licensing import PREMIUM_FEATURES, FeatureGate, feature_gate
 from tools.errors import AbaqusAgentError, ErrorCode
 
 

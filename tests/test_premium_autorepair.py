@@ -3,17 +3,13 @@ Tests for advanced failure auto-repair (premium).
 No Abaqus installation required.
 """
 
-import pytest
-import tempfile
-from pathlib import Path
 
-from premium.autorepair.log_parser import (
-    parse_job_diagnostics,
-    DiagnosticCategory,
-    DiagnosticSeverity,
-    ParseResult,
-)
 from premium.autorepair.diagnosis import _rule_based_diagnosis
+from premium.autorepair.log_parser import (
+    DiagnosticCategory,
+    ParseResult,
+    parse_job_diagnostics,
+)
 from premium.autorepair.repair_strategies import apply_repairs, can_retry
 
 
