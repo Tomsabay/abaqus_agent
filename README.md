@@ -1,9 +1,8 @@
 # Abaqus Agent
 
 [![CI](https://github.com/Tomsabay/abaqus_agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Tomsabay/abaqus_agent/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/abaqus-agent)](https://pypi.org/project/abaqus-agent/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
-[![Python](https://img.shields.io/pypi/pyversions/abaqus-agent)](https://pypi.org/project/abaqus-agent/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
 > **LLM-powered automation agent for Abaqus FEA.**
 > Natural language -> Problem Spec -> CAE model -> Solver -> KPI report.
@@ -13,18 +12,10 @@
 ## Installation
 
 ```bash
-pip install abaqus-agent            # Core
-pip install abaqus-agent[mcp]       # + MCP server support
-pip install abaqus-agent[llm]       # + LLM backends (Anthropic, OpenAI)
-pip install abaqus-agent[all]       # Everything including dev tools
-```
-
-Or install from source:
-
-```bash
 git clone https://github.com/Tomsabay/abaqus_agent.git
 cd abaqus_agent
-pip install -e ".[dev,mcp]"
+pip install -e ".[dev,mcp]"         # Core + MCP + dev tools
+# pip install -e ".[all]"           # Everything including LLM backends
 ```
 
 ### Docker
@@ -71,39 +62,27 @@ User (NL) -> LLMPlanner -> spec.yaml
 
 ## Dashboard Preview
 
-<!-- TODO: 截一张你本地跑起来的 Dashboard 截图，替换下面的占位 -->
-<!-- 建议截图内容：深色主题 + YAML 编辑器 + KPI 图表 + 实时日志，展示完整工作流 -->
-<!-- 截图步骤：
-  1. python server.py 启动服务
-  2. 浏览器打开 http://localhost:8000
-  3. 加载一个 cantilever case，跑一遍
-  4. 截图或录 GIF（推荐用 LICEcap 或 Kap 录制）
-  5. 图片放到 docs/assets/ 目录下
--->
-
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Abaqus Agent Dashboard                              [dark UI] │
-│                                                                 │
-│  ┌─── YAML Editor ───┐  ┌──── KPI Results ─────┐              │
-│  │ meta:              │  │ U_tip: -0.01587 mm   │              │
-│  │   model: Cantilever│  │ Expected: -0.01588   │              │
-│  │ geometry:          │  │ Error: 0.06%  ✓      │              │
-│  │   type: cantilever │  │                      │              │
-│  │   L: 100           │  │ ┌──── Chart ──────┐  │              │
-│  │   ...              │  │ │  ██             │  │              │
-│  └────────────────────┘  │ │  ████           │  │              │
-│                          │ │  ██████         │  │              │
-│  ┌─── Live Logs ──────┐  │ └────────────────┘  │              │
-│  │ ✓ validate_spec    │  └──────────────────────┘              │
-│  │ ✓ build_model      │                                        │
-│  │ ✓ syntaxcheck      │  [▶ Run Pipeline]  [📋 Load Case]     │
-│  │ ● submit_job...    │                                        │
-│  └────────────────────┘                                        │
-└─────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------+
+|  Abaqus Agent Dashboard                                [dark UI]  |
+|                                                                   |
+|  +--- YAML Editor ----+  +---- KPI Results ------+               |
+|  | meta:              |  | U_tip: -0.01587 mm    |               |
+|  |   model: Cantilever|  | Expected: -0.01588    |               |
+|  | geometry:          |  | Error: 0.06%          |               |
+|  |   type: cantilever |  |                       |               |
+|  |   L: 100           |  | +---- Chart -------+  |               |
+|  |   ...              |  | |  ##              |  |               |
+|  +--------------------+  | |  ####            |  |               |
+|                          | |  ######          |  |               |
+|  +--- Live Logs ------+  | +------------------+  |               |
+|  | * validate_spec    |  +------------------------+               |
+|  | * build_model      |                                           |
+|  | * syntaxcheck      |  [> Run Pipeline]  [Load Case]           |
+|  | . submit_job...    |                                           |
+|  +--------------------+                                           |
++-------------------------------------------------------------------+
 ```
-
-> **上图为 ASCII 示意。** 实际截图请替换为：`![Dashboard](docs/assets/dashboard.png)`
 
 ---
 

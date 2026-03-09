@@ -5,12 +5,13 @@ These tests mock the orchestrator and check_abaqus() to verify the real
 pipeline code path works correctly without requiring actual Abaqus installation.
 """
 import asyncio
-import time
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
 import sys
+import time
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yaml
@@ -260,7 +261,6 @@ class TestProgressCallback:
 
         def run_with_progress():
             # Simulate orchestrator calling on_progress
-            cb = mock_orch.call_args_not_used  # won't work, use different approach
             return {"status": "COMPLETED", "kpis": {}, "regression": {}}
 
         mock_orch.run.return_value = {"status": "COMPLETED", "kpis": {}, "regression": {}}

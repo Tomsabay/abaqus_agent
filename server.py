@@ -22,30 +22,30 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+
+# ── Project imports ──────────────────────────────────────────────
+import sys
 import time
 import uuid
 from pathlib import Path
 from typing import AsyncGenerator
 
 import yaml
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# ── Project imports ──────────────────────────────────────────────
-import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
-from tools.schema_validator import validate_spec
-from tools.errors import AbaqusAgentError, ErrorCode
-from core.helpers import check_abaqus, list_cases, make_run_id, CASES_DIR
+from core.helpers import CASES_DIR, check_abaqus, list_cases, make_run_id
 from core.pipeline import (
-    run_pipeline, run_benchmark_async, mock_kpis, compare_kpis,
-    STAGES as PIPELINE_STAGES,
+    run_benchmark_async,
+    run_pipeline,
 )
 from core.spec_generator import generate_spec_async
+from tools.schema_validator import validate_spec
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -282,8 +282,8 @@ async def run_benchmark(background_tasks: BackgroundTasks, dry_run: bool = True)
 def get_premium_features():
     """Return status of all premium features."""
     try:
-        from premium.licensing import feature_gate, PREMIUM_FEATURES
         from premium.feature_registry import list_premium_capabilities
+        from premium.licensing import PREMIUM_FEATURES, feature_gate
         return {
             "features": {
                 name: {
@@ -318,8 +318,8 @@ def main():
     import uvicorn
     print("\n  Abaqus Agent API")
     print("  ─────────────────────────────")
-    print(f"  Frontend : http://localhost:8000")
-    print(f"  API docs : http://localhost:8000/docs")
+    print("  Frontend : http://localhost:8000")
+    print("  API docs : http://localhost:8000/docs")
     print(f"  Abaqus   : {'✓ found' if check_abaqus() else '✗ not found (simulation mode)'}")
     print(f"  Cases    : {list_cases()}")
     print()
