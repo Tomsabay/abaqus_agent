@@ -5,17 +5,14 @@ These tests verify the bridge endpoint routing and request/response models.
 Since the bridge spawns mcp_server.py as a subprocess, these tests mock
 the MCPConnection to avoid subprocess dependencies.
 """
-import asyncio
 import json
-import time
-import pytest
-from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
-
 import sys
+from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import yaml
 
 
 class MockMCPConnection:

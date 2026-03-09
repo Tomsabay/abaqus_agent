@@ -4,15 +4,14 @@ Verifies generated step code and material code.
 No Abaqus installation required.
 """
 
-import pytest
 
-from premium.coupling.coupled_steps import (
-    generate_coupled_temp_disp_step,
-    generate_coupled_thermal_electrical_step,
-)
 from premium.coupling.coupled_materials import (
     generate_thermal_material_code,
     needs_thermal_properties,
+)
+from premium.coupling.coupled_steps import (
+    generate_coupled_temp_disp_step,
+    generate_coupled_thermal_electrical_step,
 )
 
 

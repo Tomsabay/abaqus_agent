@@ -14,8 +14,6 @@ import re
 import sys
 from pathlib import Path
 
-from tools.errors import AbaqusAgentError, ErrorCode
-
 
 # Job status enum
 class JobStatus:

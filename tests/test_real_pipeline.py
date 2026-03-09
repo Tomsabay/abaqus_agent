@@ -5,12 +5,13 @@ These tests mock the orchestrator and check_abaqus() to verify the real
 pipeline code path works correctly without requiring actual Abaqus installation.
 """
 import asyncio
-import time
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
 import sys
+import time
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yaml
