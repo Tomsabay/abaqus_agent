@@ -12,9 +12,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from premium.autorepair.log_parser import parse_job_diagnostics
 from premium.autorepair.diagnosis import diagnose_failure
-from premium.autorepair.repair_strategies import apply_repairs, save_repaired_spec, can_retry
+from premium.autorepair.log_parser import parse_job_diagnostics
+from premium.autorepair.repair_strategies import apply_repairs, can_retry, save_repaired_spec
 
 
 def autorepair_hook(context: dict) -> dict:
