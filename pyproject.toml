@@ -47,8 +47,23 @@ Issues = "https://github.com/Tomsabay/abaqus_agent/issues"
 target-version = "py310"
 line-length = 100
 
+[tool.hatch.build.targets.wheel]
+packages = [
+    "agent",
+    "core",
+    "runner",
+    "post",
+    "tools",
+    "premium",
+    "server.py",
+    "mcp_bridge.py",
+    "mcp_server.py",
+    "run_benchmark.py",
+]
+
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
