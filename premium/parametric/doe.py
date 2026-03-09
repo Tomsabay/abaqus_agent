@@ -103,7 +103,6 @@ def _latin_hypercube(params: list[dict], n: int, rng: random.Random) -> list[dic
     Each parameter range is divided into n equal intervals, and exactly
     one sample is placed in each interval.
     """
-    k = len(params)
     samples = []
 
     # For each parameter, create n intervals and shuffle
