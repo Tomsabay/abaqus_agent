@@ -260,8 +260,6 @@ class TestProgressCallback:
         mock_orch = MagicMock()
 
         def run_with_progress():
-            # Simulate orchestrator calling on_progress
-            cb = mock_orch.call_args_not_used  # won't work, use different approach
             return {"status": "COMPLETED", "kpis": {}, "regression": {}}
 
         mock_orch.run.return_value = {"status": "COMPLETED", "kpis": {}, "regression": {}}
