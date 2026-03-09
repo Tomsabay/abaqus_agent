@@ -3,11 +3,10 @@ Tests for automatic mesh adaptivity (premium).
 No Abaqus installation required.
 """
 
-import pytest
 
 from premium.adaptivity.ale_mesh import generate_ale_code, generate_ale_explicit_code
-from premium.adaptivity.remesh import generate_remesh_code
 from premium.adaptivity.error_indicators import recommend_adaptivity_strategy
+from premium.adaptivity.remesh import generate_remesh_code
 
 
 class TestALEMesh:

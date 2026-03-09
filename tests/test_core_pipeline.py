@@ -2,11 +2,10 @@
 Tests for core/ shared business logic modules.
 """
 import asyncio
+import sys
 import time
-import pytest
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
@@ -47,7 +46,7 @@ class TestHelpers:
 
 class TestPipeline:
     def test_stages_defined(self):
-        from core.pipeline import STAGES, STAGE_LOGS
+        from core.pipeline import STAGE_LOGS, STAGES
         assert len(STAGES) == 6
         assert all(len(s) == 4 for s in STAGES)
         assert len(STAGE_LOGS) == 6
@@ -97,8 +96,9 @@ class TestPipeline:
         assert "U_tip" in result["comparisons"]
 
     def test_run_pipeline_async(self):
-        from core.pipeline import run_pipeline
         import yaml
+
+        from core.pipeline import run_pipeline
 
         spec_path = Path(__file__).parent.parent / "cases" / "cantilever" / "spec.yaml"
         spec = yaml.safe_load(spec_path.read_text())
@@ -135,8 +135,9 @@ class TestPipeline:
         assert events[-1][0] == "done"
 
     def test_run_pipeline_no_callback(self):
-        from core.pipeline import run_pipeline
         import yaml
+
+        from core.pipeline import run_pipeline
 
         spec_path = Path(__file__).parent.parent / "cases" / "cantilever" / "spec.yaml"
         spec = yaml.safe_load(spec_path.read_text())
