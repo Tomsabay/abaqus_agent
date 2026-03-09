@@ -4,12 +4,11 @@ Verifies that generated CAE scripts contain correct Abaqus keywords.
 No Abaqus installation required.
 """
 
-import pytest
 
-from premium.geometry.shell_elements import generate_shell_plate
 from premium.geometry.beam_elements import generate_beam_frame
-from premium.geometry.composite_layup import generate_composite_plate
 from premium.geometry.cohesive_elements import generate_cohesive_layer
+from premium.geometry.composite_layup import generate_composite_plate
+from premium.geometry.shell_elements import generate_shell_plate
 
 
 class TestShellPlate:

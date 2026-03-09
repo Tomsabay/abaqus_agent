@@ -6,14 +6,11 @@ rather than requiring a full MCP client/transport setup.
 """
 import asyncio
 import json
-import time
-import pytest
+import sys
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import yaml
 
 
 # ── Tool tests ────────────────────────────────────────────────────
@@ -79,7 +76,7 @@ class TestMCPTools:
         assert any("YAML" in e or "parse" in e for e in data["errors"])
 
     def test_start_run(self):
-        from mcp_server import start_run, RUNS
+        from mcp_server import RUNS, start_run
         spec_path = Path(__file__).parent.parent / "cases" / "cantilever" / "spec.yaml"
         spec_yaml = spec_path.read_text()
 
@@ -116,7 +113,7 @@ class TestMCPTools:
         assert "error" in data
 
     def test_get_run_status_existing(self):
-        from mcp_server import start_run, get_run_status, RUNS
+        from mcp_server import get_run_status, start_run
         spec_path = Path(__file__).parent.parent / "cases" / "cantilever" / "spec.yaml"
         spec_yaml = spec_path.read_text()
 
@@ -225,7 +222,7 @@ class TestMCPProgress:
         unsubscribe_progress("test_run", q)
 
     def test_broadcast_progress(self):
-        from mcp_server import subscribe_progress, unsubscribe_progress, _broadcast_progress
+        from mcp_server import _broadcast_progress, subscribe_progress, unsubscribe_progress
         q = subscribe_progress("test_broadcast")
         asyncio.get_event_loop().run_until_complete(
             _broadcast_progress("test_broadcast", {"status": "RUNNING", "progress_pct": 50})
@@ -239,7 +236,11 @@ class TestMCPProgress:
 
     def test_full_run_with_progress(self):
         """Start a run, collect progress events, verify completion."""
-        from mcp_server import start_run, get_run_status, subscribe_progress, unsubscribe_progress, RUNS
+        from mcp_server import (
+            start_run,
+            subscribe_progress,
+            unsubscribe_progress,
+        )
 
         spec_path = Path(__file__).parent.parent / "cases" / "cantilever" / "spec.yaml"
         spec_yaml = spec_path.read_text()

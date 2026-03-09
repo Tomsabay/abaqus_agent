@@ -12,8 +12,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from premium.licensing import feature_gate, PREMIUM_FEATURES
-
+from premium.licensing import PREMIUM_FEATURES, feature_gate
 
 # -----------------------------------------------------------------
 # Geometry dispatch registry

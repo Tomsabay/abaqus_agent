@@ -10,9 +10,7 @@ All strategies work without scipy (pure Python fallback).
 from __future__ import annotations
 
 import itertools
-import math
 import random
-from typing import Sequence
 
 
 def generate_samples(
