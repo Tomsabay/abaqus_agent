@@ -4,8 +4,9 @@ All existing benchmark cases must still validate successfully.
 No Abaqus installation required.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from tools.schema_validator import validate_spec
 

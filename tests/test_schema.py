@@ -5,14 +5,12 @@ Unit tests for Problem Spec schema validation.
 No Abaqus required.
 """
 
-import pytest
+import sys
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tools.schema_validator import validate_spec
-
 
 CASES_DIR = Path(__file__).parent.parent / "cases"
 
