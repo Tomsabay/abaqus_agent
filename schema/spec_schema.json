@@ -9,7 +9,7 @@
       "type": "object",
       "required": ["abaqus_release", "model_name"],
       "properties": {
-        "abaqus_release": { "type": "string", "enum": ["2023", "2024", "2025"] },
+        "abaqus_release": { "type": "string", "enum": ["2023", "2024", "2025", "2026"] },
         "model_name":     { "type": "string", "minLength": 1 },
         "units":          { "type": "string", "default": "mm_MPa_t" },
         "description":    { "type": "string" },
