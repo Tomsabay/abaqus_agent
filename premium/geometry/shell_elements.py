@@ -53,7 +53,7 @@ p.Set(name='LOAD_END', edges=p.edges.getByBoundingBox(
 # Shell Section (override the default solid section)
 mdb.models['{model_name}'].HomogeneousShellSection(
     name='ShellSection-1',
-    material='{model_name}_mat' if '{model_name}_mat' in [m for m in mdb.models['{model_name}'].materials.keys()] else mdb.models['{model_name}'].materials.keys()[0],
+    material='{model_name}_mat' if '{model_name}_mat' in list(mdb.models['{model_name}'].materials.keys()) else list(mdb.models['{model_name}'].materials.keys())[0],
     thickness={thickness},
     idealization=NO_IDEALIZATION,
     poissonDefinition=DEFAULT,
