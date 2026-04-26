@@ -290,7 +290,7 @@ p.generateMesh()
 mdb.models['{model_name}'].HomogeneousSolidSection.__doc__  # suppress unused warning
 # Override section for 2D
 mdb.models['{model_name}'].HomogeneousSolidSection(
-    name='Section-1-shell', material=mdb.models['{model_name}'].materials.keys()[0],
+    name='Section-1-shell', material=list(mdb.models['{model_name}'].materials.keys())[0],
     thickness=1.0)
 """
 
