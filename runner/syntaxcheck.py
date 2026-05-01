@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -41,8 +42,9 @@ def syntaxcheck_inp(inp_path: str | Path, workdir: str | Path | None = None) -> 
     log_path = workdir / f"{job_name}.log"
 
     # Official: abaqus job=<name> input=<path> syntaxcheck
+    _abq = shutil.which("abaqus") or "abaqus"
     cmd = [
-        "abaqus",
+        _abq,
         f"job={job_name}",
         f"input={inp_path}",
         "syntaxcheck",
