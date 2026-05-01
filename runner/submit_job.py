@@ -10,6 +10,7 @@ Supports background mode, timeout, and license queue control.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import uuid
@@ -157,8 +158,9 @@ def _build_cmd(
     background: bool,
     interactive: bool,
 ) -> list[str]:
+    _abq = shutil.which("abaqus") or "abaqus"
     cmd = [
-        "abaqus",
+        _abq,
         f"job={job_name}",
         f"input={inp_path}",
         f"cpus={cpus}",

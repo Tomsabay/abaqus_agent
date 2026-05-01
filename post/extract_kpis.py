@@ -10,21 +10,20 @@ This script runs INSIDE the Abaqus Python runtime so only stdlib + Abaqus module
 are available. The outer agent calls it via subprocess.
 """
 
-from __future__ import annotations
 
+from __future__ import print_function
 import json
 import sys
-from pathlib import Path
+try:
+    from pathlib import Path
+except ImportError:
+    Path = None  # Py2 (Abaqus runtime); use os.path instead
 
 # ---------------------------------------------------------------------------
 # Outer-agent API (subprocess caller)
 # ---------------------------------------------------------------------------
 
-def extract_kpis(
-    odb_path: str | Path,
-    kpi_spec: list[dict],
-    workdir: str | Path | None = None,
-) -> dict:
+def extract_kpis(odb_path, kpi_spec, workdir=None):
     """
     Invoke 'abaqus python' to extract KPIs from the ODB.
 
@@ -37,6 +36,7 @@ def extract_kpis(
         errors    : list  - any extraction errors
         odb_path  : str
     """
+    import shutil
     import subprocess
 
     odb_path = Path(odb_path).resolve()
@@ -50,7 +50,7 @@ def extract_kpis(
     this_script = Path(__file__).resolve()
 
     cmd = [
-        "abaqus", "python", str(this_script),
+        (shutil.which("abaqus") or "abaqus"), "python", str(this_script),
         "--", str(odb_path), str(kpi_spec_file), str(result_file),
     ]
 
@@ -127,22 +127,22 @@ def _inner_main():
                 value = _extract_single_kpi(odb, kpi)
                 result["kpis"][kpi["name"]] = value
             except Exception as e:
-                result["errors"].append(f"{kpi['name']}: {str(e)}")
+                result["errors"].append("{}: {}".format(kpi['name'], str(e)))
 
         odb.close()
 
     except ImportError:
         result["errors"].append("odbAccess not available - run via 'abaqus python'")
     except Exception as e:
-        result["errors"].append(f"ODB open failed: {str(e)}")
+        result["errors"].append("ODB open failed: {}".format(str(e)))
 
     with open(result_path, "w") as f:
-        json.dump(result, f, indent=2)
+        json.dump(result, f, indent=2, default=lambda o: float(o) if hasattr(o, '__float__') else str(o))
 
     print("KPI_RESULT_WRITTEN: " + result_path)
 
 
-def _extract_single_kpi(odb, kpi: dict):
+def _extract_single_kpi(odb, kpi):
     """Extract a single KPI from an open ODB object."""
     kpi_type = kpi.get("type", "")
     step_key  = list(odb.steps.keys())[-1]   # default: last step
@@ -167,7 +167,7 @@ def _extract_single_kpi(odb, kpi: dict):
         if "MISES" in kpi.get("name", "").upper():
             var_name = "S"
         if var_name not in frame.fieldOutputs:
-            raise KeyError(f"Field {var_name!r} not in frame")
+            raise KeyError("Field {} not in frame".format(repr(var_name)))
         field = frame.fieldOutputs[var_name]
         if "MISES" in kpi.get("name", "").upper():
             vals = [v.mises for v in field.values if hasattr(v, "mises")]
@@ -182,7 +182,7 @@ def _extract_single_kpi(odb, kpi: dict):
         var_name  = kpi.get("field_variable", "U")
         component = kpi.get("component", "U3")
         if var_name not in frame.fieldOutputs:
-            raise KeyError(f"Field {var_name!r} not in frame")
+            raise KeyError("Field {} not in frame".format(repr(var_name)))
         field = frame.fieldOutputs[var_name]
         comp_idx = {"U1": 0, "U2": 1, "U3": 2}.get(component, 2)
         vals = [v.data[comp_idx] for v in field.values]
@@ -203,7 +203,7 @@ def _extract_single_kpi(odb, kpi: dict):
         if mode_idx < len(step.frames):
             frq_frame = step.frames[mode_idx]
             return frq_frame.frequency
-        raise IndexError(f"Mode {mode_idx+1} not available (only {len(step.frames)} modes)")
+        raise IndexError("Mode {} not available (only {} modes)".format(mode_idx+1, len(step.frames)))
 
     elif kpi_type == "derived_stress_concentration":
         # Kt = max_mises_at_hole / nominal_stress
@@ -219,7 +219,7 @@ def _extract_single_kpi(odb, kpi: dict):
         return max(vals) if vals else 0.0
 
     else:
-        raise ValueError(f"Unknown kpi type: {kpi_type!r}")
+        raise ValueError("Unknown kpi type: {}".format(repr(kpi_type)))
 
 
 # ---------------------------------------------------------------------------
