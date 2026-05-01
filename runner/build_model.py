@@ -313,6 +313,11 @@ p.Surface(name='LOAD_SURF', side1Edges=p.edges.getByBoundingBox(
     xMin={L}-0.01, xMax={L}+0.01, yMin=-0.01, yMax={W}+0.01))
 p.seedPart(size={seed}, deviationFactor=0.1, minSizeFactor=0.1)
 p.generateMesh()
+# Use CPS4 full integration (CPS4R reduced has hourglass issues)
+from abaqusConstants import CPS4, CPS3, STANDARD, ENHANCED
+elemType_quad = mesh.ElemType(elemCode=CPS4, elemLibrary=STANDARD)
+elemType_tri = mesh.ElemType(elemCode=CPS3, elemLibrary=STANDARD)
+p.setElementType(regions=(p.faces,), elemTypes=(elemType_quad, elemType_tri))
 
 """
 
@@ -341,6 +346,7 @@ p.generateMesh()
 def _step_static(bc: dict, model_name: str, out: dict) -> str:
     load_val = bc.get("value", -1.0)
     fixed_face = bc.get("fixed_face", "x=0")
+    direction = bc.get("direction", None)  # 1=X, 2=Y, 3=Z; if set with pressure, use ConcentratedForce
     # BC: detect symmetry vs encastre
     if "symmetry" in fixed_face.lower():
         bc_code = (
@@ -357,6 +363,25 @@ def _step_static(bc: dict, model_name: str, out: dict) -> str:
             "    name='Fixed', createStepName='Initial',\n"
             "    region=a.instances['Part-1-1'].sets['FIXED_END'])"
         )
+    # Load: if direction is set, use ConcentratedForce on TIP_NODES; else Pressure on LOAD_SURF
+    if direction is not None:
+        cf_kwargs = []
+        for d in (1, 2, 3):
+            cf_kwargs.append("cf{}={}".format(d, load_val if d == int(direction) else 0.0))
+        load_code = (
+            "mdb.models['" + model_name + "'].ConcentratedForce(\n"
+            "    name='Load-1', createStepName='Step-1',\n"
+            "    region=a.instances['Part-1-1'].sets['TIP_NODES'],\n"
+            "    " + ", ".join(cf_kwargs) + ", distributionType=UNIFORM)"
+        )
+    else:
+        load_code = (
+            "mdb.models['" + model_name + "'].Pressure(\n"
+            "    name='Load-1', createStepName='Step-1',\n"
+            "    region=a.instances['Part-1-1'].surfaces['LOAD_SURF'],\n"
+            "    magnitude=" + str(load_val) + ", amplitude=UNSET,\n"
+            "    distributionType=UNIFORM)"
+        )
     return f"""
 mdb.models['{model_name}'].StaticStep(name='Step-1', previous='Initial',
     description='Static analysis', timePeriod=1.0,
@@ -370,11 +395,7 @@ inst = a.instances['Part-1-1']
 {bc_code}
 
 # Load
-mdb.models['{model_name}'].Pressure(
-    name='Load-1', createStepName='Step-1',
-    region=a.instances['Part-1-1'].surfaces['LOAD_SURF'],
-    magnitude={abs(load_val)}, amplitude=UNSET,
-    distributionType=UNIFORM)
+{load_code}
 
 # Field outputs
 mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
@@ -410,7 +431,30 @@ mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
 def _step_dynamic(step_type: str, ana: dict, bc: dict, model_name: str, out: dict) -> str:
     t = ana.get("time_period", 1e-3)
     load_val = bc.get("value", -1.0)
+    load_type = bc.get("load_type", "pressure")
+    direction = bc.get("direction", 3)
     if step_type == "Dynamic_Explicit":
+        # Build load code based on load_type
+        if load_type == "displacement":
+            d = int(direction)
+            disp_kwargs = []
+            for i in (1, 2, 3):
+                disp_kwargs.append("u{}={}".format(i, load_val if i == d else 0.0))
+            load_code = (
+                "mdb.models['" + model_name + "'].DisplacementBC(\n"
+                "    name='Load-1', createStepName='Step-1',\n"
+                "    region=a.instances['Part-1-1'].sets['LOAD_END'],\n"
+                "    " + ", ".join(disp_kwargs) + ", amplitude='Amp-1',\n"
+                "    distributionType=UNIFORM, fixed=OFF)"
+            )
+        else:
+            load_code = (
+                "mdb.models['" + model_name + "'].Pressure(\n"
+                "    name='Load-1', createStepName='Step-1',\n"
+                "    region=a.instances['Part-1-1'].surfaces['LOAD_SURF'],\n"
+                "    magnitude=" + str(load_val) + ", amplitude='Amp-1',\n"
+                "    distributionType=UNIFORM)"
+            )
         return f"""
 mdb.models['{model_name}'].ExplicitDynamicsStep(
     name='Step-1', previous='Initial',
@@ -425,11 +469,7 @@ mdb.models['{model_name}'].EncastreBC(
 mdb.models['{model_name}'].SmoothStepAmplitude(name='Amp-1',
     timeSpan=STEP, data=((0.0, 0.0), ({t}, 1.0)))
 
-mdb.models['{model_name}'].Pressure(
-    name='Load-1', createStepName='Step-1',
-    region=a.instances['Part-1-1'].surfaces['LOAD_SURF'],
-    magnitude={abs(load_val)}, amplitude='Amp-1',
-    distributionType=UNIFORM)
+{load_code}
 
 mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
     variables=('S', 'E', 'U', 'V', 'RF'), numIntervals=20)

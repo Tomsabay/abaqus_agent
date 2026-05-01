@@ -162,8 +162,18 @@ def _extract_single_kpi(odb, kpi):
         return min(vals) if vals else 0.0
 
     elif kpi_type == "field_max":
-        var_name  = kpi.get("field_variable", "S")
         component = kpi.get("component", None)
+        # Auto-detect var_name from component prefix unless explicit
+        if "field_variable" in kpi:
+            var_name = kpi["field_variable"]
+        elif component and component[0] == "U":
+            var_name = "U"
+        elif component and component[0] == "S":
+            var_name = "S"
+        elif component and component[:2] == "RF":
+            var_name = "RF"
+        else:
+            var_name = "S"
         if "MISES" in kpi.get("name", "").upper():
             var_name = "S"
         if var_name not in frame.fieldOutputs:
@@ -179,8 +189,17 @@ def _extract_single_kpi(odb, kpi):
         return max(vals) if vals else 0.0
 
     elif kpi_type == "field_min":
-        var_name  = kpi.get("field_variable", "U")
         component = kpi.get("component", "U3")
+        if "field_variable" in kpi:
+            var_name = kpi["field_variable"]
+        elif component and component[0] == "U":
+            var_name = "U"
+        elif component and component[0] == "S":
+            var_name = "S"
+        elif component and component[:2] == "RF":
+            var_name = "RF"
+        else:
+            var_name = "U"
         if var_name not in frame.fieldOutputs:
             raise KeyError("Field {} not in frame".format(repr(var_name)))
         field = frame.fieldOutputs[var_name]
