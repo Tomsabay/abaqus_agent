@@ -56,7 +56,7 @@ def syntaxcheck_inp(inp_path: str | Path, workdir: str | Path | None = None) -> 
             cmd,
             cwd=str(workdir),
             capture_output=True,
-            text=True,
+            text=True, errors='replace', encoding='utf-8',
             timeout=120,
         )
         combined = result.stdout + "\n" + result.stderr
