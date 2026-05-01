@@ -59,7 +59,7 @@ def extract_kpis(odb_path, kpi_spec, workdir=None):
             cmd,
             cwd=str(workdir),
             capture_output=True,
-            text=True,
+            text=True, errors='replace', encoding='utf-8',
             timeout=300,
         )
     except FileNotFoundError:
