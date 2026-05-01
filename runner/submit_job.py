@@ -106,7 +106,7 @@ def submit_job(
                 cmd,
                 cwd=str(workdir),
                 capture_output=True,
-                text=True,
+                text=True, errors='replace', encoding='utf-8',
                 timeout=timeout_seconds,
             )
             log_path.write_text(result.stdout + "\n" + result.stderr, encoding="utf-8")

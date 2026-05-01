@@ -173,7 +173,7 @@ def _write_cae_script(spec: dict, script_path: Path, workdir: Path) -> None:
         assembly_code = "# Assembly handled by premium geometry module (if multi-part)"
     else:
         section_code = f"""mdb.models['{model_name}'].HomogeneousSolidSection(
-    name='Section-1', material='{mat['name']}', thickness=None)
+    name='Section-1', material='{mat['name']}', thickness=1.0)
 mdb.models['{model_name}'].parts['Part-1'].SectionAssignment(
     region=mdb.models['{model_name}'].parts['Part-1'].sets['ALL'],
     sectionName='Section-1', offset=0.0,
@@ -290,8 +290,13 @@ import math
 p = mdb.models['{model_name}'].Part(name='Part-1', dimensionality=TWO_D_PLANAR,
     type=DEFORMABLE_BODY)
 s = mdb.models['{model_name}'].ConstrainedSketch(name='__profile__', sheetSize=300.0)
-s.rectangle(point1=(0.0, 0.0), point2=({L}, {W}))
-s.CircleByCenterPerimeter(center=(0.0, 0.0), point1=({R}, 0.0))
+# Quarter plate with quarter circular hole at corner (0,0)
+# Build closed boundary: (R,0)->(L,0)->(L,W)->(0,W)->(0,R)->arc->(R,0)
+s.Line(point1=({R}, 0.0), point2=({L}, 0.0))
+s.Line(point1=({L}, 0.0), point2=({L}, {W}))
+s.Line(point1=({L}, {W}), point2=(0.0, {W}))
+s.Line(point1=(0.0, {W}), point2=(0.0, {R}))
+s.ArcByCenterEnds(center=(0.0, 0.0), point1=(0.0, {R}), point2=({R}, 0.0), direction=CLOCKWISE)
 p.BaseShell(sketch=s)
 del mdb.models['{model_name}'].sketches['__profile__']
 
@@ -300,14 +305,15 @@ p.Set(name='HOLE_EDGE', edges=p.edges.getByBoundingCylinder(
     (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), {R}+0.5))
 p.Set(name='LOAD_END',  edges=p.edges.getByBoundingBox(
     xMin={L}-0.01, xMax={L}+0.01, yMin=-0.01, yMax={W}+0.01))
+p.Set(name='SYM_X', edges=p.edges.getByBoundingBox(
+    xMin=-0.01, xMax=0.01, yMin={R}-0.01, yMax={W}+0.01))
+p.Set(name='SYM_Y', edges=p.edges.getByBoundingBox(
+    yMin=-0.01, yMax=0.01, xMin={R}-0.01, xMax={L}+0.01))
+p.Surface(name='LOAD_SURF', side1Edges=p.edges.getByBoundingBox(
+    xMin={L}-0.01, xMax={L}+0.01, yMin=-0.01, yMax={W}+0.01))
 p.seedPart(size={seed}, deviationFactor=0.1, minSizeFactor=0.1)
 p.generateMesh()
 
-mdb.models['{model_name}'].HomogeneousSolidSection.__doc__  # suppress unused warning
-# Override section for 2D
-mdb.models['{model_name}'].HomogeneousSolidSection(
-    name='Section-1-shell', material=list(mdb.models['{model_name}'].materials.keys())[0],
-    thickness=1.0)
 """
 
 
@@ -334,6 +340,23 @@ p.generateMesh()
 
 def _step_static(bc: dict, model_name: str, out: dict) -> str:
     load_val = bc.get("value", -1.0)
+    fixed_face = bc.get("fixed_face", "x=0")
+    # BC: detect symmetry vs encastre
+    if "symmetry" in fixed_face.lower():
+        bc_code = (
+            "mdb.models['{model_name}'].XsymmBC(\n"
+            "    name='SymX', createStepName='Initial',\n"
+            "    region=a.instances['Part-1-1'].sets['SYM_X'])\n"
+            "mdb.models['{model_name}'].YsymmBC(\n"
+            "    name='SymY', createStepName='Initial',\n"
+            "    region=a.instances['Part-1-1'].sets['SYM_Y'])"
+        ).replace('{model_name}', model_name)
+    else:
+        bc_code = (
+            "mdb.models['" + model_name + "'].EncastreBC(\n"
+            "    name='Fixed', createStepName='Initial',\n"
+            "    region=a.instances['Part-1-1'].sets['FIXED_END'])"
+        )
     return f"""
 mdb.models['{model_name}'].StaticStep(name='Step-1', previous='Initial',
     description='Static analysis', timePeriod=1.0,
@@ -344,9 +367,7 @@ a = mdb.models['{model_name}'].rootAssembly
 inst = a.instances['Part-1-1']
 
 # Fixed BC
-mdb.models['{model_name}'].EncastreBC(
-    name='Fixed', createStepName='Initial',
-    region=a.instances['Part-1-1'].sets['FIXED_END'])
+{bc_code}
 
 # Load
 mdb.models['{model_name}'].Pressure(
@@ -359,11 +380,14 @@ mdb.models['{model_name}'].Pressure(
 mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
     variables=('S', 'E', 'U', 'RF'))
 
-# History outputs - tip node
-mdb.models['{model_name}'].HistoryOutputRequest(
-    name='TIP', createStepName='Step-1',
-    region=a.instances['Part-1-1'].sets['TIP_NODES'],
-    variables=('U1', 'U2', 'U3'))
+# History outputs - tip node (optional, may not exist for all cases)
+try:
+    mdb.models['{model_name}'].HistoryOutputRequest(
+        name='TIP', createStepName='Step-1',
+        region=a.instances['Part-1-1'].sets['TIP_NODES'],
+        variables=('U1', 'U2', 'U3'))
+except (KeyError, Exception):
+    pass
 """
 
 
@@ -373,9 +397,10 @@ def _step_frequency(ana: dict, model_name: str, out: dict) -> str:
 mdb.models['{model_name}'].FrequencyStep(
     name='Step-1', previous='Initial',
     numEigen={n}, eigensolver=LANCZOS,
-    minEigen=0.0, maxEigen=None, vectors=18,
+    minEigen=-1.0, maxEigen=None, vectors=18,
     maxIterations=30, blockSize=DEFAULT, maxBlocks=DEFAULT,
-    normalization=MASS, propertyEvaluationFrequency=None)
+    normalization=MASS, propertyEvaluationFrequency=None,
+    shift=-1.0)
 
 mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
     variables=('U',))
@@ -427,7 +452,7 @@ def _run_cae_nougui(script_path: Path, workdir: Path, abaqus_release: str) -> No
             cmd,
             cwd=str(workdir),
             capture_output=True,
-            text=True,
+            text=True, errors='replace', encoding='utf-8',
             timeout=600,
         )
         log_path.write_text(result.stdout + "\n" + result.stderr, encoding="utf-8")
