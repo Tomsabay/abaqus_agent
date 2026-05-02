@@ -180,7 +180,12 @@ def _extract_single_kpi(odb, kpi):
             raise KeyError("Field {} not in frame".format(repr(var_name)))
         field = frame.fieldOutputs[var_name]
         if "MISES" in kpi.get("name", "").upper():
-            vals = [v.mises for v in field.values if hasattr(v, "mises")]
+            try:
+                from abaqusConstants import ELEMENT_NODAL
+                nodal_field = field.getSubset(position=ELEMENT_NODAL)
+                vals = [v.mises for v in nodal_field.values if hasattr(v, "mises")]
+            except Exception:
+                vals = [v.mises for v in field.values if hasattr(v, "mises")]
         elif component:
             comp_idx = {"U1": 0, "U2": 1, "U3": 2, "S11": 0, "S22": 1, "S33": 2}.get(component, 0)
             vals = [v.data[comp_idx] for v in field.values]
