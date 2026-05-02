@@ -97,7 +97,7 @@ def _write_cae_script(spec: dict, script_path: Path, workdir: Path) -> None:
     geo_type = geo["type"]
     is_premium_geo = False
     if geo_type == "cantilever_block":
-        geo_code = _geo_cantilever(geo, model_name)
+        geo_code = _geo_cantilever(geo, model_name, ana)
     elif geo_type == "plate_with_hole":
         geo_code = _geo_plate_hole(geo, model_name)
     elif geo_type == "axisymmetric_disk":
@@ -246,9 +246,11 @@ print('CAE_WRITTEN: ' + workdir + '/{inp_name}.cae')
 # Geometry code generators
 # ---------------------------------------------------------------------------
 
-def _geo_cantilever(geo: dict, model_name: str) -> str:
+def _geo_cantilever(geo: dict, model_name: str, ana: dict = None) -> str:
     L, W, H = geo["L"], geo["W"], geo["H"]
     seed = geo.get("seed_size", min(L, W, H) / 4)
+    step_type = (ana or {}).get("step_type", "Static")
+    solver = (ana or {}).get("solver", "standard")
     return f"""
 def _sketch_rect(model, w, h):
     s = model.ConstrainedSketch(name='__profile__', sheetSize=200.0)
@@ -279,6 +281,17 @@ all_nodes.sort(key=_node_dist2)
 tip_node_label = all_nodes[0].label
 tip_seq = p.nodes.sequenceFromLabels((tip_node_label,))
 p.Set(name='TIP_NODES', nodes=tip_seq)
+# Use C3D8I (incompatible modes) — eliminates shear locking + hourglass for solid bending
+# Choose element type based on solver: C3D20R for Standard, C3D8R for Explicit
+import abaqusConstants as _C
+_is_explicit = '{step_type}'.startswith('Dynamic_Explicit') or '{solver}' == 'explicit'
+if _is_explicit:
+    elemType_hex = mesh.ElemType(elemCode=_C.C3D8R, elemLibrary=_C.EXPLICIT, hourglassControl=_C.ENHANCED)
+    elemType_wedge = mesh.ElemType(elemCode=_C.C3D6, elemLibrary=_C.EXPLICIT)
+else:
+    elemType_hex = mesh.ElemType(elemCode=_C.C3D20R, elemLibrary=_C.STANDARD)
+    elemType_wedge = mesh.ElemType(elemCode=_C.C3D15, elemLibrary=_C.STANDARD)
+p.setElementType(regions=(p.cells,), elemTypes=(elemType_hex, elemType_wedge))
 """
 
 
