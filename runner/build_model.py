@@ -102,6 +102,8 @@ def _write_cae_script(spec: dict, script_path: Path, workdir: Path) -> None:
         geo_code = _geo_plate_hole(geo, model_name)
     elif geo_type == "axisymmetric_disk":
         geo_code = _geo_axisym(geo, model_name)
+    elif geo_type == "square_plate":
+        geo_code = _geo_square_plate(geo, model_name, ana)
     elif geo_type == "custom_inp":
         # Just copy the inp file directly - no CAE needed
         src = Path(geo["inp_path"]).resolve()
@@ -171,6 +173,19 @@ def _write_cae_script(spec: dict, script_path: Path, workdir: Path) -> None:
     if is_premium_geo:
         section_code = "# Section handled by premium geometry module"
         assembly_code = "# Assembly handled by premium geometry module (if multi-part)"
+    elif geo_type == "square_plate":
+        plate_thickness = geo.get("thickness", 25.0)
+        section_code = f"""mdb.models['{model_name}'].HomogeneousShellSection(
+    name='Section-1', preIntegrate=OFF, material='{mat['name']}',
+    thicknessType=UNIFORM, thickness={plate_thickness},
+    integrationRule=SIMPSON, numIntPts=5)
+mdb.models['{model_name}'].parts['Part-1'].SectionAssignment(
+    region=mdb.models['{model_name}'].parts['Part-1'].sets['ALL'],
+    sectionName='Section-1', offset=0.0,
+    offsetType=MIDDLE_SURFACE, offsetField='', thicknessAssignment=FROM_SECTION)"""
+        assembly_code = f"""a = mdb.models['{model_name}'].rootAssembly
+a.DatumCsysByDefault(CARTESIAN)
+a.Instance(name='Part-1-1', part=mdb.models['{model_name}'].parts['Part-1'], dependent=ON)"""
     else:
         section_code = f"""mdb.models['{model_name}'].HomogeneousSolidSection(
     name='Section-1', material='{mat['name']}', thickness=1.0)
@@ -210,6 +225,7 @@ mdb.models['{model_name}'].Material(name='{mat['name']}')
 mdb.models['{model_name}'].materials['{mat['name']}'].Elastic(
     table=(({mat['E']}, {mat['nu']}),))
 {f"mdb.models['{model_name}'].materials['{mat['name']}'].Density(table=(({mat.get('density', 7.85e-9)},),))" if mat.get('density') else '# density not specified'}
+{("mdb.models['" + model_name + "'].materials['" + mat['name'] + "'].Plastic(table=((" + str(mat['yield']) + ", 0.0), (" + str(mat['yield'] + mat.get('hardening', 0.0) * 0.1) + ", 0.1)))") if mat.get('yield') else '# no plastic'}
 {extra_material_code}
 
 # ── Section & Assignment ─────────────────────────────────────────────────────
@@ -335,6 +351,59 @@ p.setElementType(regions=(p.faces,), elemTypes=(elemType_quad, elemType_tri))
 """
 
 
+def _geo_square_plate(geo: dict, model_name: str, ana: dict = None) -> str:
+    """Square steel plate, modeled with shell elements (S4R for Explicit, S4 for Standard).
+    All 4 edges clamped (FIXED_EDGES), top surface = BLAST_SURF.
+    Center node = TIP_NODES (track max deflection).
+    """
+    L = geo["L"]
+    thickness = geo.get("thickness", 25.0)
+    seed = geo.get("seed_size", L / 20.0)
+    step_type = (ana or {}).get("step_type", "Static")
+    is_explicit = step_type == "Dynamic_Explicit" or (ana or {}).get("solver") == "explicit"
+    return f"""
+# Square plate (3D shell)
+p = mdb.models['{model_name}'].Part(name='Part-1', dimensionality=THREE_D,
+    type=DEFORMABLE_BODY)
+s = mdb.models['{model_name}'].ConstrainedSketch(name='__profile__', sheetSize=2*{L})
+s.rectangle(point1=(0.0, 0.0), point2=({L}, {L}))
+p.BaseShell(sketch=s)
+del mdb.models['{model_name}'].sketches['__profile__']
+
+p.Set(name='ALL', faces=p.faces)
+# Four clamped edges
+p.Set(name='FIXED_EDGES', edges=p.edges.getByBoundingBox(
+    xMin=-0.01, xMax={L}+0.01,
+    yMin=-0.01, yMax={L}+0.01,
+    zMin=-0.01, zMax=0.01))
+# Top surface = where blast pressure applied (positive face normal = +z)
+p.Surface(name='BLAST_SURF', side1Faces=p.faces)
+# Section: shell with given thickness
+p.seedPart(size={seed}, deviationFactor=0.1, minSizeFactor=0.1)
+p.generateMesh()
+
+# Center node = TIP for max deflection tracking
+center = ({L}/2.0, {L}/2.0, 0.0)
+def _dist2(n):
+    c = n.coordinates
+    return (c[0]-center[0])**2 + (c[1]-center[1])**2 + (c[2]-center[2])**2
+nodes_sorted = sorted(list(p.nodes), key=_dist2)
+center_label = nodes_sorted[0].label
+p.Set(name='TIP_NODES', nodes=p.nodes.sequenceFromLabels((center_label,)))
+
+# Element type: S4R for Explicit (with hourglass control), S4 for Standard
+from abaqusConstants import S4R, S4, S3, STANDARD, EXPLICIT, ENHANCED
+if {is_explicit}:
+    elem_quad = mesh.ElemType(elemCode=S4R, elemLibrary=EXPLICIT, hourglassControl=ENHANCED)
+    elem_tri = mesh.ElemType(elemCode=S3, elemLibrary=EXPLICIT)
+else:
+    elem_quad = mesh.ElemType(elemCode=S4, elemLibrary=STANDARD)
+    elem_tri = mesh.ElemType(elemCode=S3, elemLibrary=STANDARD)
+p.setElementType(regions=(p.faces,), elemTypes=(elem_quad, elem_tri))
+"""
+
+
+
 def _geo_axisym(geo: dict, model_name: str) -> str:
     L, R = geo.get("L", 50.0), geo.get("R", 20.0)
     seed = geo.get("seed_size", 3.0)
@@ -447,6 +516,11 @@ def _step_dynamic(step_type: str, ana: dict, bc: dict, model_name: str, out: dic
     load_type = bc.get("load_type", "pressure")
     direction = bc.get("direction", 3)
     if step_type == "Dynamic_Explicit":
+        # Friedlander air-blast (Kingery-Bulmash) for blast_conwep load type
+        if load_type == "blast_conwep":
+            tnt_kg = bc.get("blast_tnt_kg", 10.0)
+            standoff_mm = bc.get("blast_standoff_mm", 2000.0)
+            return _step_blast_explicit(t, tnt_kg, standoff_mm, model_name, out)
         # Build load code based on load_type
         if load_type == "displacement":
             d = int(direction)
@@ -494,6 +568,106 @@ mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
 # ---------------------------------------------------------------------------
 # Abaqus execution helpers
 # ---------------------------------------------------------------------------
+
+def _step_blast_explicit(t: float, tnt_kg: float, standoff_mm: float,
+                         model_name: str, out: dict) -> str:
+    """Friedlander air-blast loading (Kingery-Bulmash empirical approximations).
+
+    P(t) = P_max * (1 - t/td) * exp(-b*t/td)
+      P_max  = peak overpressure (MPa)
+      td     = positive phase duration (s)
+      b      = wave decay coefficient (~1.0)
+
+    All values use mm/MPa/t/s units.
+    Kingery-Bulmash scaled distance Z = R / W^(1/3)  where R in m, W in kg.
+    """
+    import math
+    R_m = standoff_mm / 1000.0
+    W_kg = tnt_kg
+    Z = R_m / (W_kg ** (1.0/3.0))  # m/kg^(1/3)
+    # Kingery-Bulmash polynomial fits (simplified), valid for 0.05 < Z < 40
+    # Peak incident overpressure (kPa) — Mills (1987) approximation
+    if Z < 0.05:
+        Z = 0.05
+    if Z > 40:
+        Z = 40
+    P_kpa = 1772.0 / Z**3 - 114.0 / Z**2 + 108.0 / Z
+    # Reflected pressure ~= 2-8x incident; use 2x for far-field, more for near
+    P_ref_kpa = P_kpa * (2.0 + 6.0 * math.exp(-0.5 * Z))
+    P_max_mpa = max(P_ref_kpa / 1000.0, 0.001)
+    # Positive phase duration (ms) — Kinney-Graham approximation
+    td_ms = 980.0 * (1 + (Z/0.54)**10) / ((1 + (Z/0.02)**3) * (1 + (Z/0.74)**6) *
+                                          math.sqrt(1 + (Z/6.9)**2)) * (W_kg ** (1.0/3.0))
+    td_s = td_ms / 1000.0
+    if td_s < 1e-5:
+        td_s = 1e-5
+    if td_s > t:
+        td_s = t * 0.5
+    # Build amplitude table (Friedlander) — sample 30 points
+    b = 1.0
+    n_pts = 30
+    pts = []
+    for i in range(n_pts + 1):
+        ti = (td_s * i / n_pts)
+        if ti >= td_s:
+            amp = 0.0
+        else:
+            amp = (1.0 - ti/td_s) * math.exp(-b * ti/td_s)
+        pts.append((ti, amp))
+    # After td_s: amp = 0 (no negative phase modeled)
+    pts.append((t, 0.0))
+    amp_data = ", ".join("({:.6e}, {:.6e})".format(ti, ai) for ti, ai in pts)
+
+    # Note: Pressure with negative magnitude pushes INTO surface (compressive)
+    # For air blast, the wave pushes plate downward (-z normal direction)
+    # We use Pressure on BLAST_SURF with magnitude = P_max_mpa (positive = compressive into surface)
+    return f"""
+# === Friedlander air-blast load ===
+# TNT = {tnt_kg} kg, standoff = {standoff_mm} mm, scaled distance Z = {Z:.3f} m/kg^(1/3)
+# Peak reflected pressure = {P_max_mpa:.3f} MPa, positive phase td = {td_s*1000:.2f} ms
+
+mdb.models['{model_name}'].ExplicitDynamicsStep(
+    name='Step-1', previous='Initial',
+    timePeriod={t}, description='Explicit blast dynamics')
+
+a = mdb.models['{model_name}'].rootAssembly
+
+# Boundary: clamp all four plate edges
+mdb.models['{model_name}'].EncastreBC(
+    name='Fixed', createStepName='Initial',
+    region=a.instances['Part-1-1'].sets['FIXED_EDGES'])
+
+# Friedlander tabular amplitude
+mdb.models['{model_name}'].TabularAmplitude(
+    name='BlastAmp', timeSpan=STEP, smooth=SOLVER_DEFAULT,
+    data=({amp_data},))
+
+# Pressure on BLAST_SURF (magnitude scaled by amplitude)
+mdb.models['{model_name}'].Pressure(
+    name='AirBlast', createStepName='Step-1',
+    region=a.instances['Part-1-1'].surfaces['BLAST_SURF'],
+    magnitude={P_max_mpa}, amplitude='BlastAmp',
+    distributionType=UNIFORM)
+
+# Field outputs (include PEEQ for plastic strain, ALLPD for plastic dissipation)
+mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
+    variables=('S', 'PE', 'PEEQ', 'U', 'V', 'A'), numIntervals=20)
+
+# History outputs: track center node, energies
+try:
+    mdb.models['{model_name}'].HistoryOutputRequest(
+        name='TIP', createStepName='Step-1',
+        region=a.instances['Part-1-1'].sets['TIP_NODES'],
+        variables=('U3', 'V3', 'A3'))
+except (KeyError, Exception):
+    pass
+
+mdb.models['{model_name}'].HistoryOutputRequest(
+    name='Energy', createStepName='Step-1',
+    variables=('ALLKE', 'ALLIE', 'ALLPD', 'ALLSE'))
+"""
+
+
 
 def _run_cae_nougui(script_path: Path, workdir: Path, abaqus_release: str) -> None:
     """Execute abaqus cae noGUI=<script> and capture output."""
