@@ -1,0 +1,25 @@
+{
+  "kpis": {
+    "U_MAX_DEFLECTION": {
+      "value": -93.5,
+      "rtol": 0.30,
+      "atol": 5.0,
+      "unit": "mm",
+      "note": "Q345 plate 2m x 2m x 25mm under 10kg TNT @ 2m standoff. Expected center max deflection ~93mm (3.7% L), validated against Friedlander/Kingery-Bulmash analytical."
+    },
+    "PEEQ_MAX": {
+      "value": 0.026,
+      "rtol": 0.50,
+      "atol": 0.01,
+      "unit": "—",
+      "note": "Peak equivalent plastic strain ~2.6% indicating moderate plastic deformation localized at clamped edges."
+    },
+    "ALLPD_MAX": {
+      "value": 1.25e8,
+      "rtol": 0.50,
+      "atol": 1.0e7,
+      "unit": "mJ",
+      "note": "Plastic dissipation energy 125 J (mm/MPa/t units → mJ). Mesh-dependent; use as energy budget check."
+    }
+  }
+}
