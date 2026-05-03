@@ -165,13 +165,16 @@ def _extract_single_kpi(odb, kpi):
         component = kpi.get("component", None)
         # Auto-detect var_name from component prefix unless explicit
         if "field_variable" in kpi:
-            var_name = kpi["field_variable"]
+            var_name = str(kpi["field_variable"])
         elif component and component[0] == "U":
             var_name = "U"
         elif component and component[0] == "S":
             var_name = "S"
         elif component and component[:2] == "RF":
             var_name = "RF"
+        elif str(kpi.get("name", "")).upper().startswith("PEEQ"):
+            var_name = "PEEQ"
+            component = None
         else:
             var_name = "S"
         if "MISES" in kpi.get("name", "").upper():
@@ -186,6 +189,9 @@ def _extract_single_kpi(odb, kpi):
                 vals = [v.mises for v in nodal_field.values if hasattr(v, "mises")]
             except Exception:
                 vals = [v.mises for v in field.values if hasattr(v, "mises")]
+        elif var_name in ("PEEQ", "ALLPD", "ALLIE", "ALLKE"):
+            # scalar field, .data is a single float
+            vals = [v.data for v in field.values]
         elif component:
             comp_idx = {"U1": 0, "U2": 1, "U3": 2, "S11": 0, "S22": 1, "S33": 2}.get(component, 0)
             vals = [v.data[comp_idx] for v in field.values]
@@ -196,7 +202,7 @@ def _extract_single_kpi(odb, kpi):
     elif kpi_type == "field_min":
         component = kpi.get("component", "U3")
         if "field_variable" in kpi:
-            var_name = kpi["field_variable"]
+            var_name = str(kpi["field_variable"])
         elif component and component[0] == "U":
             var_name = "U"
         elif component and component[0] == "S":
@@ -220,6 +226,18 @@ def _extract_single_kpi(odb, kpi):
         comp_idx = {"RF1": 0, "RF2": 1, "RF3": 2}.get(component, 2)
         vals = [abs(v.data[comp_idx]) for v in field.values]
         return max(vals) if vals else 0.0
+
+    elif kpi_type == "history_output_max":
+        # Find the named history variable in any history region; return abs max
+        var = kpi.get("variable", "ALLPD")
+        max_val = 0.0
+        for region_key, region in step.historyRegions.items():
+            for hkey, hout in region.historyOutputs.items():
+                if hkey.upper() == var.upper():
+                    for t, v in hout.data:
+                        if abs(v) > abs(max_val):
+                            max_val = v
+        return max_val
 
     elif kpi_type == "eigenfrequency":
         mode_str  = kpi.get("location", "mode_1")

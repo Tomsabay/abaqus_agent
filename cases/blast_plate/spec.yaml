@@ -1,0 +1,46 @@
+meta:
+  abaqus_release: "2024"
+  model_name: "BlastSteelPlate"
+  units: "mm_MPa_t"
+  description: "Q345 steel plate (2m x 2m x 25mm) under 10kg TNT air blast at 2m standoff. All edges clamped. Friedlander pressure-time history (Kingery-Bulmash empirical)."
+
+geometry:
+  type: square_plate
+  L: 2000.0          # mm side length
+  thickness: 25.0    # mm
+  seed_size: 100.0   # mm mesh seed (~20x20 elements)
+
+material:
+  name: Steel_Q345
+  E: 210000.0        # MPa
+  nu: 0.3
+  density: 7.85e-9   # t/mm^3
+  yield: 345.0       # MPa
+  hardening: 2000.0  # MPa (used for bilinear plastic)
+
+analysis:
+  solver: explicit
+  step_type: Dynamic_Explicit
+  time_period: 4.0e-3  # 4 ms
+  cpus: 2
+  mp_mode: threads
+
+bc_load:
+  fixed_face: "all_edges"
+  load_type: blast_conwep
+  blast_tnt_kg: 10.0          # 10 kg TNT
+  blast_standoff_mm: 2000.0   # 2m standoff above plate center
+
+outputs:
+  kpis:
+    - name: U_MAX_DEFLECTION
+      type: field_min
+      component: U3
+      location: whole_model
+    - name: PEEQ_MAX
+      type: field_max
+      field_variable: PEEQ
+      location: whole_model
+    - name: ALLPD_MAX
+      type: history_output_max
+      variable: ALLPD
