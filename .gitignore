@@ -42,3 +42,4 @@ Thumbs.db
 # Secrets
 .env
 *.key
+reports/*.md
