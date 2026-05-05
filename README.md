@@ -316,6 +316,14 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - [Contributing Guide](CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 
+### Acknowledgments
+
+- **[@ganansuan647](https://github.com/ganansuan647)** (GLY2024) — first external contributor.
+  Verified end-to-end pipeline on Abaqus 2026, contributed Python 3 compatibility fixes
+  ([PR #1](https://github.com/Tomsabay/abaqus_agent/pull/1)) and the `tools/abaqus_cmd.py`
+  module for Windows `.bat` path resolution ([PR #2](https://github.com/Tomsabay/abaqus_agent/pull/2)).
+  See [docs/CASE_STUDY_GLY2024.md](docs/CASE_STUDY_GLY2024.md).
+
 ---
 
 ## Commercial Deployment
