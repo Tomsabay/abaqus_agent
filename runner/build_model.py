@@ -127,7 +127,7 @@ def _write_cae_script(spec: dict, script_path: Path, workdir: Path) -> None:
     if step_type == "Static":
         step_code = _step_static(bc, model_name, out)
     elif step_type == "Frequency":
-        step_code = _step_frequency(ana, model_name, out)
+        step_code = _step_frequency(ana, bc, model_name, out)
     elif step_type in ("Dynamic_Explicit", "Dynamic_Implicit"):
         step_code = _step_dynamic(step_type, ana, bc, model_name, out)
     else:
@@ -494,16 +494,29 @@ except (KeyError, Exception):
 """
 
 
-def _step_frequency(ana: dict, model_name: str, out: dict) -> str:
+def _step_frequency(ana: dict, bc: dict, model_name: str, out: dict) -> str:
     n = ana.get("num_eigenmodes", 6)
+    fixed_face = (bc or {}).get("fixed_face")
+    if fixed_face:
+        bc_code = (
+            "a = mdb.models['" + model_name + "'].rootAssembly\n"
+            "mdb.models['" + model_name + "'].EncastreBC(\n"
+            "    name='Fixed', createStepName='Initial',\n"
+            "    region=a.instances['Part-1-1'].sets['FIXED_END'])"
+        )
+        eig_kwargs = "minEigen=0.0, maxEigen=None, vectors=18"
+    else:
+        bc_code = ""
+        eig_kwargs = "minEigen=-1.0, maxEigen=None, vectors=18,\n    shift=-1.0"
     return f"""
+{bc_code}
+
 mdb.models['{model_name}'].FrequencyStep(
     name='Step-1', previous='Initial',
     numEigen={n}, eigensolver=LANCZOS,
-    minEigen=-1.0, maxEigen=None, vectors=18,
+    {eig_kwargs},
     maxIterations=30, blockSize=DEFAULT, maxBlocks=DEFAULT,
-    normalization=MASS, propertyEvaluationFrequency=None,
-    shift=-1.0)
+    normalization=MASS, propertyEvaluationFrequency=None)
 
 mdb.models['{model_name}'].fieldOutputRequests['F-Output-1'].setValues(
     variables=('U',))
