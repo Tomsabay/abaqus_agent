@@ -1,18 +1,25 @@
 {
   "kpis": {
     "freq_1": {
-      "value": 0.0,
-      "rtol": 0.01,
-      "atol": 1.0,
+      "value": 210.0,
+      "rtol": 0.05,
+      "atol": 5.0,
       "unit": "Hz",
-      "note": "Rigid body mode - should be near zero"
+      "note": "Cantilever 1st bending (weak axis, H=10mm). Analytical 1.875^2/(2*pi*L^2)*sqrt(EI/(rho*A)) ~ 209 Hz."
     },
     "freq_2": {
-      "value": 1000.0,
-      "rtol": 0.30,
-      "atol": 50.0,
+      "value": 416.0,
+      "rtol": 0.05,
+      "atol": 5.0,
       "unit": "Hz",
-      "note": "First bending mode (approximate, update after first run)"
+      "note": "Cantilever 1st bending (strong axis, W=20mm). Analytical ~ 418 Hz (2x weak-axis due to I ratio)."
+    },
+    "freq_3": {
+      "value": 1304.0,
+      "rtol": 0.05,
+      "atol": 10.0,
+      "unit": "Hz",
+      "note": "Higher-order mode (2nd bending / torsion mix)."
     }
   }
 }

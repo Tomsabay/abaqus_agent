@@ -2,7 +2,7 @@ meta:
   abaqus_release: "2024"
   model_name: "ModalBeam"
   units: "mm_MPa_t"
-  description: "Free-free modal analysis of a 3D beam, first 6 natural frequencies"
+  description: "Cantilever modal analysis of a 3D beam (fixed at z=0), first 6 natural frequencies"
 
 geometry:
   type: cantilever_block
@@ -23,7 +23,8 @@ analysis:
   num_eigenmodes: 6
   cpus: 2
 
-bc_load: {}   # free-free (no BC for modal)
+bc_load:
+  fixed_face: "z=0"   # cantilever: fix one end so we get real bending modes (not RBM)
 
 outputs:
   kpis:
