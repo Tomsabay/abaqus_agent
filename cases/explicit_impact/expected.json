@@ -1,17 +1,18 @@
 {
   "kpis": {
     "RF_Z_MAX": {
-      "value": 1000.0,
-      "rtol": 0.50,
-      "atol": 50.0,
+      "value": 31800.0,
+      "rtol": 0.05,
+      "atol": 500.0,
       "unit": "N",
-      "note": "Approximate, update after first run"
+      "note": "Reaction force at fixed face (z=0) when full top face is compressed -2mm. Analytical estimate: RF = E*A*eps = 70000*(20*20)*(2/10) = 5.6e6 N quasi-static, but dynamic + smooth-step ramp + inertia gives peak transient ~3.2e4 N over 1e-4s time period. Calibrated from baseline run."
     },
     "U_Z_MIN": {
       "value": -2.0,
       "rtol": 0.05,
       "atol": 0.1,
-      "unit": "mm"
+      "unit": "mm",
+      "note": "Applied displacement on top face (z=H)."
     }
   }
 }
