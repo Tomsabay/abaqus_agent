@@ -241,11 +241,11 @@ def _extract_single_kpi(odb, kpi):
 
     elif kpi_type == "eigenfrequency":
         mode_str  = kpi.get("location", "mode_1")
-        mode_idx  = int(mode_str.split("_")[-1]) - 1
-        if mode_idx < len(step.frames):
-            frq_frame = step.frames[mode_idx]
+        mode_n    = int(mode_str.split("_")[-1])
+        if mode_n < len(step.frames):
+            frq_frame = step.frames[mode_n]
             return frq_frame.frequency
-        raise IndexError("Mode {} not available (only {} modes)".format(mode_idx+1, len(step.frames)))
+        raise IndexError("Mode {} not available (only {} modes)".format(mode_n, len(step.frames) - 1))
 
     elif kpi_type == "derived_stress_concentration":
         # Kt = max_mises_at_hole / nominal_stress
