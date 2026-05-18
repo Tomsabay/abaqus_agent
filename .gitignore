@@ -43,3 +43,9 @@ Thumbs.db
 .env
 *.key
 reports/*.md
+
+# Local agent config (contains personal paths and Tailscale topology)
+AGENTS.md
+
+# uv lock file (project uses hatchling, not uv — keep local only)
+uv.lock
