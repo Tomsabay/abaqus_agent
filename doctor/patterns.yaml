@@ -1,0 +1,101 @@
+patterns:
+  - id: license_unavailable
+    category: license
+    severity: error
+    regex: "license.*(unavailable|not available|checkout failed|denied)"
+    suggestion: "Check LM_LICENSE_FILE, token availability, and whether the customer BYOL license server is reachable."
+  - id: flexnet_error
+    category: license
+    severity: error
+    regex: "(flexnet|lmgrd|lmutil|lmstat).*error"
+    suggestion: "Inspect the FlexNet license server and confirm Abaqus vendor daemon status."
+  - id: too_many_attempts
+    category: convergence
+    severity: error
+    regex: "too many attempts.*increment"
+    suggestion: "Reduce initial increment, enable stabilization, or inspect contact/material nonlinearity."
+  - id: excessive_distortion
+    category: convergence
+    severity: error
+    regex: "excessive (element )?distortion"
+    suggestion: "Refine mesh, use better element formulation, reduce load step, or add erosion/contact controls."
+  - id: numerical_singularity
+    category: model_setup
+    severity: error
+    regex: "numerical singularity|zero pivot"
+    suggestion: "Check boundary conditions, disconnected parts, constraints, and rigid body modes."
+  - id: negative_eigenvalues
+    category: model_setup
+    severity: warning
+    regex: "negative eigenvalues"
+    suggestion: "Check unstable constraints, contact status, material stiffness, and load step setup."
+  - id: time_increment_required_too_small
+    category: convergence
+    severity: error
+    regex: "time increment required is less than"
+    suggestion: "Reduce nonlinear severity, improve mesh/contact, or adjust step increment controls."
+  - id: contact_overclosure
+    category: contact
+    severity: warning
+    regex: "overclosure|penetration.*contact"
+    suggestion: "Review contact initialization, clearances, normal behavior, and mesh density near contact."
+  - id: material_missing_density
+    category: material
+    severity: error
+    regex: "density.*(not defined|required)"
+    suggestion: "Add material density for dynamic, modal, and explicit analyses."
+  - id: material_not_defined
+    category: material
+    severity: error
+    regex: "material.*(has not been defined|not defined)"
+    suggestion: "Verify section assignments and material names in the input deck."
+  - id: element_type_unknown
+    category: syntax
+    severity: error
+    regex: "unknown element type|element type.*not recognized"
+    suggestion: "Check Abaqus release compatibility and element library selection."
+  - id: keyword_error
+    category: syntax
+    severity: error
+    regex: "error in keyword|unknown keyword|invalid keyword"
+    suggestion: "Run syntaxcheck and inspect the .dat/.msg keyword context."
+  - id: path_too_long
+    category: environment
+    severity: error
+    regex: "path.*too long|filename.*too long"
+    suggestion: "Move the run directory closer to the drive root and keep paths under Abaqus limits."
+  - id: file_not_found
+    category: environment
+    severity: error
+    regex: "(file|input file).*(not found|cannot be opened)"
+    suggestion: "Verify working directory, relative paths, include files, and copied artifacts."
+  - id: odb_upgrade_required
+    category: odb
+    severity: error
+    regex: "odb.*(upgrade|required|from a previous release)"
+    suggestion: "Run the ODB upgrade flow or extract KPIs with a compatible Abaqus version."
+  - id: odb_corrupt
+    category: odb
+    severity: error
+    regex: "odb.*(corrupt|cannot be opened|invalid)"
+    suggestion: "Check whether the job completed and whether the ODB was copied fully."
+  - id: memory_allocation
+    category: resources
+    severity: error
+    regex: "insufficient memory|memory allocation"
+    suggestion: "Increase memory allocation, reduce model size, or reduce output frequency."
+  - id: disk_full
+    category: resources
+    severity: error
+    regex: "no space left|disk.*full|cannot write"
+    suggestion: "Free disk space and move large ODB artifacts out of the run directory."
+  - id: explicit_stable_time_too_small
+    category: explicit
+    severity: warning
+    regex: "stable time increment.*(small|too small)"
+    suggestion: "Inspect small/distorted elements; consider mass scaling only when physically justified."
+  - id: abaqus_command_missing
+    category: environment
+    severity: error
+    regex: "(abaqus|abaqus\\.bat).*(not found|is not recognized|No such file)"
+    suggestion: "Resolve Abaqus through tools/abaqus_cmd.py and verify PATH on Windows."

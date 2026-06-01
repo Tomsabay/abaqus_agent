@@ -12,12 +12,10 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import time
 import uuid
 from pathlib import Path
 
 from tools.errors import AbaqusAgentError, ErrorCode
-
 
 # ---------------------------------------------------------------------------
 # Public API

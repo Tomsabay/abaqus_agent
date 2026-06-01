@@ -10,10 +10,11 @@ This script runs INSIDE the Abaqus Python runtime so only stdlib + Abaqus module
 are available. The outer agent calls it via subprocess.
 """
 
-
 from __future__ import print_function
+
 import json
 import sys
+
 try:
     from pathlib import Path
 except ImportError:
