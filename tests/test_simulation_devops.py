@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -15,7 +16,6 @@ from capsule.schema import validate_capsule
 from capsule.store import hash_file, init_from_inp, load_capsule
 from contracts.evaluator import evaluate_contracts
 from doctor.diagnosis import diagnose_logs
-from runner.build_model import build_model
 from simdiff.kpi_diff import diff_kpis, render_markdown
 
 
@@ -33,8 +33,9 @@ def test_custom_inp_build_copies_input_without_abaqus(tmp_path):
     spec_path = tmp_path / "spec.yaml"
     spec_path.write_text(yaml.safe_dump(spec), encoding="utf-8")
 
-    with patch("runner.build_model._run_cae_nougui") as run_cae:
-        result = build_model(spec_path, tmp_path / "run")
+    build_model_module = importlib.import_module("runner.build_model")
+    with patch.object(build_model_module, "_run_cae_nougui") as run_cae:
+        result = build_model_module.build_model(spec_path, tmp_path / "run")
 
     run_cae.assert_not_called()
     assert result["custom_inp"] is True
