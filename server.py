@@ -57,7 +57,7 @@ RUNS: dict[str, dict] = {}
 app = FastAPI(
     title="Abaqus Agent API",
     version="0.1.0",
-    description="LLM-powered Abaqus FEA automation agent",
+    description="Local simulation QA and regression framework for Abaqus FEA",
 )
 
 app.add_middleware(
@@ -314,7 +314,7 @@ def activate_premium(license_key: str = ""):
 # ── Main ──────────────────────────────────────────────────────────
 
 def main():
-    """Entry point for `abaqus-agent` CLI command."""
+    """Entry point for the `abaqus-agent serve` command."""
     import uvicorn
     print("\n  Abaqus Agent API")
     print("  ─────────────────────────────")

@@ -136,6 +136,12 @@ v0.2 should deliver:
 - README and GitHub presentation aligned with the new positioning
 - CI green
 
+Current v0.2-dev implementation status:
+
+- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, contract evaluator, KPI diff, Solver Doctor patterns, CLI report workflows.
+- In progress: benchmark-level contract reports and richer report templates.
+- Planned next: ODB Lens YAML KPI DSL and report templates.
+
 ## Commercial Path
 
 Use BYOL local runner. The customer's Abaqus license and data stay on their machines.

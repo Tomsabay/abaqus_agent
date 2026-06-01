@@ -26,6 +26,8 @@ from typing import Callable
 
 import yaml
 
+from capsule.store import create_capsule, hash_file, write_capsule
+from doctor import diagnose_logs
 from post.extract_kpis import extract_kpis
 from runner.build_model import build_model
 from runner.monitor_job import JobStatus, monitor_job
@@ -103,6 +105,7 @@ class AbaqusOrchestrator:
             "regression": {},
             "status": "PENDING",
         }
+        self._build_result: dict = {}
 
     # -------------------------------------------------------------------------
     # Main entry point
@@ -156,6 +159,7 @@ class AbaqusOrchestrator:
                 break
 
         self.result["finished_at"] = datetime.now().isoformat()
+        self._save_capsule()
         self._save_result()
         return self.result
 
@@ -268,6 +272,7 @@ class AbaqusOrchestrator:
         result = build_model(self.spec_path, self.workdir)
         self.result["stages"]["build_model"] = {k: str(v) for k, v in result.items()}
         self.workdir = result["workdir"]
+        self._build_result = result
         self.on_progress("build_model", {"inp": str(result["inp_path"])})
         return result
 
@@ -395,6 +400,66 @@ class AbaqusOrchestrator:
                 )
             except Exception:
                 pass
+
+    def _save_capsule(self):
+        if not self.workdir:
+            return
+
+        workdir = Path(self.workdir)
+        artifacts = self._collect_artifacts(workdir)
+        metadata = {
+            "status": self.result.get("status"),
+            "abaqus_release": self.spec.get("meta", {}).get("abaqus_release"),
+        }
+        if self.result.get("error"):
+            metadata["error"] = self.result["error"]
+
+        capsule = create_capsule(
+            run_id=self._build_result.get("run_id", workdir.name),
+            capsule_dir=workdir,
+            inputs=self._capsule_inputs(workdir),
+            artifacts=artifacts,
+            metadata=metadata,
+        )
+
+        if self.result.get("status") != "COMPLETED":
+            log_paths = [workdir / name for name in artifacts if Path(name).suffix.lower() in {".sta", ".msg", ".log", ".dat"}]
+            diagnosis = diagnose_logs(paths=log_paths)
+            if diagnosis.get("matched"):
+                capsule["diagnosis"] = diagnosis
+                write_capsule(capsule, workdir)
+
+        self.result["capsule_path"] = str(workdir / "capsule.json")
+
+    def _capsule_inputs(self, workdir: Path) -> dict:
+        inputs = {
+            "model_name": self.spec.get("meta", {}).get("model_name"),
+            "spec_path": str(self.spec_path) if self.spec_path else None,
+        }
+        spec_copy = workdir / "spec.yaml"
+        if spec_copy.exists():
+            inputs["spec"] = "spec.yaml"
+            inputs["spec_sha256"] = hash_file(spec_copy)
+
+        source_inp = self._build_result.get("source_inp_path")
+        if source_inp:
+            inputs["source_inp"] = str(source_inp)
+        return inputs
+
+    def _collect_artifacts(self, workdir: Path) -> dict:
+        artifacts = {}
+        for path in sorted(workdir.iterdir()):
+            if not path.is_file() or path.name == "capsule.json":
+                continue
+            try:
+                artifacts[path.name] = {
+                    "path": path.name,
+                    "sha256": hash_file(path),
+                    "bytes": path.stat().st_size,
+                }
+            except OSError:
+                continue
+        return artifacts
 
 
 # ---------------------------------------------------------------------------
