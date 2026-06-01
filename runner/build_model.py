@@ -46,6 +46,9 @@ def build_model(spec_path: str | Path, workdir: str | Path | None = None) -> dic
 
     inp_path = workdir / f"{spec['meta']['model_name']}.inp"
 
+    if spec["geometry"]["type"] == "custom_inp":
+        return _build_custom_inp(spec, spec_path, workdir, inp_path, run_id)
+
     # Idempotency: if .inp already exists and is valid, skip re-generation
     if inp_path.exists() and inp_path.stat().st_size > 0:
         return {
@@ -105,11 +108,10 @@ def _write_cae_script(spec: dict, script_path: Path, workdir: Path) -> None:
     elif geo_type == "square_plate":
         geo_code = _geo_square_plate(geo, model_name, ana)
     elif geo_type == "custom_inp":
-        # Just copy the inp file directly - no CAE needed
-        src = Path(geo["inp_path"]).resolve()
-        shutil.copy(src, workdir / f"{model_name}.inp")
-        script_path.write_text("# custom inp - no CAE script needed\n")
-        return
+        raise AbaqusAgentError(
+            ErrorCode.BUILD_FAILED,
+            "custom_inp should be handled before CAE script generation",
+        )
     else:
         # Try premium geometry registry
         try:
@@ -357,7 +359,6 @@ def _geo_square_plate(geo: dict, model_name: str, ana: dict = None) -> str:
     Center node = TIP_NODES (track max deflection).
     """
     L = geo["L"]
-    thickness = geo.get("thickness", 25.0)
     seed = geo.get("seed_size", L / 20.0)
     step_type = (ana or {}).get("step_type", "Static")
     is_explicit = step_type == "Dynamic_Explicit" or (ana or {}).get("solver") == "explicit"
@@ -723,6 +724,30 @@ def _run_cae_nougui(script_path: Path, workdir: Path, abaqus_release: str) -> No
 def _load_spec(path: Path) -> dict:
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def _build_custom_inp(spec: dict, spec_path: Path, workdir: Path, inp_path: Path, run_id: str) -> dict:
+    """Copy an existing .inp into the run directory without launching Abaqus/CAE."""
+    raw_src = Path(spec["geometry"]["inp_path"])
+    src = raw_src if raw_src.is_absolute() else spec_path.parent / raw_src
+    src = src.resolve()
+    if not src.exists():
+        raise AbaqusAgentError(ErrorCode.FILE_NOT_FOUND, f"custom_inp not found: {src}")
+    if src.suffix.lower() != ".inp":
+        raise AbaqusAgentError(ErrorCode.BUILD_FAILED, f"custom_inp must point to a .inp file: {src}")
+
+    if src != inp_path.resolve():
+        shutil.copyfile(src, inp_path)
+
+    return {
+        "workdir": workdir,
+        "cae_path": workdir / f"{spec['meta']['model_name']}.cae",
+        "inp_path": inp_path,
+        "source_inp_path": src,
+        "run_id": run_id,
+        "cached": False,
+        "custom_inp": True,
+    }
 
 
 def _run_id(spec: dict) -> str:
