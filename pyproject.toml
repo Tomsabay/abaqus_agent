@@ -35,7 +35,7 @@ dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1", "httpx>=0.24"]
 all = ["abaqus-agent[mcp,llm,dev]"]
 
 [project.scripts]
-abaqus-agent = "server:main"
+abaqus-agent = "cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Tomsabay/abaqus_agent"
@@ -51,6 +51,7 @@ line-length = 100
 packages = [
     "agent",
     "capsule",
+    "cli.py",
     "contracts",
     "core",
     "doctor",

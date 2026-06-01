@@ -32,12 +32,12 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 
 | Capability | Status | Purpose |
 |---|---:|---|
-| `custom_inp` first | Started | Bring existing customer `.inp` files instead of forcing NL/spec generation. |
-| Experiment Capsule | Started | Store inputs, artifacts, hashes, environment, and provenance in `capsule.json`. |
+| `custom_inp` first | Implemented | Bring existing customer `.inp` files instead of forcing NL/spec generation. |
+| Experiment Capsule | Implemented | Store inputs, artifacts, hashes, environment, and provenance in `capsule.json`. |
 | ODB Lens / KPI DSL | Planned | Reusable KPI extraction recipes for `.odb` files. |
 | Physics Contracts | Started | Check ranges, directions, relative error, and ordered KPIs. |
 | Simulation Diff | Started | Compare KPI changes between baseline and candidate runs. |
-| Solver Doctor | Started | Diagnose `.sta/.msg/.log/.dat` failures from known patterns. |
+| Solver Doctor | Implemented | Diagnose `.sta/.msg/.log/.dat` failures from known patterns. |
 
 See [docs/STRATEGY.md](docs/STRATEGY.md) for the product strategy.
 
@@ -105,6 +105,10 @@ outputs:
 
 Create an experiment capsule from an `.inp`:
 
+```bash
+abaqus-agent capsule init --from-inp model.inp --out runs/model_capsule
+```
+
 ```python
 from capsule.store import init_from_inp
 
@@ -128,6 +132,10 @@ result = evaluate_contracts(
 
 Diagnose solver logs:
 
+```bash
+abaqus-agent doctor Job-1.msg Job-1.sta
+```
+
 ```python
 from doctor import diagnose_logs
 
@@ -135,6 +143,10 @@ diagnosis = diagnose_logs(paths=["Job-1.msg", "Job-1.sta"])
 ```
 
 Compare KPI results:
+
+```bash
+abaqus-agent diff baseline_kpis.json candidate_kpis.json --out diff.md
+```
 
 ```python
 from simdiff import diff_kpis
@@ -230,11 +242,11 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] FastAPI/SSE web API
 - [x] `custom_inp` no-CAE build path
 - [x] v0.2 capsule / contract / diff / doctor kernel skeleton
+- [x] Capsule-backed run output from the orchestrator
+- [x] Solver Doctor / contract check / KPI diff CLI
 - [ ] ODB Lens YAML KPI DSL
-- [ ] Capsule-backed run output from the orchestrator
 - [ ] Physics contract checks in benchmark reports
 - [ ] Markdown/PDF report templates
-- [ ] Solver Doctor CLI
 - [ ] Validation matrix for Abaqus versions and operating systems
 
 ## Acknowledgments
