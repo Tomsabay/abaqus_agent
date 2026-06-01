@@ -138,9 +138,9 @@ v0.2 should deliver:
 
 Current v0.2-dev implementation status:
 
-- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, contract evaluator, KPI diff, Solver Doctor patterns, CLI report workflows.
-- In progress: benchmark-level contract reports and richer report templates.
-- Planned next: ODB Lens YAML KPI DSL and report templates.
+- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, contract evaluator, KPI diff, Solver Doctor patterns, CLI report workflows, ODB Lens recipe normalization and KPI Markdown reports.
+- In progress: benchmark-level contract reports, richer report templates, and broader ODB Lens extractor coverage.
+- Planned next: frame/region-aware ODB extraction tests on real Abaqus and report templates.
 
 ## Commercial Path
 

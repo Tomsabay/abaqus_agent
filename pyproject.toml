@@ -55,6 +55,7 @@ packages = [
     "contracts",
     "core",
     "doctor",
+    "odb_lens",
     "runner",
     "post",
     "simdiff",

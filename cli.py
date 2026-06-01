@@ -12,6 +12,7 @@ import yaml
 from capsule.store import init_from_inp
 from contracts import evaluate_contracts
 from doctor import diagnose_logs
+from odb_lens import load_recipe, render_kpi_markdown
 from simdiff.kpi_diff import diff_kpis
 from simdiff.kpi_diff import render_markdown as render_diff_markdown
 
@@ -52,6 +53,19 @@ def _build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     doctor.add_argument("--out", help="Write Markdown report to this path")
     doctor.set_defaults(func=_cmd_doctor)
+
+    lens = sub.add_parser("lens", help="Work with ODB Lens KPI recipes")
+    lens_sub = lens.add_subparsers(dest="lens_command", required=True)
+    lens_norm = lens_sub.add_parser("normalize", help="Normalize an ODB Lens recipe")
+    lens_norm.add_argument("recipe", help="YAML/JSON KPI recipe")
+    lens_norm.add_argument("--out", help="Write normalized JSON to this path")
+    lens_norm.set_defaults(func=_cmd_lens_normalize)
+
+    lens_report = lens_sub.add_parser("report", help="Render KPI JSON as Markdown")
+    lens_report.add_argument("kpis", help="KPI JSON file, or result JSON containing kpis")
+    lens_report.add_argument("--recipe", help="Optional ODB Lens recipe for query context")
+    lens_report.add_argument("--out", help="Write Markdown report to this path")
+    lens_report.set_defaults(func=_cmd_lens_report)
 
     check = sub.add_parser("check", help="Evaluate physics contracts against KPI JSON")
     check.add_argument("kpis", help="KPI JSON file, or a result JSON containing a kpis object")
@@ -101,6 +115,21 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     else:
         output = _render_doctor_markdown(diagnosis)
 
+    _write_or_print(output, args.out)
+    return 0
+
+
+def _cmd_lens_normalize(args: argparse.Namespace) -> int:
+    recipe = load_recipe(args.recipe)
+    output = json.dumps(recipe, indent=2, ensure_ascii=False)
+    _write_or_print(output, args.out)
+    return 0
+
+
+def _cmd_lens_report(args: argparse.Namespace) -> int:
+    kpis = _load_kpis(args.kpis)
+    recipe = load_recipe(args.recipe) if args.recipe else None
+    output = render_kpi_markdown(kpis, recipe)
     _write_or_print(output, args.out)
     return 0
 

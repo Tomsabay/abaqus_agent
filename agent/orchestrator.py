@@ -28,6 +28,7 @@ import yaml
 
 from capsule.store import create_capsule, hash_file, write_capsule
 from doctor import diagnose_logs
+from odb_lens import normalize_recipe
 from post.extract_kpis import extract_kpis
 from runner.build_model import build_model
 from runner.monitor_job import JobStatus, monitor_job
@@ -337,7 +338,7 @@ class AbaqusOrchestrator:
 
     def _stage_extract(self, odb_path: Path) -> dict:
         self.on_progress("extract_kpis", {})
-        kpi_spec = self.spec.get("outputs", {}).get("kpis", [])
+        kpi_spec = normalize_recipe(self.spec.get("outputs", {}).get("kpis", []))
         result = extract_kpis(odb_path, kpi_spec, self.workdir)
         self.result["stages"]["extract_kpis"] = result
         self.result["kpis"] = result.get("kpis", {})

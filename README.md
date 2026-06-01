@@ -34,7 +34,7 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 |---|---:|---|
 | `custom_inp` first | Implemented | Bring existing customer `.inp` files instead of forcing NL/spec generation. |
 | Experiment Capsule | Implemented | Store inputs, artifacts, hashes, environment, and provenance in `capsule.json`. |
-| ODB Lens / KPI DSL | Planned | Reusable KPI extraction recipes for `.odb` files. |
+| ODB Lens / KPI DSL | Started | Reusable KPI extraction recipes for `.odb` files. |
 | Physics Contracts | Started | Check ranges, directions, relative error, and ordered KPIs. |
 | Simulation Diff | Started | Compare KPI changes between baseline and candidate runs. |
 | Solver Doctor | Implemented | Diagnose `.sta/.msg/.log/.dat` failures from known patterns. |
@@ -154,6 +154,23 @@ from simdiff import diff_kpis
 diff = diff_kpis({"U_tip": -0.002}, {"U_tip": -0.0021})
 ```
 
+Normalize an ODB Lens KPI recipe and render a KPI report:
+
+```yaml
+kpis:
+  - name: max_mises
+    source: odb
+    field: S
+    invariant: MISES
+    region: set:CRITICAL_ZONE
+    reducer: max
+```
+
+```bash
+abaqus-agent lens normalize kpis.yaml --out _kpi_spec.json
+abaqus-agent lens report result.json --recipe kpis.yaml --out kpi_report.md
+```
+
 ## Architecture
 
 ```text
@@ -191,6 +208,7 @@ agent/              End-to-end orchestration and optional LLM planner
 capsule/            Experiment capsule manifest, hashing, and store helpers
 contracts/          Physics contract evaluation
 doctor/             Solver log diagnostics and pattern library
+odb_lens/           Declarative KPI recipes and Markdown KPI reports
 simdiff/            KPI diff and Markdown rendering
 runner/             Abaqus build, syntaxcheck, submit, monitor
 post/               ODB KPI extraction
@@ -244,7 +262,8 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] v0.2 capsule / contract / diff / doctor kernel skeleton
 - [x] Capsule-backed run output from the orchestrator
 - [x] Solver Doctor / contract check / KPI diff CLI
-- [ ] ODB Lens YAML KPI DSL
+- [x] ODB Lens YAML KPI recipe normalization and KPI Markdown reports
+- [ ] ODB Lens direct Abaqus extractor coverage for all recipe fields
 - [ ] Physics contract checks in benchmark reports
 - [ ] Markdown/PDF report templates
 - [ ] Validation matrix for Abaqus versions and operating systems
