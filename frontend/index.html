@@ -1835,6 +1835,14 @@ reports</textarea>
                 <div class="input-label">Expected Release</div>
                 <input class="memory-input" id="preflight-expected-release" placeholder="2021 / 2026">
               </div>
+              <div>
+                <div class="input-label">Workdir</div>
+                <input class="memory-input" id="preflight-workdir" placeholder="/tmp/abaqus-runs 或 D:\abaqus_runs">
+              </div>
+              <div>
+                <div class="input-label">Runner JSON</div>
+                <input class="memory-input" id="preflight-runner-json" placeholder='{"cpus":4,"mp_mode":"threads"}'>
+              </div>
             </div>
             <label class="input-label" style="display:flex;align-items:center;gap:8px;margin-top:12px">
               <input type="checkbox" id="preflight-check-release" checked>
@@ -3653,6 +3661,8 @@ async function runEnvironmentPreflight() {
       timeout_seconds: parseFloat(document.getElementById('preflight-timeout').value || '15'),
       check_release: document.getElementById('preflight-check-release').checked,
       expected_release: document.getElementById('preflight-expected-release').value.trim(),
+      workdir: document.getElementById('preflight-workdir').value.trim(),
+      runner_cfg: parseOptionalJsonObject(document.getElementById('preflight-runner-json').value.trim(), 'Runner JSON'),
     };
     const res = await fetch(`${API}/api/validate/env`, {
       method: 'POST',
@@ -3679,6 +3689,10 @@ function renderEnvironmentPreflight(result) {
   const abaqus = result.abaqus || {};
   const release = abaqus.release_check || {};
   const releaseMatch = abaqus.release_match || {};
+  const environment = result.environment || {};
+  const workdir = environment.workdir || {};
+  const license = environment.license || {};
+  const runner = result.runner || {};
   const statusClass = result.status === 'ready' ? 'report-pass'
     : result.status === 'missing_abaqus' || result.status === 'release_check_failed' || result.status === 'release_mismatch'
       ? 'report-fail'
@@ -3703,6 +3717,8 @@ function renderEnvironmentPreflight(result) {
         <div class="report-metric"><div class="report-metric-label">Abaqus</div><div class="report-metric-value">${escapeHTML(release.version || '—')}</div></div>
         <div class="report-metric"><div class="report-metric-label">Expected</div><div class="report-metric-value">${escapeHTML(abaqus.expected_release || '—')}</div></div>
         <div class="report-metric"><div class="report-metric-label">Release Match</div><div class="report-metric-value">${escapeHTML(releaseMatch.status || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Workdir</div><div class="report-metric-value">${escapeHTML(workdir.status || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Runner</div><div class="report-metric-value">${escapeHTML(runner.status || '—')}</div></div>
       </div>
     </div>
     <div class="report-band" style="margin-top:14px">
@@ -3719,13 +3735,39 @@ function renderEnvironmentPreflight(result) {
       </table>
     </div>
     <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Run Environment</div>
+      <table class="report-table">
+        <tbody>
+          <tr><th>Workdir</th><td>${escapeHTML(workdir.path || '—')}</td></tr>
+          <tr><th>Writable</th><td>${escapeHTML(String(workdir.writable ?? '—'))}</td></tr>
+          <tr><th>License Markers</th><td>${escapeHTML((license.present || []).join(', ') || 'none detected')}</td></tr>
+          <tr><th>Runner CPUs</th><td>${escapeHTML(runner.cpus ?? 'default')}</td></tr>
+          <tr><th>Runner MP Mode</th><td>${escapeHTML(runner.mp_mode ?? 'default')}</td></tr>
+          <tr><th>Runner Timeout</th><td>${escapeHTML(runner.timeout_seconds ?? 'default')}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="report-band" style="margin-top:14px">
       <div class="report-band-title">Checks</div>
       <table class="report-table"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>${checks || '<tr><td colspan="3">—</td></tr>'}</tbody></table>
     </div>
+    ${(result.next_actions || []).length ? `<div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Next Actions</div>
+      <table class="report-table"><tbody>${result.next_actions.map(action => `<tr><td>${escapeHTML(action)}</td></tr>`).join('')}</tbody></table>
+    </div>` : ''}
     <div class="report-band" style="margin-top:14px">
       <div class="report-band-title">Markdown Evidence</div>
       <div class="markdown-preview">${escapeHTML(result.markdown || '')}</div>
     </div>`;
+}
+
+function parseOptionalJsonObject(raw, label) {
+  if (!raw) return {};
+  const parsed = JSON.parse(raw);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+    throw new Error(`${label} must be a JSON object`);
+  }
+  return parsed;
 }
 
 function escapeHTML(value) {

@@ -138,6 +138,8 @@ class TestMCPTools:
             assert kwargs["timeout_seconds"] == 3.0
             assert kwargs["check_release"] is False
             assert kwargs["expected_release"] == "2026"
+            assert kwargs["workdir"] == "runs"
+            assert kwargs["runner_cfg"] == {"cpus": 2}
             return {
                 "status": "unknown",
                 "platform": {"system": "Linux"},
@@ -153,6 +155,8 @@ class TestMCPTools:
                 timeout_seconds=3.0,
                 check_release=False,
                 expected_release="2026",
+                workdir="runs",
+                runner_cfg_json='{"cpus": 2}',
             )
         )
         data = json.loads(result)

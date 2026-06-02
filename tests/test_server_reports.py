@@ -28,6 +28,8 @@ def test_environment_preflight_endpoint(monkeypatch):
         assert kwargs["timeout_seconds"] == 2.0
         assert kwargs["check_release"] is False
         assert kwargs["expected_release"] == "2026"
+        assert kwargs["workdir"] == "runs"
+        assert kwargs["runner_cfg"] == {"cpus": 2}
         return {
             "status": "unknown",
             "platform": {"system": "Linux"},
@@ -42,6 +44,8 @@ def test_environment_preflight_endpoint(monkeypatch):
         "timeout_seconds": 2.0,
         "check_release": False,
         "expected_release": "2026",
+        "workdir": "runs",
+        "runner_cfg": {"cpus": 2},
     })
 
     assert res.status_code == 200

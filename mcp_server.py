@@ -185,13 +185,20 @@ async def environment_preflight_tool(
     timeout_seconds: float = 15.0,
     check_release: bool = True,
     expected_release: str = "",
+    workdir: str = "",
+    runner_cfg_json: str = "{}",
 ) -> str:
     try:
+        runner_cfg = json.loads(runner_cfg_json or "{}")
+        if not isinstance(runner_cfg, dict):
+            return json.dumps({"error": "runner_cfg_json must decode to an object"})
         result = run_environment_preflight(
             abaqus_cmd=abaqus_cmd or None,
             timeout_seconds=timeout_seconds,
             check_release=check_release,
             expected_release=expected_release,
+            workdir=workdir or None,
+            runner_cfg=runner_cfg,
         )
         result["markdown"] = render_preflight_markdown(result)
         return json.dumps(result, ensure_ascii=False, default=str)

@@ -140,6 +140,8 @@ class EnvironmentPreflightRequest(BaseModel):
     timeout_seconds: float = 15.0
     check_release: bool = True
     expected_release: str = ""
+    workdir: str = ""
+    runner_cfg: dict = {}
 
 
 class OfflineReportRequest(BaseModel):
@@ -179,6 +181,8 @@ def post_environment_preflight(req: EnvironmentPreflightRequest):
             timeout_seconds=req.timeout_seconds,
             check_release=req.check_release,
             expected_release=req.expected_release,
+            workdir=req.workdir or None,
+            runner_cfg=req.runner_cfg,
         )
     except (OSError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
