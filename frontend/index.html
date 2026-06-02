@@ -2793,6 +2793,7 @@ function renderReport(report) {
         <button class="btn btn-secondary" id="btn-copy-report-md">复制 Markdown</button>
         <button class="btn btn-secondary" id="btn-download-report-md">下载 .md</button>
         <button class="btn btn-secondary" id="btn-download-report-html">下载 .html</button>
+        <button class="btn btn-secondary" id="btn-preview-report-html">预览/打印</button>
         <button class="btn btn-secondary" id="btn-download-report-bundle">下载 bundle</button>
       </div>
       <div class="markdown-preview">${escapeHTML(report.markdown || '')}</div>
@@ -2800,6 +2801,7 @@ function renderReport(report) {
   document.getElementById('btn-copy-report-md').onclick = copyReportMarkdown;
   document.getElementById('btn-download-report-md').onclick = downloadReportMarkdown;
   document.getElementById('btn-download-report-html').onclick = downloadReportHTML;
+  document.getElementById('btn-preview-report-html').onclick = previewReportHTML;
   document.getElementById('btn-download-report-bundle').onclick = downloadReportBundle;
 }
 
@@ -2927,6 +2929,22 @@ function downloadReportBundle() {
   a.click();
   a.remove();
   toast('报告 bundle 已下载', 'ok');
+}
+
+function previewReportHTML() {
+  if (!state.report) {
+    toast('当前没有可预览的报告 HTML', 'info');
+    return;
+  }
+  const runId = state.report?.summary?.run_id || state.runId || '';
+  const status = state.report?.summary?.status || '';
+  if (!state.serverOnline || !runId || status === 'COMPLETED (sim)') {
+    toast('预览/打印需要真实 Abaqus run 和服务端报告', 'info');
+    return;
+  }
+  const template = state.report?.template || 'standard';
+  const url = `${API}/api/run/${encodeURIComponent(runId)}/report.html?template=${encodeURIComponent(template)}&download=false`;
+  window.open(url, '_blank', 'noopener');
 }
 
 function makeReportHTML(report) {

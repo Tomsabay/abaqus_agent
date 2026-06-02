@@ -229,16 +229,17 @@ def get_run_report_markdown(run_id: str, template: str = "standard"):
 
 
 @app.get("/api/run/{run_id}/report.html")
-def get_run_report_html(run_id: str, template: str = "standard"):
-    """Download a run report as standalone HTML."""
+def get_run_report_html(run_id: str, template: str = "standard", download: bool = True):
+    """Download or preview a run report as standalone HTML."""
     if run_id not in RUNS:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
     report = _build_run_report(RUNS[run_id], template=template, embed_images=True)
     filename = f"abaqus-report-{run_id}.html"
+    disposition = "attachment" if download else "inline"
     return Response(
         content=report.get("html", ""),
         media_type="text/html; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
 
 
