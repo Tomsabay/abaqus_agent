@@ -13,6 +13,8 @@ Endpoints mirror server.py under /mcp prefix:
   POST /mcp/api/run/start        → tools/call start_run
   GET  /mcp/api/run/{run_id}     → tools/call get_run_status
   GET  /mcp/api/run/{run_id}/stream → SSE polling get_run_status
+  POST /mcp/api/doctor           → tools/call diagnose_logs_tool
+  POST /mcp/api/diff             → tools/call simulation_diff_tool
   GET  /mcp/api/benchmark        → resources/read benchmark://cases
   POST /mcp/api/benchmark/run    → tools/call run_benchmark_tool
   GET  /mcp/health               → tools/call health_check
@@ -230,6 +232,17 @@ class StartRunRequest(BaseModel):
     runner_cfg: dict = {}
 
 
+class DoctorRequest(BaseModel):
+    paths: list[str] = []
+    text: str = ""
+
+
+class DiffRequest(BaseModel):
+    baseline: str
+    candidate: str
+    rtol: float = 0.05
+
+
 # ── Bridge endpoints ──────────────────────────────────────────────
 
 @app.get("/")
@@ -287,6 +300,29 @@ async def bridge_start_run(req: StartRunRequest):
 async def bridge_get_run(run_id: str):
     try:
         return await mcp_conn.call_tool("get_run_status", {"run_id": run_id})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/api/doctor")
+async def bridge_doctor(req: DoctorRequest):
+    try:
+        return await mcp_conn.call_tool("diagnose_logs_tool", {
+            "paths_json": json.dumps(req.paths),
+            "text": req.text,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/api/diff")
+async def bridge_diff(req: DiffRequest):
+    try:
+        return await mcp_conn.call_tool("simulation_diff_tool", {
+            "baseline": req.baseline,
+            "candidate": req.candidate,
+            "rtol": req.rtol,
+        })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -62,6 +62,25 @@ class MockMCPConnection:
                 "kpis": {},
                 "elapsed": 5.0,
             }
+        elif tool_name == "diagnose_logs_tool":
+            return {
+                "matched": True,
+                "matches": [{
+                    "id": "missing_node_set",
+                    "category": "model_setup",
+                    "severity": "error",
+                    "evidence": "Node set FIXED_NODES has not been defined",
+                    "suggestion": "Verify node set names.",
+                }],
+            }
+        elif tool_name == "simulation_diff_tool":
+            return {
+                "passed": False,
+                "baseline": {"run_id": "base"},
+                "candidate": {"run_id": "candidate"},
+                "sections": {"kpis": {"changes": [{"name": "MISES", "status": "WARNING"}]}},
+                "markdown": "# Simulation Diff Report",
+            }
         elif tool_name == "run_benchmark_tool":
             return {
                 "run_id": "bench_mock01",
@@ -180,6 +199,27 @@ class TestBridgeEndpoints:
         data = res.json()
         assert "error" in data
 
+    def test_doctor_endpoint(self, mock_bridge):
+        client = self._client(mock_bridge)
+        res = client.post("/mcp/api/doctor", json={
+            "text": "Node set FIXED_NODES has not been defined",
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["matched"] is True
+        assert data["matches"][0]["id"] == "missing_node_set"
+
+    def test_diff_endpoint(self, mock_bridge):
+        client = self._client(mock_bridge)
+        res = client.post("/mcp/api/diff", json={
+            "baseline": "/tmp/base",
+            "candidate": "/tmp/candidate",
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["passed"] is False
+        assert "Simulation Diff Report" in data["markdown"]
+
     def test_get_benchmark(self, mock_bridge):
         client = self._client(mock_bridge)
         res = client.get("/mcp/api/benchmark")
@@ -264,3 +304,9 @@ class TestBridgeRequestModels:
         from mcp_bridge import StartRunRequest
         req = StartRunRequest(spec_yaml="meta: test")
         assert req.runner_cfg == {}
+
+    def test_doctor_request_defaults(self):
+        from mcp_bridge import DoctorRequest
+        req = DoctorRequest()
+        assert req.paths == []
+        assert req.text == ""

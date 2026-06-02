@@ -11,6 +11,10 @@ Tools:
   validate_spec       - validate spec YAML
   start_run           - start pipeline run
   get_run_status      - get run status/results
+  diagnose_logs_tool  - Solver Doctor log diagnosis
+  simulation_diff_tool - run/capsule/KPI diff report
+  check_contracts_tool - physics contract evaluation
+  capsule_init_from_inp_tool - initialize capsule from .inp
   run_benchmark       - trigger benchmark dry-run
   health_check        - health status
   get_premium_features - premium feature status
@@ -38,12 +42,16 @@ from mcp.server.fastmcp import FastMCP
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from capsule.store import init_from_inp
+from contracts import evaluate_contracts
 from core.helpers import CASES_DIR, check_abaqus, list_cases, make_run_id
 from core.pipeline import (
     run_benchmark_async,
     run_pipeline,
 )
 from core.spec_generator import generate_spec_async
+from doctor import diagnose_logs
+from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
 
 # ── MCP Server ────────────────────────────────────────────────────
@@ -164,6 +172,52 @@ async def get_run_status(run_id: str) -> str:
         {**run, "elapsed": time.time() - run["started_at"]},
         default=str, ensure_ascii=False,
     )
+
+
+@mcp.tool(description="Diagnose Abaqus .sta/.msg/.log/.dat files or raw log text with Solver Doctor patterns")
+async def diagnose_logs_tool(paths_json: str = "[]", text: str = "") -> str:
+    try:
+        paths = json.loads(paths_json or "[]")
+        if isinstance(paths, str):
+            paths = [paths]
+        if not isinstance(paths, list):
+            return json.dumps({"error": "paths_json must decode to a list of paths"})
+        diagnosis = diagnose_logs(paths=paths, text=text)
+        return json.dumps(diagnosis, ensure_ascii=False)
+    except json.JSONDecodeError as e:
+        return json.dumps({"error": f"Invalid paths_json: {e}"})
+
+
+@mcp.tool(description="Compare two Abaqus runs, capsules, result JSON files, or KPI JSON files")
+async def simulation_diff_tool(baseline: str, candidate: str, rtol: float = 0.05) -> str:
+    try:
+        diff = diff_runs(baseline, candidate, default_rtol=rtol)
+        diff["markdown"] = render_run_markdown(diff)
+        return json.dumps(diff, ensure_ascii=False, default=str)
+    except (FileNotFoundError, OSError, json.JSONDecodeError, yaml.YAMLError) as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(description="Evaluate physics contracts against KPI JSON")
+async def check_contracts_tool(kpis_json: str, contracts_yaml: str) -> str:
+    try:
+        kpis = json.loads(kpis_json)
+        contracts = yaml.safe_load(contracts_yaml) or []
+        if isinstance(contracts, dict):
+            contracts = contracts.get("contracts", [])
+        result = evaluate_contracts(contracts, kpis)
+        return json.dumps(result, ensure_ascii=False, default=str)
+    except (json.JSONDecodeError, yaml.YAMLError, TypeError, ValueError) as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(description="Initialize an experiment capsule from an existing Abaqus .inp file")
+async def capsule_init_from_inp_tool(from_inp: str, out: str, model_name: str = "") -> str:
+    try:
+        capsule = init_from_inp(from_inp, out, model_name=model_name or None)
+        return json.dumps(capsule, ensure_ascii=False, default=str)
+    except (FileNotFoundError, OSError, ValueError) as e:
+        return json.dumps({"error": str(e)})
 
 
 @mcp.tool(description="Trigger benchmark dry-run across all cases")
