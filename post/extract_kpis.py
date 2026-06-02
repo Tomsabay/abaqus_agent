@@ -146,24 +146,20 @@ def _inner_main():
 def _extract_single_kpi(odb, kpi):
     """Extract a single KPI from an open ODB object."""
     kpi_type = kpi.get("type", "")
-    step_key  = list(odb.steps.keys())[-1]   # default: last step
-    step      = odb.steps[step_key]
-    frame     = step.frames[-1]              # default: last frame
+    step = _select_step(odb, kpi)
+    frame = _select_frame(step, kpi)
 
     if kpi_type == "nodal_displacement":
-        component = kpi.get("component", "U2")
+        component = str(kpi.get("component", "U2")).upper()
         field = frame.fieldOutputs["U"]
         location = kpi.get("location", "")
-        if location and location in odb.rootAssembly.nodeSets:
-            subset = field.getSubset(region=odb.rootAssembly.nodeSets[location.upper()])
-        else:
-            subset = field
-        comp_idx = {"U1": 0, "U2": 1, "U3": 2}.get(component, 1)
+        subset = _subset_field(odb, field, location, "node")
+        comp_idx = _component_index(component, 1)
         vals = [v.data[comp_idx] for v in subset.values]
-        return min(vals) if vals else 0.0
+        return _reduce_values(vals, kpi.get("reducer"), "min")
 
     elif kpi_type == "field_max":
-        component = kpi.get("component", None)
+        component = str(kpi.get("component", "")).upper() or None
         # Auto-detect var_name from component prefix unless explicit
         if "field_variable" in kpi:
             var_name = str(kpi["field_variable"])
@@ -183,7 +179,9 @@ def _extract_single_kpi(odb, kpi):
         if var_name not in frame.fieldOutputs:
             raise KeyError("Field {} not in frame".format(repr(var_name)))
         field = frame.fieldOutputs[var_name]
-        if "MISES" in kpi.get("name", "").upper():
+        field = _subset_field(odb, field, kpi.get("location", ""), "element")
+        invariant = str(kpi.get("invariant", "")).upper()
+        if invariant == "MISES" or "MISES" in kpi.get("name", "").upper():
             try:
                 from abaqusConstants import ELEMENT_NODAL
                 nodal_field = field.getSubset(position=ELEMENT_NODAL)
@@ -194,14 +192,14 @@ def _extract_single_kpi(odb, kpi):
             # scalar field, .data is a single float
             vals = [v.data for v in field.values]
         elif component:
-            comp_idx = {"U1": 0, "U2": 1, "U3": 2, "S11": 0, "S22": 1, "S33": 2}.get(component, 0)
+            comp_idx = _component_index(component, 0)
             vals = [v.data[comp_idx] for v in field.values]
         else:
             vals = [v.magnitude for v in field.values if hasattr(v, "magnitude")]
-        return max(vals) if vals else 0.0
+        return _reduce_values(vals, kpi.get("reducer"), "max")
 
     elif kpi_type == "field_min":
-        component = kpi.get("component", "U3")
+        component = str(kpi.get("component", "U3")).upper()
         if "field_variable" in kpi:
             var_name = str(kpi["field_variable"])
         elif component and component[0] == "U":
@@ -215,30 +213,31 @@ def _extract_single_kpi(odb, kpi):
         if var_name not in frame.fieldOutputs:
             raise KeyError("Field {} not in frame".format(repr(var_name)))
         field = frame.fieldOutputs[var_name]
-        comp_idx = {"U1": 0, "U2": 1, "U3": 2}.get(component, 2)
+        field = _subset_field(odb, field, kpi.get("location", ""), "node")
+        comp_idx = _component_index(component, 2)
         vals = [v.data[comp_idx] for v in field.values]
-        return min(vals) if vals else 0.0
+        return _reduce_values(vals, kpi.get("reducer"), "min")
 
     elif kpi_type == "reaction_force_max":
-        component = kpi.get("component", "RF3")
+        component = str(kpi.get("component", "RF3")).upper()
         if "RF" not in frame.fieldOutputs:
             raise KeyError("RF not in frame fieldOutputs")
         field = frame.fieldOutputs["RF"]
-        comp_idx = {"RF1": 0, "RF2": 1, "RF3": 2}.get(component, 2)
+        field = _subset_field(odb, field, kpi.get("location", ""), "node")
+        comp_idx = _component_index(component, 2)
         vals = [abs(v.data[comp_idx]) for v in field.values]
-        return max(vals) if vals else 0.0
+        return _reduce_values(vals, kpi.get("reducer"), "max")
 
     elif kpi_type == "history_output_max":
-        # Find the named history variable in any history region; return abs max
+        # Find the named history variable in any history region.
         var = kpi.get("variable", "ALLPD")
-        max_val = 0.0
+        vals = []
         for region_key, region in step.historyRegions.items():
             for hkey, hout in region.historyOutputs.items():
                 if hkey.upper() == var.upper():
                     for t, v in hout.data:
-                        if abs(v) > abs(max_val):
-                            max_val = v
-        return max_val
+                        vals.append(v)
+        return _reduce_values(vals, kpi.get("reducer"), "abs_max")
 
     elif kpi_type == "eigenfrequency":
         mode_str  = kpi.get("location", "mode_1")
@@ -254,15 +253,90 @@ def _extract_single_kpi(odb, kpi):
             raise KeyError("S not in frame")
         field = frame.fieldOutputs["S"]
         location = kpi.get("location", "")
-        if location and location.upper() in odb.rootAssembly.elementSets:
-            subset = field.getSubset(region=odb.rootAssembly.elementSets[location.upper()])
-        else:
-            subset = field
+        subset = _subset_field(odb, field, location, "element")
         vals = [v.mises for v in subset.values if hasattr(v, "mises")]
-        return max(vals) if vals else 0.0
+        return _reduce_values(vals, kpi.get("reducer"), "max")
 
     else:
         raise ValueError("Unknown kpi type: {}".format(repr(kpi_type)))
+
+
+def _select_step(odb, kpi):
+    step_name = kpi.get("step") or kpi.get("step_name")
+    keys = list(odb.steps.keys())
+    if step_name:
+        if step_name in odb.steps:
+            return odb.steps[step_name]
+        if isinstance(step_name, int):
+            return odb.steps[keys[step_name]]
+        step_text = str(step_name)
+        if step_text.isdigit():
+            return odb.steps[keys[int(step_text)]]
+        raise KeyError("Step {} not found".format(repr(step_name)))
+    return odb.steps[keys[-1]]
+
+
+def _select_frame(step, kpi):
+    frame_spec = kpi.get("frame", "last")
+    if frame_spec in (None, "", "last"):
+        return step.frames[-1]
+    if frame_spec == "first":
+        return step.frames[0]
+    if isinstance(frame_spec, int):
+        return step.frames[frame_spec]
+    frame_text = str(frame_spec)
+    if frame_text.isdigit():
+        return step.frames[int(frame_text)]
+    if "_" in frame_text and frame_text.rsplit("_", 1)[-1].isdigit():
+        return step.frames[int(frame_text.rsplit("_", 1)[-1])]
+    raise ValueError("Unsupported frame selector: {}".format(repr(frame_spec)))
+
+
+def _subset_field(odb, field, location, preferred):
+    region = _resolve_region(odb, location, preferred)
+    if region is None:
+        return field
+    return field.getSubset(region=region)
+
+
+def _resolve_region(odb, location, preferred):
+    if not location:
+        return None
+    key = str(location).split(":", 1)[-1].upper()
+    assembly = odb.rootAssembly
+    candidates = []
+    if preferred == "node":
+        candidates = [getattr(assembly, "nodeSets", {}), getattr(assembly, "elementSets", {})]
+    elif preferred == "element":
+        candidates = [getattr(assembly, "elementSets", {}), getattr(assembly, "nodeSets", {})]
+    else:
+        candidates = [getattr(assembly, "elementSets", {}), getattr(assembly, "nodeSets", {})]
+    candidates.append(getattr(assembly, "surfaces", {}))
+    for mapping in candidates:
+        if key in mapping:
+            return mapping[key]
+    return None
+
+
+def _component_index(component, default):
+    return {
+        "U1": 0, "U2": 1, "U3": 2,
+        "S11": 0, "S22": 1, "S33": 2,
+        "RF1": 0, "RF2": 1, "RF3": 2,
+    }.get(str(component).upper(), default)
+
+
+def _reduce_values(vals, reducer, default_reducer):
+    if not vals:
+        return 0.0
+    mode = str(reducer or default_reducer).lower()
+    if mode == "min":
+        return min(vals)
+    if mode == "last":
+        return vals[-1]
+    if mode == "abs_max":
+        return max(vals, key=lambda value: abs(value))
+    return max(vals)
 
 
 # ---------------------------------------------------------------------------
