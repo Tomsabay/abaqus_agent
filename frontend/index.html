@@ -1814,6 +1814,10 @@ reports</textarea>
                 <div class="input-label">Timeout</div>
                 <input class="memory-input" id="preflight-timeout" type="number" min="1" max="120" step="1" value="15">
               </div>
+              <div>
+                <div class="input-label">Expected Release</div>
+                <input class="memory-input" id="preflight-expected-release" placeholder="2021 / 2026">
+              </div>
             </div>
             <label class="input-label" style="display:flex;align-items:center;gap:8px;margin-top:12px">
               <input type="checkbox" id="preflight-check-release" checked>
@@ -3476,6 +3480,7 @@ async function runEnvironmentPreflight() {
       abaqus_cmd: document.getElementById('preflight-abaqus-cmd').value.trim(),
       timeout_seconds: parseFloat(document.getElementById('preflight-timeout').value || '15'),
       check_release: document.getElementById('preflight-check-release').checked,
+      expected_release: document.getElementById('preflight-expected-release').value.trim(),
     };
     const res = await fetch(`${API}/api/validate/env`, {
       method: 'POST',
@@ -3501,8 +3506,9 @@ function renderEnvironmentPreflight(result) {
   const platform = result.platform || {};
   const abaqus = result.abaqus || {};
   const release = abaqus.release_check || {};
+  const releaseMatch = abaqus.release_match || {};
   const statusClass = result.status === 'ready' ? 'report-pass'
-    : result.status === 'missing_abaqus' || result.status === 'release_check_failed'
+    : result.status === 'missing_abaqus' || result.status === 'release_check_failed' || result.status === 'release_mismatch'
       ? 'report-fail'
       : 'report-warn';
   const checks = (result.checks || []).map(check => {
@@ -3523,6 +3529,8 @@ function renderEnvironmentPreflight(result) {
         <div class="report-metric"><div class="report-metric-label">OS</div><div class="report-metric-value">${escapeHTML(`${platform.system || ''} ${platform.release || ''}`.trim() || '—')}</div></div>
         <div class="report-metric"><div class="report-metric-label">Python</div><div class="report-metric-value">${escapeHTML(platform.python_version || '—')}</div></div>
         <div class="report-metric"><div class="report-metric-label">Abaqus</div><div class="report-metric-value">${escapeHTML(release.version || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Expected</div><div class="report-metric-value">${escapeHTML(abaqus.expected_release || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Release Match</div><div class="report-metric-value">${escapeHTML(releaseMatch.status || '—')}</div></div>
       </div>
     </div>
     <div class="report-band" style="margin-top:14px">
@@ -3532,6 +3540,8 @@ function renderEnvironmentPreflight(result) {
           <tr><th>Requested</th><td>${escapeHTML(abaqus.command || 'abaqus')}</td></tr>
           <tr><th>Resolved</th><td>${escapeHTML(abaqus.resolved_path || 'not found')}</td></tr>
           <tr><th>Release Status</th><td>${escapeHTML(release.status || 'unknown')}</td></tr>
+          <tr><th>Expected Release</th><td>${escapeHTML(abaqus.expected_release || '—')}</td></tr>
+          <tr><th>Release Match</th><td>${escapeHTML(releaseMatch.detail || releaseMatch.status || '—')}</td></tr>
           <tr><th>Return Code</th><td>${release.returncode ?? '—'}</td></tr>
         </tbody>
       </table>

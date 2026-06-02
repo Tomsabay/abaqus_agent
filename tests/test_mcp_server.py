@@ -137,6 +137,7 @@ class TestMCPTools:
             assert kwargs["abaqus_cmd"] == "abaqus"
             assert kwargs["timeout_seconds"] == 3.0
             assert kwargs["check_release"] is False
+            assert kwargs["expected_release"] == "2026"
             return {
                 "status": "unknown",
                 "platform": {"system": "Linux"},
@@ -151,6 +152,7 @@ class TestMCPTools:
                 abaqus_cmd="abaqus",
                 timeout_seconds=3.0,
                 check_release=False,
+                expected_release="2026",
             )
         )
         data = json.loads(result)

@@ -22,13 +22,16 @@ def run_environment_preflight(
     abaqus_cmd: str | None = None,
     timeout_seconds: float = 15.0,
     check_release: bool = True,
+    expected_release: str = "",
 ) -> dict[str, Any]:
     """Collect machine and Abaqus command readiness evidence."""
+    expected_release = _normalize_release(expected_release)
     command = abaqus_cmd or get_abaqus_cmd()
     command_path = _resolve_command(command)
     command_found = command_path is not None
     release_check = _release_check(command_path, timeout_seconds, check_release)
-    status = _overall_status(command_found, release_check)
+    release_match = _release_match(release_check, expected_release)
+    status = _overall_status(command_found, release_check, release_match)
 
     return {
         "schema_version": "0.1",
@@ -48,8 +51,10 @@ def run_environment_preflight(
             "resolved_path": str(command_path) if command_path else "",
             "command_found": command_found,
             "release_check": release_check,
+            "expected_release": expected_release,
+            "release_match": release_match,
         },
-        "checks": _checks(command_found, release_check),
+        "checks": _checks(command_found, release_check, release_match),
     }
 
 
@@ -80,6 +85,9 @@ def render_preflight_markdown(result: dict[str, Any]) -> str:
     ]
     if release.get("version"):
         lines.append(f"- Detected release: {release['version']}")
+    if abaqus.get("expected_release"):
+        lines.append(f"- Expected release: {abaqus['expected_release']}")
+        lines.append(f"- Release match: {abaqus.get('release_match', {}).get('status', 'unknown')}")
     if release.get("command"):
         lines.append(f"- Release command: `{' '.join(release['command'])}`")
     if release.get("returncode") is not None:
@@ -151,9 +159,11 @@ def _release_check(command_path: Path | None, timeout_seconds: float, check_rele
     }
 
 
-def _overall_status(command_found: bool, release_check: dict[str, Any]) -> str:
+def _overall_status(command_found: bool, release_check: dict[str, Any], release_match: dict[str, str]) -> str:
     if not command_found:
         return "missing_abaqus"
+    if release_match.get("status") == "fail":
+        return "release_mismatch"
     release_status = release_check.get("status")
     if release_status == "pass":
         return "ready"
@@ -162,7 +172,11 @@ def _overall_status(command_found: bool, release_check: dict[str, Any]) -> str:
     return "release_check_failed"
 
 
-def _checks(command_found: bool, release_check: dict[str, Any]) -> list[dict[str, str]]:
+def _checks(
+    command_found: bool,
+    release_check: dict[str, Any],
+    release_match: dict[str, str],
+) -> list[dict[str, str]]:
     checks = [{
         "name": "abaqus_command",
         "status": "pass" if command_found else "fail",
@@ -174,6 +188,12 @@ def _checks(command_found: bool, release_check: dict[str, Any]) -> list[dict[str
         "status": release_status,
         "detail": _release_detail(release_check),
     })
+    if release_match.get("expected"):
+        checks.append({
+            "name": "abaqus_release_target",
+            "status": release_match.get("status", "unknown"),
+            "detail": release_match.get("detail", ""),
+        })
     return checks
 
 
@@ -192,6 +212,37 @@ def _release_detail(release_check: dict[str, Any]) -> str:
 def _detect_version(output: str) -> str:
     match = _VERSION_RE.search(output)
     return match.group(1) if match else ""
+
+
+def _normalize_release(value: str) -> str:
+    match = re.search(r"\b(20\d{2})\b", str(value or ""))
+    return match.group(1) if match else ""
+
+
+def _release_match(release_check: dict[str, Any], expected_release: str) -> dict[str, str]:
+    if not expected_release:
+        return {"status": "skipped", "expected": "", "detected": "", "detail": "No expected release requested"}
+    detected = _normalize_release(release_check.get("version", ""))
+    if not detected:
+        return {
+            "status": "unknown",
+            "expected": expected_release,
+            "detected": "",
+            "detail": "Expected release requested, but no Abaqus release was detected",
+        }
+    if detected == expected_release:
+        return {
+            "status": "pass",
+            "expected": expected_release,
+            "detected": detected,
+            "detail": f"Detected Abaqus {detected} matches expected {expected_release}",
+        }
+    return {
+        "status": "fail",
+        "expected": expected_release,
+        "detected": detected,
+        "detail": f"Detected Abaqus {detected}, expected {expected_release}",
+    }
 
 
 def _trim_output(output: str, limit: int = 4000) -> str:
