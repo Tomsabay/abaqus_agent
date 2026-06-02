@@ -69,10 +69,12 @@ def diff_runs(
         "artifacts": artifact_diff,
         "provenance": provenance_diff,
     }
+    summary = _diff_summary(sections)
     return {
         "passed": _diff_passed(sections),
         "baseline": _identity(base),
         "candidate": _identity(cand),
+        "summary": summary,
         "sections": sections,
         "changes": kpi_diff.get("changes", []),
     }
@@ -86,6 +88,18 @@ def render_run_markdown(diff: dict) -> str:
         f"- Baseline: `{diff.get('baseline', {}).get('run_id', '-')}`",
         f"- Candidate: `{diff.get('candidate', {}).get('run_id', '-')}`",
         f"- Overall: `{'PASS' if diff.get('passed') else 'WARNING'}`",
+        "",
+        "## Change Summary",
+        "",
+        "| Section | Total | PASS | WARNING | ADDED | REMOVED |",
+        "|---------|-------|------|---------|-------|---------|",
+    ]
+    for section, counts in diff.get("summary", {}).get("sections", {}).items():
+        lines.append(
+            f"| {section} | {counts.get('total', 0)} | {counts.get('PASS', 0)} | "
+            f"{counts.get('WARNING', 0)} | {counts.get('ADDED', 0)} | {counts.get('REMOVED', 0)} |"
+        )
+    lines += [
         "",
         "## KPI Diff",
         "",
@@ -176,6 +190,30 @@ def _diff_passed(sections: dict) -> bool:
     for section in sections.values():
         statuses.extend(change.get("status") for change in section.get("changes", []))
     return all(status in ("PASS", "INFO", None) for status in statuses)
+
+
+def _diff_summary(sections: dict) -> dict:
+    section_counts = {}
+    total_changes = 0
+    warning_changes = 0
+    structural_changes = 0
+    for name, section in sections.items():
+        counts = {"total": 0, "PASS": 0, "WARNING": 0, "ADDED": 0, "REMOVED": 0, "INFO": 0, "OTHER": 0}
+        for change in section.get("changes", []):
+            status = str(change.get("status") or "INFO").upper()
+            bucket = status if status in counts else "OTHER"
+            counts[bucket] += 1
+            counts["total"] += 1
+        total_changes += counts["total"]
+        warning_changes += counts["WARNING"] + counts["OTHER"]
+        structural_changes += counts["ADDED"] + counts["REMOVED"]
+        section_counts[name] = counts
+    return {
+        "total_changes": total_changes,
+        "warning_changes": warning_changes,
+        "structural_changes": structural_changes,
+        "sections": section_counts,
+    }
 
 
 def _diff_contracts(baseline: dict, candidate: dict) -> dict:

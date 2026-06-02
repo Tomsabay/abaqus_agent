@@ -36,7 +36,7 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | Experiment Capsule | Implemented | Store inputs, artifacts, hashes, environment, and provenance in `capsule.json`. |
 | ODB Lens / KPI DSL | Implemented MVP | Reusable KPI extraction recipes and KPI Markdown reports for `.odb` outputs. |
 | Physics Contracts | Implemented MVP | Check ranges, directions, relative error, and ordered KPIs. |
-| Simulation Diff | Implemented MVP | Compare run/capsule inputs, KPIs, contracts, artifacts, and provenance. |
+| Simulation Diff | Implemented MVP | Compare run/capsule inputs, KPIs, contracts, artifacts, and provenance with structured change summaries. |
 | Solver Doctor | Implemented MVP | Diagnose `.sta/.msg/.log/.dat` failures from 30+ known patterns. |
 | MCP QA Tools | Implemented MVP | Expose capsule, contract, diff, and doctor kernels to MCP clients. |
 | Case Memory | Implemented MVP | Search and rank local run/capsule history by metadata, KPIs, contract names/results, diagnosis IDs, artifact names, similarity signals, count-based sort controls, and minimum score. |
@@ -303,6 +303,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Solver Doctor / contract check / KPI diff CLI
 - [x] ODB Lens YAML KPI recipe normalization and KPI Markdown reports
 - [x] Simulation Diff CLI/API/UI with real Windows Abaqus validation
+- [x] Simulation Diff structured change summary across Markdown/API/UI
 - [x] MCP tools for capsule init, contract check, Solver Doctor, and Simulation Diff
 - [x] ODB Lens direct Abaqus extractor coverage for frame, region, component, invariant, and reducer fields
 - [x] Markdown report templates

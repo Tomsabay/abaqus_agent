@@ -3261,18 +3261,39 @@ function makeLocalDiff(baseline, candidate) {
     });
   });
   const contractChanges = makeLocalContractDiff(baseline.contracts || {}, candidate.contracts || {});
+  const sections = {
+    kpis: { changes },
+    contracts: { changes: contractChanges },
+    spec: { changes: [] },
+    inputs: { changes: [] },
+    artifacts: { changes: [] },
+    provenance: { changes: [] },
+  };
   return {
     passed: changes.every(c => c.status === 'PASS') && contractChanges.every(c => c.status === 'PASS'),
     baseline: { run_id: baseline.runId, status: baseline.status },
     candidate: { run_id: candidate.runId, status: candidate.status },
-    sections: {
-      kpis: { changes },
-      contracts: { changes: contractChanges },
-      spec: { changes: [] },
-      artifacts: { changes: [] },
-      provenance: { changes: [] },
-    },
+    summary: summarizeDiffSections(sections),
+    sections,
   };
+}
+
+function summarizeDiffSections(sections) {
+  const summary = { total_changes: 0, warning_changes: 0, structural_changes: 0, sections: {} };
+  Object.entries(sections || {}).forEach(([name, section]) => {
+    const counts = { total: 0, PASS: 0, WARNING: 0, ADDED: 0, REMOVED: 0, INFO: 0, OTHER: 0 };
+    (section.changes || []).forEach(change => {
+      const status = String(change.status || 'INFO').toUpperCase();
+      const bucket = Object.prototype.hasOwnProperty.call(counts, status) ? status : 'OTHER';
+      counts[bucket] += 1;
+      counts.total += 1;
+    });
+    summary.total_changes += counts.total;
+    summary.warning_changes += counts.WARNING + counts.OTHER;
+    summary.structural_changes += counts.ADDED + counts.REMOVED;
+    summary.sections[name] = counts;
+  });
+  return summary;
 }
 
 function makeLocalContractDiff(baseline, candidate) {
@@ -3291,6 +3312,7 @@ function renderDiff(diff) {
   const contractChanges = diff.sections?.contracts?.changes || [];
   const specChanges = diff.sections?.spec?.changes || [];
   const artifactChanges = diff.sections?.artifacts?.changes || [];
+  const summary = diff.summary || summarizeDiffSections(diff.sections || { kpis: { changes: kpiChanges }, contracts: { changes: contractChanges } });
   const statusClass = diff.passed ? 'report-pass' : 'report-warn';
   const kpiRows = kpiChanges.map(change => {
     const rel = change.rel_change != null ? `${(change.rel_change * 100).toFixed(2)}%` : '—';
@@ -3320,6 +3342,15 @@ function renderDiff(diff) {
       <td>${escapeHTML(String(change.after ?? '—'))}</td>
       <td class="report-warn">${escapeHTML(change.status || 'WARNING')}</td>
     </tr>`).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 Spec / Artifact 差异</td></tr>';
+  const summaryRows = Object.entries(summary.sections || {}).map(([name, counts]) => `
+    <tr>
+      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(name)}</td>
+      <td>${counts.total || 0}</td>
+      <td>${counts.PASS || 0}</td>
+      <td>${counts.WARNING || 0}</td>
+      <td>${counts.ADDED || 0}</td>
+      <td>${counts.REMOVED || 0}</td>
+    </tr>`).join('');
 
   area.innerHTML = `
     <div class="report-grid">
@@ -3329,13 +3360,19 @@ function renderDiff(diff) {
           <div class="report-metric"><div class="report-metric-label">Baseline</div><div class="report-metric-value">${escapeHTML(diff.baseline?.run_id || '—')}</div></div>
           <div class="report-metric"><div class="report-metric-label">Candidate</div><div class="report-metric-value">${escapeHTML(diff.candidate?.run_id || '—')}</div></div>
           <div class="report-metric"><div class="report-metric-label">Overall</div><div class="report-metric-value ${statusClass}">${diff.passed ? 'PASS' : 'WARNING'}</div></div>
-          <div class="report-metric"><div class="report-metric-label">KPI Changes</div><div class="report-metric-value">${kpiChanges.length}</div></div>
+          <div class="report-metric"><div class="report-metric-label">Total Rows</div><div class="report-metric-value">${summary.total_changes || 0}</div></div>
+          <div class="report-metric"><div class="report-metric-label">Warnings</div><div class="report-metric-value">${summary.warning_changes || 0}</div></div>
+          <div class="report-metric"><div class="report-metric-label">Added / Removed</div><div class="report-metric-value">${summary.structural_changes || 0}</div></div>
         </div>
       </div>
       <div class="report-band">
         <div class="report-band-title">Actions</div>
         <button class="btn btn-primary" id="btn-diff-latest-inline">⇄ 对比最近两次运行</button>
       </div>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Change Summary</div>
+      <table class="report-table"><thead><tr><th>Section</th><th>Total</th><th>PASS</th><th>WARNING</th><th>ADDED</th><th>REMOVED</th></tr></thead><tbody>${summaryRows}</tbody></table>
     </div>
     <div class="report-band" style="margin-top:14px">
       <div class="report-band-title">KPI Diff</div>

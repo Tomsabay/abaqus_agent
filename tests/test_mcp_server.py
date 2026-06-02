@@ -227,7 +227,9 @@ class TestMCPTools:
         )
         data = json.loads(result)
         assert data["passed"] is False
+        assert data["summary"]["sections"]["kpis"]["WARNING"] == 1
         assert "Simulation Diff Report" in data["markdown"]
+        assert "Change Summary" in data["markdown"]
 
     def test_check_contracts_tool(self):
         from mcp_server import check_contracts_tool
