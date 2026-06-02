@@ -20,6 +20,7 @@ or unit-test coverage.
 | 2026-06-02 | Windows 11 23H2 `BUILD-HOST`, Tailscale SSH | Abaqus 2021 | ODB Lens extractor on real `Cantilever.odb` | PASS | custom recipe with lowercase `u2` returned `U_tip_lower=-0.0019039579201489687`, `MISES_LAST=0.6528551578521729`, errors `[]` |
 | 2026-06-02 | Windows 11 23H2 `BUILD-HOST`, Tailscale SSH | Abaqus 2021 | Case Memory search controls against real capsule history | PASS | `python cli.py memory search cases --query PlateHole --sort-by run_id --sort-order asc --min-score 0.5 --json` indexed `4`, matched `1`, returned real `plate_hole` run `95712d55bf05f243`, score `1.25`, reasons `text:platehole`, `contracts passed`, `completed run`; `--artifact mises_contour.png --min-score 0.5` returned the same run, score `1.1`, reason `artifact:mises_contour.png` |
 | 2026-06-02 | Windows 11 23H2 `BUILD-HOST`, Tailscale SSH | Abaqus 2021 | Report HTML preview and bundle export from real `plate_hole` capsule | PASS | `GET /api/run/real_plate_hole_report/report.html?template=client_summary&download=false` returned `200 text/html` inline with `PlateWithHole` and embedded image data; `GET /api/run/real_plate_hole_report/report.zip?template=client_summary` returned `200 application/zip`, `1,892,410` bytes, with `report.md`, `report.html`, `capsule.json`, `artifact_manifest.json`, `mises_contour.png`, and `27` included artifacts |
+| 2026-06-02 | Windows 11 23H2 `BUILD-HOST`, Tailscale SSH | Abaqus 2021 | Environment preflight command | PASS | `python cli.py validate env --json` returned `status=ready`, resolved `C:\SIMULIA\Commands\abaqus.BAT`, ran `abaqus information=release` with return code `0`, and detected release `2021` |
 | 2026-05-06 | External contributor validation | Abaqus 2026 | Cantilever GUI / Windows compatibility | PASS | GLY2024 contribution and case study, see `docs/CASE_STUDY_GLY2024.md` |
 
 ## Public Case Coverage
@@ -37,6 +38,7 @@ full Abaqus 2021 execution on Windows:
 
 ## Next Validation Targets
 
+- Before each real validation pass, run `abaqus-agent validate env --json` to record OS, Python, Abaqus command resolution, and `abaqus information=release` evidence.
 - Windows + Abaqus 2021: repeat full public-case validation after major changes to build, submit, ODB extraction, or visualization.
 - Windows + Abaqus 2026: repeat cantilever and one ODB Lens recipe with contributor environment if available.
 - Linux + Abaqus: syntaxcheck and custom `.inp` capsule path.

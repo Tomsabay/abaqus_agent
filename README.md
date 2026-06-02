@@ -69,6 +69,13 @@ Run tests that do not require Abaqus:
 pytest tests/ -v
 ```
 
+Check whether the current machine is ready for real Abaqus validation:
+
+```bash
+abaqus-agent validate env --json
+abaqus-agent validate env --strict --out validation-preflight.md
+```
+
 Validate public benchmark specs without Abaqus:
 
 ```bash
@@ -245,6 +252,7 @@ Public specs currently cover:
 Notes:
 
 - `python run_benchmark.py --dry-run` validates specs without Abaqus.
+- `abaqus-agent validate env` records OS, Python, Abaqus command resolution, and `abaqus information=release` evidence before real validation.
 - Full regression requires a local Abaqus installation and license.
 - Current environment evidence is tracked in [docs/VALIDATION_MATRIX.md](docs/VALIDATION_MATRIX.md).
 - Current local validation has been done on Abaqus 2021 / Windows.
@@ -286,6 +294,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Standalone HTML report export endpoint and web UI download action
 - [x] Browser preview/print mode for downstream PDF handoff
 - [x] Report bundle zip endpoint and web UI download action
+- [x] Environment preflight command for Linux/Windows/Abaqus version validation readiness
 
 ## Acknowledgments
 

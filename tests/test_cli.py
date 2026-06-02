@@ -35,6 +35,38 @@ def test_capsule_init_cli(tmp_path, capsys):
     assert (out / "capsule.json").exists()
 
 
+def test_validate_env_cli_prints_json(monkeypatch, capsys):
+    def fake_preflight(**_kwargs):
+        return {
+            "status": "ready",
+            "platform": {},
+            "abaqus": {"release_check": {}},
+            "checks": [],
+        }
+
+    monkeypatch.setattr(cli, "run_environment_preflight", fake_preflight)
+
+    rc = cli.main(["validate", "env", "--json"])
+
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert data["status"] == "ready"
+
+
+def test_validate_env_cli_strict_fails_when_not_ready(monkeypatch):
+    def fake_preflight(**_kwargs):
+        return {
+            "status": "missing_abaqus",
+            "platform": {},
+            "abaqus": {"release_check": {}},
+            "checks": [],
+        }
+
+    monkeypatch.setattr(cli, "run_environment_preflight", fake_preflight)
+
+    assert cli.main(["validate", "env", "--strict", "--json"]) == 1
+
+
 def test_doctor_cli_directory_mode(tmp_path, capsys):
     (tmp_path / "job.msg").write_text("Too many attempts made for this increment\n", encoding="utf-8")
 
