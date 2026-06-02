@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,8 @@ def run_environment_preflight(
     timeout_seconds: float = 15.0,
     check_release: bool = True,
     expected_release: str = "",
+    workdir: str | None = None,
+    runner_cfg: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Collect machine and Abaqus command readiness evidence."""
     expected_release = _normalize_release(expected_release)
@@ -31,10 +34,15 @@ def run_environment_preflight(
     command_found = command_path is not None
     release_check = _release_check(command_path, timeout_seconds, check_release)
     release_match = _release_match(release_check, expected_release)
-    status = _overall_status(command_found, release_check, release_match)
+    workdir_check = _workdir_check(workdir)
+    license_env = _license_environment()
+    runner_check = _runner_cfg_check(runner_cfg)
+    checks = _checks(command_found, release_check, release_match, workdir_check, license_env, runner_check)
+    status = _overall_status(command_found, release_check, release_match, workdir_check, runner_check)
+    next_actions = _next_actions(checks)
 
     return {
-        "schema_version": "0.1",
+        "schema_version": "0.2",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": status,
         "platform": {
@@ -54,7 +62,13 @@ def run_environment_preflight(
             "expected_release": expected_release,
             "release_match": release_match,
         },
-        "checks": _checks(command_found, release_check, release_match),
+        "environment": {
+            "workdir": workdir_check,
+            "license": license_env,
+        },
+        "runner": runner_check,
+        "checks": checks,
+        "next_actions": next_actions,
     }
 
 
@@ -97,10 +111,38 @@ def render_preflight_markdown(result: dict[str, Any]) -> str:
     if release.get("error"):
         lines.extend(["", "### Error", "", "```text", release["error"], "```"])
 
+    environment = result.get("environment", {})
+    workdir = environment.get("workdir", {})
+    license_env = environment.get("license", {})
+    runner = result.get("runner", {})
+    lines.extend([
+        "",
+        "## Run Environment",
+        "",
+        f"- Workdir: `{workdir.get('path', '') or 'not checked'}`",
+        f"- Workdir exists: {workdir.get('exists', False)}",
+        f"- Workdir writable: {workdir.get('writable', False)}",
+        f"- License variables present: {', '.join(license_env.get('present', [])) or 'none detected'}",
+        "",
+        "## Runner Config",
+        "",
+        f"- Status: {runner.get('status', 'skipped')}",
+        f"- CPUs: {runner.get('cpus', 'default')}",
+        f"- MP mode: {runner.get('mp_mode', 'default')}",
+        f"- Memory: {runner.get('memory', 'default')}",
+        f"- Timeout: {runner.get('timeout_seconds', 'default')}",
+    ])
+    if runner.get("issues"):
+        lines.extend(["", "### Runner Issues", ""])
+        lines.extend(f"- {issue}" for issue in runner["issues"])
+
     lines.extend(["", "## Checks", "", "| Check | Status | Detail |", "|-------|--------|--------|"])
     for check in result.get("checks", []):
         detail = str(check.get("detail", "")).replace("\n", " ")
         lines.append(f"| {check.get('name', '')} | {check.get('status', '')} | {detail} |")
+    if result.get("next_actions"):
+        lines.extend(["", "## Next Actions", ""])
+        lines.extend(f"- {action}" for action in result["next_actions"])
     return "\n".join(lines)
 
 
@@ -159,9 +201,19 @@ def _release_check(command_path: Path | None, timeout_seconds: float, check_rele
     }
 
 
-def _overall_status(command_found: bool, release_check: dict[str, Any], release_match: dict[str, str]) -> str:
+def _overall_status(
+    command_found: bool,
+    release_check: dict[str, Any],
+    release_match: dict[str, str],
+    workdir_check: dict[str, Any],
+    runner_check: dict[str, Any],
+) -> str:
     if not command_found:
         return "missing_abaqus"
+    if workdir_check.get("status") == "fail":
+        return "environment_failed"
+    if runner_check.get("status") == "fail":
+        return "runner_cfg_failed"
     if release_match.get("status") == "fail":
         return "release_mismatch"
     release_status = release_check.get("status")
@@ -176,6 +228,9 @@ def _checks(
     command_found: bool,
     release_check: dict[str, Any],
     release_match: dict[str, str],
+    workdir_check: dict[str, Any],
+    license_env: dict[str, Any],
+    runner_check: dict[str, Any],
 ) -> list[dict[str, str]]:
     checks = [{
         "name": "abaqus_command",
@@ -194,7 +249,151 @@ def _checks(
             "status": release_match.get("status", "unknown"),
             "detail": release_match.get("detail", ""),
         })
+    checks.append({
+        "name": "workdir_writable",
+        "status": workdir_check.get("status", "unknown"),
+        "detail": workdir_check.get("detail", ""),
+    })
+    checks.append({
+        "name": "license_environment",
+        "status": license_env.get("status", "unknown"),
+        "detail": license_env.get("detail", ""),
+    })
+    checks.append({
+        "name": "runner_cfg",
+        "status": runner_check.get("status", "unknown"),
+        "detail": runner_check.get("detail", ""),
+    })
     return checks
+
+
+def _workdir_check(workdir: str | None) -> dict[str, Any]:
+    raw_path = Path(workdir).expanduser() if workdir else Path.cwd()
+    path = raw_path.resolve() if raw_path.exists() else raw_path.absolute()
+    if not path.exists():
+        return {
+            "status": "fail",
+            "path": str(path),
+            "exists": False,
+            "writable": False,
+            "detail": "Workdir does not exist",
+        }
+    if not path.is_dir():
+        return {
+            "status": "fail",
+            "path": str(path),
+            "exists": True,
+            "writable": False,
+            "detail": "Workdir path is not a directory",
+        }
+    try:
+        with tempfile.NamedTemporaryFile(prefix=".abaqus_agent_preflight_", dir=path, delete=True):
+            pass
+    except OSError as exc:
+        return {
+            "status": "fail",
+            "path": str(path),
+            "exists": True,
+            "writable": False,
+            "detail": f"Workdir is not writable: {exc}",
+        }
+    return {
+        "status": "pass",
+        "path": str(path),
+        "exists": True,
+        "writable": True,
+        "detail": "Workdir exists and accepts temporary files",
+    }
+
+
+def _license_environment() -> dict[str, Any]:
+    names = ["LM_LICENSE_FILE", "ABAQUSLM_LICENSE_FILE", "DSLS_CONFIG"]
+    present = [name for name in names if os.environ.get(name)]
+    missing = [name for name in names if name not in present]
+    if present:
+        return {
+            "status": "pass",
+            "present": present,
+            "missing": missing,
+            "detail": f"Detected license environment marker(s): {', '.join(present)}",
+        }
+    return {
+        "status": "warn",
+        "present": [],
+        "missing": missing,
+        "detail": "No common license environment variables detected; this can still pass with site-managed licensing",
+    }
+
+
+def _runner_cfg_check(runner_cfg: dict[str, Any] | None) -> dict[str, Any]:
+    cfg = dict(runner_cfg or {})
+    if not cfg:
+        return {
+            "status": "skipped",
+            "detail": "No runner config supplied",
+            "cpus": "default",
+            "mp_mode": "default",
+            "memory": "default",
+            "timeout_seconds": "default",
+            "allow_license_queue": "default",
+            "issues": [],
+        }
+
+    issues: list[str] = []
+    cpus = cfg.get("cpus")
+    if cpus is not None:
+        try:
+            if int(cpus) < 1:
+                issues.append("cpus must be >= 1")
+        except (TypeError, ValueError):
+            issues.append("cpus must be an integer")
+
+    timeout = cfg.get("timeout_seconds")
+    if timeout is not None:
+        try:
+            if float(timeout) <= 0:
+                issues.append("timeout_seconds must be > 0")
+        except (TypeError, ValueError):
+            issues.append("timeout_seconds must be numeric")
+
+    mp_mode = cfg.get("mp_mode")
+    if mp_mode is not None and str(mp_mode) not in {"threads", "mpi"}:
+        issues.append("mp_mode must be 'threads' or 'mpi'")
+
+    memory = cfg.get("memory")
+    if memory is not None and not str(memory).strip():
+        issues.append("memory must not be empty when supplied")
+
+    return {
+        "status": "fail" if issues else "pass",
+        "detail": "; ".join(issues) if issues else "Runner config looks usable",
+        "cpus": cfg.get("cpus", "default"),
+        "mp_mode": cfg.get("mp_mode", "default"),
+        "memory": cfg.get("memory", "default"),
+        "timeout_seconds": cfg.get("timeout_seconds", "default"),
+        "allow_license_queue": cfg.get("allow_license_queue", "default"),
+        "issues": issues,
+    }
+
+
+def _next_actions(checks: list[dict[str, str]]) -> list[str]:
+    actions = []
+    for check in checks:
+        name = check.get("name")
+        status = check.get("status")
+        if name == "abaqus_command" and status == "fail":
+            actions.append("Add Abaqus to PATH or pass --abaqus-cmd with the full Abaqus command path.")
+        elif name == "abaqus_release" and status in {"fail", "timeout", "error"}:
+            actions.append("Run the captured release command manually on the target machine and inspect stdout/stderr.")
+        elif name == "abaqus_release_target" and status == "fail":
+            actions.append("Use a matching Abaqus release or update the case expected release before regression validation.")
+        elif name == "workdir_writable" and status == "fail":
+            actions.append("Choose an existing writable run directory before launching real Abaqus jobs.")
+        elif name == "license_environment" and status == "warn":
+            actions.append("Confirm Abaqus licensing is configured through LM_LICENSE_FILE, ABAQUSLM_LICENSE_FILE, DSLS_CONFIG, or site defaults.")
+        elif name == "runner_cfg" and status == "fail":
+            actions.append("Fix runner_cfg values before submitting jobs; invalid CPU, timeout, or mp_mode settings can fail before solver launch.")
+    return actions
 
 
 def _release_detail(release_check: dict[str, Any]) -> str:

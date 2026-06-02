@@ -53,6 +53,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Only resolve the command; do not run 'abaqus information=release'",
     )
     validate_env.add_argument("--expected-release", default="", help="Expected Abaqus release year, e.g. 2021 or 2026")
+    validate_env.add_argument("--workdir", default="", help="Run directory to check for real Abaqus job writability")
+    validate_env.add_argument("--runner-json", default="", help='Runner config JSON, e.g. {"cpus": 4, "mp_mode": "threads"}')
     validate_env.add_argument("--strict", action="store_true", help="Return non-zero unless ready")
     validate_env.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     validate_env.add_argument("--out", help="Write Markdown report to this path")
@@ -169,6 +171,8 @@ def _cmd_validate_env(args: argparse.Namespace) -> int:
         timeout_seconds=args.timeout,
         check_release=not args.skip_release_check,
         expected_release=args.expected_release,
+        workdir=args.workdir or None,
+        runner_cfg=_parse_json_mapping(args.runner_json, "--runner-json"),
     )
     if args.as_json:
         output = json.dumps(result, indent=2, ensure_ascii=False)

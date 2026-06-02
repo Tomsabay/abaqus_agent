@@ -286,6 +286,8 @@ class EnvironmentPreflightRequest(BaseModel):
     timeout_seconds: float = 15.0
     check_release: bool = True
     expected_release: str = ""
+    workdir: str = ""
+    runner_cfg: dict = {}
 
 
 class OfflineReportRequest(BaseModel):
@@ -412,6 +414,8 @@ async def bridge_environment_preflight(req: EnvironmentPreflightRequest):
             "timeout_seconds": req.timeout_seconds,
             "check_release": req.check_release,
             "expected_release": req.expected_release,
+            "workdir": req.workdir,
+            "runner_cfg_json": json.dumps(req.runner_cfg),
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

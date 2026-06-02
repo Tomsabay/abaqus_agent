@@ -52,7 +52,7 @@ full Abaqus 2021 execution on Windows:
 
 ## Next Validation Targets
 
-- Before each real validation pass, run `abaqus-agent validate env --json` to record OS, Python, Abaqus command resolution, and `abaqus information=release` evidence.
+- Before each real validation pass, run `abaqus-agent validate env --workdir <run-dir> --runner-json '{"cpus":4,"mp_mode":"threads","timeout_seconds":900}' --json` to record OS, Python, Abaqus command resolution, `abaqus information=release`, workdir writability, license marker, and runner config evidence.
 - Windows + Abaqus 2021: repeat full public-case validation after major changes to build, submit, ODB extraction, or visualization.
 - Windows + Abaqus 2026: repeat cantilever and one ODB Lens recipe with contributor environment if available.
 - Linux + Abaqus: syntaxcheck and custom `.inp` capsule path.

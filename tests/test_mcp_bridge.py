@@ -283,6 +283,8 @@ class TestBridgeEndpoints:
             "timeout_seconds": 2.0,
             "check_release": False,
             "expected_release": "2026",
+            "workdir": "runs",
+            "runner_cfg": {"cpus": 2},
         })
         assert res.status_code == 200
         data = res.json()
@@ -294,6 +296,8 @@ class TestBridgeEndpoints:
         assert arguments["timeout_seconds"] == 2.0
         assert arguments["check_release"] is False
         assert arguments["expected_release"] == "2026"
+        assert arguments["workdir"] == "runs"
+        assert json.loads(arguments["runner_cfg_json"]) == {"cpus": 2}
 
     def test_offline_report_export_endpoint(self, mock_bridge):
         client = self._client(mock_bridge)
