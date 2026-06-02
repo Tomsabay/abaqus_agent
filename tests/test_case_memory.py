@@ -129,6 +129,22 @@ def test_case_memory_text_query_filters_unrelated_completed_cases(tmp_path):
     assert result["matches"][0]["run_id"] == "explicit"
 
 
+def test_case_memory_query_match_mode_all_requires_every_token(tmp_path):
+    _write_case(tmp_path, "cantilever", model_name="CantileverBeam", geometry_type="custom_inp")
+    _write_case(tmp_path, "plate", model_name="PlateHole", geometry_type="plate_with_hole")
+
+    any_result = search_case_memory(CaseMemoryQuery(roots=(tmp_path,), query="Cantilever PlateHole"))
+    all_result = search_case_memory(CaseMemoryQuery(
+        roots=(tmp_path,),
+        query="Cantilever PlateHole",
+        match_mode="all",
+    ))
+
+    assert any_result["total_matches"] == 2
+    assert all_result["total_matches"] == 0
+    assert all_result["query"]["match_mode"] == "all"
+
+
 def test_case_memory_query_matches_path_and_compact_case_name(tmp_path):
     _write_case(tmp_path, "plate_hole", model_name="StressCase", geometry_type="custom_inp")
     _write_case(tmp_path, "modal_case", model_name="ModalCase", geometry_type="modal")

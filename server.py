@@ -119,6 +119,7 @@ class MemorySearchRequest(BaseModel):
 
     roots: list[str]
     query: str = ""
+    match_mode: str = "any"
     similar_to: str = ""
     status: str = ""
     model_name: str = ""
@@ -458,6 +459,7 @@ def post_memory_search(req: MemorySearchRequest):
         result = search_case_memory(CaseMemoryQuery(
             roots=tuple(req.roots),
             query=req.query,
+            match_mode=req.match_mode,
             similar_to=req.similar_to or None,
             status=req.status,
             model_name=req.model_name,

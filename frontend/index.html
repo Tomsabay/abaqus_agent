@@ -1728,6 +1728,13 @@ reports</textarea>
                 <input class="memory-input" id="memory-query" placeholder="too_many_attempts / Cantilever / U_tip">
               </div>
               <div>
+                <div class="input-label">匹配模式</div>
+                <select class="memory-input" id="memory-match-mode">
+                  <option value="any">任意词</option>
+                  <option value="all">全部词</option>
+                </select>
+              </div>
+              <div>
                 <div class="input-label">相似目标</div>
                 <input class="memory-input" id="memory-similar" placeholder="runs/candidate 或 capsule.json">
               </div>
@@ -3526,6 +3533,7 @@ async function searchMemory() {
     const payload = {
       roots,
       query: document.getElementById('memory-query').value.trim(),
+      match_mode: document.getElementById('memory-match-mode').value,
       similar_to: document.getElementById('memory-similar').value.trim(),
       status: document.getElementById('memory-status').value,
       contract: document.getElementById('memory-contract').value.trim(),
@@ -3617,6 +3625,7 @@ function renderMemory(result) {
         <div class="report-metric"><div class="report-metric-label">Indexed</div><div class="report-metric-value">${result.total_indexed || 0}</div></div>
         <div class="report-metric"><div class="report-metric-label">Matches</div><div class="report-metric-value">${result.total_matches || 0}</div></div>
         <div class="report-metric"><div class="report-metric-label">Query</div><div class="report-metric-value">${escapeHTML(query.query || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Match</div><div class="report-metric-value">${escapeHTML(query.match_mode || 'any')}</div></div>
         <div class="report-metric"><div class="report-metric-label">Target</div><div class="report-metric-value">${escapeHTML(query.similar_to || '—')}</div></div>
         <div class="report-metric"><div class="report-metric-label">Sort</div><div class="report-metric-value">${escapeHTML(query.sort_by || 'score')} ${escapeHTML(query.sort_order || 'desc')}</div></div>
         <div class="report-metric"><div class="report-metric-label">Min Score</div><div class="report-metric-value">${formatNum(query.min_score || 0)}</div></div>

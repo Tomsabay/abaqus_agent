@@ -265,6 +265,7 @@ class MemorySearchRequest(BaseModel):
 
     roots: list[str]
     query: str = ""
+    match_mode: str = "any"
     similar_to: str = ""
     status: str = ""
     model_name: str = ""
@@ -384,6 +385,7 @@ async def bridge_memory_search(req: MemorySearchRequest):
         return await mcp_conn.call_tool("case_memory_search_tool", {
             "roots_json": json.dumps(req.roots),
             "query": req.query,
+            "match_mode": req.match_mode,
             "similar_to": req.similar_to,
             "status": req.status,
             "model_name": req.model_name,

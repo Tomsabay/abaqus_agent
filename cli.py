@@ -121,6 +121,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mem_search = memory_sub.add_parser("search", help="Search run/capsule directories")
     mem_search.add_argument("roots", nargs="+", help="Run, capsule, result, or parent directories")
     mem_search.add_argument("--query", default="", help="Free-text query over indexed case fields")
+    mem_search.add_argument("--match-mode", default="any", choices=["any", "all"], help="Free-text query token match mode")
     mem_search.add_argument("--similar-to", default="", help="Run/capsule path used as similarity target")
     mem_search.add_argument("--status", default="", help="Filter by run status")
     mem_search.add_argument("--model-name", default="", help="Filter by model name substring")
@@ -273,6 +274,7 @@ def _cmd_memory_search(args: argparse.Namespace) -> int:
     result = search_case_memory(CaseMemoryQuery(
         roots=tuple(args.roots),
         query=args.query,
+        match_mode=args.match_mode,
         similar_to=args.similar_to or None,
         status=args.status,
         model_name=args.model_name,

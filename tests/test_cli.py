@@ -245,6 +245,7 @@ def test_memory_search_cli_prints_json(tmp_path, capsys):
     rc = cli.main([
         "memory", "search", str(tmp_path),
         "--query", "MemoryCliModel",
+        "--match-mode", "all",
         "--artifact", "Job.log",
         "--contract", "tip",
         "--contracts-passed", "passed",
@@ -257,6 +258,7 @@ def test_memory_search_cli_prints_json(tmp_path, capsys):
     data = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert data["matches"][0]["run_id"] == "memory_cli"
+    assert data["query"]["match_mode"] == "all"
     assert data["query"]["artifact"] == "Job.log"
     assert data["query"]["contract"] == "tip"
     assert data["query"]["contracts_passed"] == "passed"

@@ -319,6 +319,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Case Memory CLI/API/MCP/UI workflow with real capsule-history validation
 - [x] Case Memory artifact, sort order, and minimum score controls across CLI/API/MCP/UI
 - [x] Case Memory contract filters and KPI/artifact count sort controls across CLI/API/MCP/UI
+- [x] Case Memory free-text match mode controls (`any` / `all`) across CLI/API/MCP/UI
 - [x] Markdown report copy/download actions in the web UI
 - [x] Standalone HTML report export endpoint and web UI download action
 - [x] Browser preview/print mode for downstream PDF handoff
