@@ -200,6 +200,7 @@ def test_diff_cli_writes_markdown(tmp_path):
     assert rc == 0
     text = report.read_text(encoding="utf-8")
     assert "Simulation Diff Report" in text
+    assert "Change Summary" in text
     assert "MISES" in text
 
 

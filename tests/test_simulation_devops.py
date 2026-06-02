@@ -129,9 +129,16 @@ def test_simdiff_compares_run_dirs_kpis_contracts_and_specs(tmp_path):
 
     assert result["passed"] is False
     assert result["baseline"]["run_id"] == "base"
+    assert result["summary"]["total_changes"] >= 4
+    assert result["summary"]["warning_changes"] >= 2
+    assert result["summary"]["sections"]["kpis"]["WARNING"] == 2
+    assert result["summary"]["sections"]["spec"]["WARNING"] == 1
     assert any(c["name"] == "U_tip" and c["status"] == "WARNING" for c in result["sections"]["kpis"]["changes"])
     assert any(c["path"] == "bc_load.value" for c in result["sections"]["spec"]["changes"])
-    assert "Simulation Diff Report" in render_run_markdown(result)
+    markdown = render_run_markdown(result)
+    assert "Simulation Diff Report" in markdown
+    assert "Change Summary" in markdown
+    assert "| kpis |" in markdown
 
 
 def test_simdiff_loads_specs_from_result_paths(tmp_path):

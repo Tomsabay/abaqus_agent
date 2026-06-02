@@ -265,8 +265,10 @@ def test_run_diff_endpoint_compares_two_runs():
     data = res.json()
     assert data["baseline"]["run_id"] == "diff_base"
     assert data["candidate"]["run_id"] == "diff_candidate"
+    assert data["summary"]["sections"]["kpis"]["WARNING"] == 1
     assert data["sections"]["kpis"]["changes"][0]["status"] == "WARNING"
     assert "Simulation Diff Report" in data["markdown"]
+    assert "Change Summary" in data["markdown"]
 
     server.RUNS.pop("diff_base", None)
     server.RUNS.pop("diff_candidate", None)
