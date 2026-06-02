@@ -16,7 +16,13 @@ from doctor import diagnose_logs
 from odb_lens import load_recipe, render_kpi_markdown
 from reporting import export_offline_run_report
 from simdiff import diff_runs, render_run_markdown
-from validation import render_preflight_markdown, run_environment_preflight
+from validation import (
+    append_validation_matrix_entry,
+    build_validation_evidence_entry,
+    render_preflight_markdown,
+    render_validation_matrix_row,
+    run_environment_preflight,
+)
 
 LOG_SUFFIXES = {".sta", ".msg", ".log", ".dat"}
 
@@ -59,6 +65,17 @@ def _build_parser() -> argparse.ArgumentParser:
     validate_env.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     validate_env.add_argument("--out", help="Write Markdown report to this path")
     validate_env.set_defaults(func=_cmd_validate_env)
+
+    validate_record = validate_sub.add_parser("record", help="Append an evidence row to docs/VALIDATION_MATRIX.md")
+    validate_record.add_argument("--matrix", default="docs/VALIDATION_MATRIX.md", help="Validation matrix Markdown path")
+    validate_record.add_argument("--date", default="", help="Evidence date, defaults to today")
+    validate_record.add_argument("--environment", required=True, help="Environment label")
+    validate_record.add_argument("--abaqus", required=True, help="Abaqus release/license label")
+    validate_record.add_argument("--workflow", required=True, help="Case or workflow label")
+    validate_record.add_argument("--result", required=True, help="Result label, e.g. PASS or FAIL")
+    validate_record.add_argument("--evidence", required=True, help="Evidence summary")
+    validate_record.add_argument("--dry-run", action="store_true", help="Print the row without modifying the matrix")
+    validate_record.set_defaults(func=_cmd_validate_record)
 
     report = sub.add_parser("report", help="Export run reports from offline evidence")
     report_sub = report.add_subparsers(dest="report_command", required=True)
@@ -181,6 +198,25 @@ def _cmd_validate_env(args: argparse.Namespace) -> int:
 
     _write_or_print(output, args.out)
     return 0 if not args.strict or result["status"] == "ready" else 1
+
+
+def _cmd_validate_record(args: argparse.Namespace) -> int:
+    entry = build_validation_evidence_entry(
+        entry_date=args.date,
+        environment=args.environment,
+        abaqus=args.abaqus,
+        workflow=args.workflow,
+        result=args.result,
+        evidence=args.evidence,
+    )
+    row = render_validation_matrix_row(entry)
+    if args.dry_run:
+        print(row)
+        return 0
+    result = append_validation_matrix_entry(args.matrix, entry)
+    print(f"Appended validation evidence: {result['matrix_path']}")
+    print(result["row"])
+    return 0
 
 
 def _cmd_report_export(args: argparse.Namespace) -> int:
