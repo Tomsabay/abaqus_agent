@@ -54,16 +54,18 @@ def render_markdown(diff: dict) -> str:
     lines = [
         "# Simulation KPI Diff",
         "",
-        "| KPI | Before | After | Delta | Rel Change | Status |",
-        "|-----|--------|-------|-------|------------|--------|",
+        "| KPI | Before | After | Delta | Rel Change | rtol | Status |",
+        "|-----|--------|-------|-------|------------|------|--------|",
     ]
     for change in diff.get("changes", []):
         delta = change.get("delta", "-")
         rel = change.get("rel_change")
         rel_s = f"{rel * 100:.2f}%" if rel is not None else "-"
+        rtol = change.get("rtol")
+        rtol_s = f"{rtol * 100:.2f}%" if rtol is not None else "-"
         lines.append(
             f"| {change['name']} | {change.get('before')} | {change.get('after')} | "
-            f"{delta} | {rel_s} | {change['status']} |"
+            f"{delta} | {rel_s} | {rtol_s} | {change['status']} |"
         )
     return "\n".join(lines)
 

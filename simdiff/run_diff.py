@@ -50,11 +50,17 @@ def diff_runs(
     baseline: str | Path | dict,
     candidate: str | Path | dict,
     default_rtol: float = 0.05,
+    tolerances: dict | None = None,
 ) -> dict:
     """Compare two run/capsule payloads."""
     base = load_run_payload(baseline) if not isinstance(baseline, dict) else baseline
     cand = load_run_payload(candidate) if not isinstance(candidate, dict) else candidate
-    kpi_diff = diff_kpis(base.get("kpis", {}), cand.get("kpis", {}), default_rtol=default_rtol)
+    kpi_diff = diff_kpis(
+        base.get("kpis", {}),
+        cand.get("kpis", {}),
+        tolerances=tolerances,
+        default_rtol=default_rtol,
+    )
     contract_diff = _diff_contracts(base.get("contracts", {}), cand.get("contracts", {}))
     input_diff = _diff_mapping("input", base.get("inputs", {}), cand.get("inputs", {}))
     spec_diff = _diff_spec(base.get("spec", {}), cand.get("spec", {}))
@@ -103,15 +109,17 @@ def render_run_markdown(diff: dict) -> str:
         "",
         "## KPI Diff",
         "",
-        "| KPI | Before | After | Delta | Rel Change | Status |",
-        "|-----|--------|-------|-------|------------|--------|",
+        "| KPI | Before | After | Delta | Rel Change | rtol | Status |",
+        "|-----|--------|-------|-------|------------|------|--------|",
     ]
     for change in diff.get("sections", {}).get("kpis", {}).get("changes", []):
         rel = change.get("rel_change")
         rel_s = f"{rel * 100:.2f}%" if rel is not None else "-"
+        rtol = change.get("rtol")
+        rtol_s = f"{rtol * 100:.2f}%" if rtol is not None else "-"
         lines.append(
             f"| {change['name']} | {_fmt(change.get('before'))} | {_fmt(change.get('after'))} | "
-            f"{_fmt(change.get('delta', '-'))} | {rel_s} | {change['status']} |"
+            f"{_fmt(change.get('delta', '-'))} | {rel_s} | {rtol_s} | {change['status']} |"
         )
 
     lines += [

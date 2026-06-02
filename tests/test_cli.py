@@ -202,6 +202,28 @@ def test_diff_cli_writes_markdown(tmp_path):
     assert "Simulation Diff Report" in text
     assert "Change Summary" in text
     assert "MISES" in text
+    assert "rtol" in text
+
+
+def test_diff_cli_accepts_per_kpi_tolerances_json(tmp_path, capsys):
+    baseline = tmp_path / "baseline.json"
+    candidate = tmp_path / "candidate.json"
+    baseline.write_text(json.dumps({"kpis": {"MISES": 100.0, "U_tip": -0.002}}), encoding="utf-8")
+    candidate.write_text(json.dumps({"kpis": {"MISES": 125.0, "U_tip": -0.0022}}), encoding="utf-8")
+
+    rc = cli.main([
+        "diff",
+        str(baseline),
+        str(candidate),
+        "--tolerances-json",
+        '{"MISES": 0.3}',
+        "--json",
+    ])
+
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert data["summary"]["sections"]["kpis"]["PASS"] == 1
+    assert data["summary"]["sections"]["kpis"]["WARNING"] == 1
 
 
 def test_memory_search_cli_prints_json(tmp_path, capsys):

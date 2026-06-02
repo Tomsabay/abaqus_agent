@@ -111,6 +111,7 @@ def _build_parser() -> argparse.ArgumentParser:
     diff.add_argument("baseline", help="Baseline run dir, capsule/result JSON, or KPI JSON file")
     diff.add_argument("candidate", help="Candidate run dir, capsule/result JSON, or KPI JSON file")
     diff.add_argument("--rtol", type=float, default=0.05, help="Default relative tolerance")
+    diff.add_argument("--tolerances-json", default="", help='Per-KPI tolerances JSON, e.g. {"MISES": 0.2}')
     diff.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     diff.add_argument("--out", help="Write Markdown report to this path")
     diff.set_defaults(func=_cmd_diff)
@@ -241,7 +242,12 @@ def _cmd_check(args: argparse.Namespace) -> int:
 
 
 def _cmd_diff(args: argparse.Namespace) -> int:
-    result = diff_runs(args.baseline, args.candidate, default_rtol=args.rtol)
+    result = diff_runs(
+        args.baseline,
+        args.candidate,
+        default_rtol=args.rtol,
+        tolerances=_parse_json_mapping(args.tolerances_json, "--tolerances-json"),
+    )
     if args.as_json:
         output = json.dumps(result, indent=2, ensure_ascii=False)
     else:
@@ -249,6 +255,18 @@ def _cmd_diff(args: argparse.Namespace) -> int:
 
     _write_or_print(output, args.out)
     return 0 if result["passed"] else 1
+
+
+def _parse_json_mapping(raw: str, option: str) -> dict:
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise SystemExit(f"{option} must be valid JSON: {e}") from e
+    if not isinstance(data, dict):
+        raise SystemExit(f"{option} must decode to a JSON object")
+    return data
 
 
 def _cmd_memory_search(args: argparse.Namespace) -> int:

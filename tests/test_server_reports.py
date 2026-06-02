@@ -270,8 +270,37 @@ def test_run_diff_endpoint_compares_two_runs():
     assert "Simulation Diff Report" in data["markdown"]
     assert "Change Summary" in data["markdown"]
 
+    tuned_res = client.get(
+        "/api/run/diff_base/diff/diff_candidate?rtol=0.05"
+        "&tolerances_json=%7B%22U_tip%22%3A%200.2%7D"
+    )
+    assert tuned_res.status_code == 200
+    tuned = tuned_res.json()
+    assert tuned["summary"]["sections"]["kpis"]["PASS"] == 1
+    assert tuned["summary"]["sections"]["kpis"]["WARNING"] == 0
+
     server.RUNS.pop("diff_base", None)
     server.RUNS.pop("diff_candidate", None)
+
+
+def test_post_diff_endpoint_accepts_per_kpi_tolerances(tmp_path):
+    client, _server = _client()
+    baseline = tmp_path / "baseline.json"
+    candidate = tmp_path / "candidate.json"
+    baseline.write_text(json.dumps({"kpis": {"MISES": 100.0, "U_tip": -0.002}}), encoding="utf-8")
+    candidate.write_text(json.dumps({"kpis": {"MISES": 125.0, "U_tip": -0.0022}}), encoding="utf-8")
+
+    res = client.post("/api/diff", json={
+        "baseline": str(baseline),
+        "candidate": str(candidate),
+        "rtol": 0.05,
+        "tolerances": {"MISES": 0.3},
+    })
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["summary"]["sections"]["kpis"]["PASS"] == 1
+    assert data["summary"]["sections"]["kpis"]["WARNING"] == 1
 
 
 def test_memory_search_endpoint(tmp_path):

@@ -256,6 +256,7 @@ class DiffRequest(BaseModel):
     baseline: str
     candidate: str
     rtol: float = 0.05
+    tolerances: dict = {}
 
 
 class MemorySearchRequest(BaseModel):
@@ -371,6 +372,7 @@ async def bridge_diff(req: DiffRequest):
             "baseline": req.baseline,
             "candidate": req.candidate,
             "rtol": req.rtol,
+            "tolerances_json": json.dumps(req.tolerances),
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

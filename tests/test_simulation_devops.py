@@ -96,7 +96,26 @@ def test_simdiff_flags_large_kpi_change_and_renders_markdown():
     mises = next(c for c in result["changes"] if c["name"] == "MISES")
     assert result["passed"] is False
     assert mises["status"] == "WARNING"
+    assert mises["rtol"] == 0.1
     assert "MISES" in render_markdown(result)
+    assert "rtol" in render_markdown(result)
+
+
+def test_simdiff_uses_per_kpi_tolerances():
+    result = diff_runs(
+        {"run_id": "base", "kpis": {"MISES": 100.0, "U_tip": -0.002}},
+        {"run_id": "candidate", "kpis": {"MISES": 125.0, "U_tip": -0.0022}},
+        default_rtol=0.05,
+        tolerances={"MISES": 0.3},
+    )
+
+    mises = next(c for c in result["sections"]["kpis"]["changes"] if c["name"] == "MISES")
+    u_tip = next(c for c in result["sections"]["kpis"]["changes"] if c["name"] == "U_tip")
+    assert mises["status"] == "PASS"
+    assert mises["rtol"] == 0.3
+    assert u_tip["status"] == "WARNING"
+    assert result["summary"]["sections"]["kpis"]["PASS"] == 1
+    assert result["summary"]["sections"]["kpis"]["WARNING"] == 1
 
 
 def test_simdiff_compares_run_dirs_kpis_contracts_and_specs(tmp_path):
