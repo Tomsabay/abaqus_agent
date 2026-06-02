@@ -129,6 +129,54 @@ class TestMCPTools:
         assert data["run_id"] == run_id
         assert "status" in data
 
+    def test_diagnose_logs_tool(self):
+        from mcp_server import diagnose_logs_tool
+        result = asyncio.get_event_loop().run_until_complete(
+            diagnose_logs_tool(text="Node set FIXED_NODES has not been defined")
+        )
+        data = json.loads(result)
+        assert data["matched"] is True
+        assert data["matches"][0]["id"] == "missing_node_set"
+
+    def test_simulation_diff_tool(self, tmp_path):
+        from mcp_server import simulation_diff_tool
+        baseline = tmp_path / "baseline.json"
+        candidate = tmp_path / "candidate.json"
+        baseline.write_text(json.dumps({"kpis": {"MISES": 100.0}}), encoding="utf-8")
+        candidate.write_text(json.dumps({"kpis": {"MISES": 125.0}}), encoding="utf-8")
+
+        result = asyncio.get_event_loop().run_until_complete(
+            simulation_diff_tool(str(baseline), str(candidate), rtol=0.05)
+        )
+        data = json.loads(result)
+        assert data["passed"] is False
+        assert "Simulation Diff Report" in data["markdown"]
+
+    def test_check_contracts_tool(self):
+        from mcp_server import check_contracts_tool
+        result = asyncio.get_event_loop().run_until_complete(
+            check_contracts_tool(
+                kpis_json=json.dumps({"U_tip": -0.002}),
+                contracts_yaml="contracts:\n- name: down\n  type: direction\n  kpi: U_tip\n  direction: negative\n",
+            )
+        )
+        data = json.loads(result)
+        assert data["passed"] is True
+        assert data["results"][0]["name"] == "down"
+
+    def test_capsule_init_from_inp_tool(self, tmp_path):
+        from mcp_server import capsule_init_from_inp_tool
+        inp = tmp_path / "model.inp"
+        out = tmp_path / "capsule"
+        inp.write_text("*Heading\nmodel\n", encoding="utf-8")
+
+        result = asyncio.get_event_loop().run_until_complete(
+            capsule_init_from_inp_tool(str(inp), str(out))
+        )
+        data = json.loads(result)
+        assert data["inputs"]["model_name"] == "model"
+        assert (out / "capsule.json").exists()
+
     def test_run_benchmark(self):
         from mcp_server import run_benchmark_tool
         result = asyncio.get_event_loop().run_until_complete(
