@@ -67,6 +67,32 @@ def test_validate_env_cli_strict_fails_when_not_ready(monkeypatch):
     assert cli.main(["validate", "env", "--strict", "--json"]) == 1
 
 
+def test_report_export_cli_writes_json(monkeypatch, tmp_path, capsys):
+    out = tmp_path / "report.md"
+
+    def fake_export(source, out_path, **kwargs):
+        assert source == "runs/demo"
+        assert out_path == str(out)
+        assert kwargs["export_format"] == "md"
+        assert kwargs["template"] == "client_summary"
+        return {"format": "md", "output_path": str(out), "bytes": 123}
+
+    monkeypatch.setattr(cli, "export_offline_run_report", fake_export)
+
+    rc = cli.main([
+        "report", "export", "runs/demo",
+        "--out", str(out),
+        "--format", "md",
+        "--template", "client_summary",
+        "--json",
+    ])
+
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert data["format"] == "md"
+    assert data["bytes"] == 123
+
+
 def test_doctor_cli_directory_mode(tmp_path, capsys):
     (tmp_path / "job.msg").write_text("Too many attempts made for this increment\n", encoding="utf-8")
 

@@ -14,6 +14,7 @@ from case_memory import CaseMemoryQuery, render_memory_markdown, search_case_mem
 from contracts import evaluate_contracts
 from doctor import diagnose_logs
 from odb_lens import load_recipe, render_kpi_markdown
+from reporting import export_offline_run_report
 from simdiff import diff_runs, render_run_markdown
 from validation import render_preflight_markdown, run_environment_preflight
 
@@ -55,6 +56,17 @@ def _build_parser() -> argparse.ArgumentParser:
     validate_env.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     validate_env.add_argument("--out", help="Write Markdown report to this path")
     validate_env.set_defaults(func=_cmd_validate_env)
+
+    report = sub.add_parser("report", help="Export run reports from offline evidence")
+    report_sub = report.add_subparsers(dest="report_command", required=True)
+    report_export = report_sub.add_parser("export", help="Export Markdown, HTML, or zip from a run/capsule/result")
+    report_export.add_argument("source", help="Run directory, capsule.json, or result.json")
+    report_export.add_argument("--out", required=True, help="Output .md, .html, or .zip path")
+    report_export.add_argument("--template", default="standard", choices=["standard", "client_summary"])
+    report_export.add_argument("--format", default="auto", choices=["auto", "md", "html", "zip"])
+    report_export.add_argument("--max-artifact-bytes", type=int, default=25_000_000)
+    report_export.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
+    report_export.set_defaults(func=_cmd_report_export)
 
     capsule = sub.add_parser("capsule", help="Manage experiment capsules")
     capsule_sub = capsule.add_subparsers(dest="capsule_command", required=True)
@@ -151,6 +163,21 @@ def _cmd_validate_env(args: argparse.Namespace) -> int:
 
     _write_or_print(output, args.out)
     return 0 if not args.strict or result["status"] == "ready" else 1
+
+
+def _cmd_report_export(args: argparse.Namespace) -> int:
+    result = export_offline_run_report(
+        args.source,
+        args.out,
+        export_format=args.format,
+        template=args.template,
+        max_artifact_bytes=args.max_artifact_bytes,
+    )
+    if args.as_json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        print(f"Wrote {result['format']} report: {result['output_path']} ({result['bytes']} bytes)")
+    return 0
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
