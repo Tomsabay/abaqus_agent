@@ -77,6 +77,13 @@ abaqus-agent validate env --json
 abaqus-agent validate env --strict --out validation-preflight.md
 ```
 
+Export an offline report from a run directory, `capsule.json`, or `result.json`:
+
+```bash
+abaqus-agent report export runs/my_run --template client_summary --out report.html
+abaqus-agent report export runs/my_run --out report.zip
+```
+
 Validate public benchmark specs without Abaqus:
 
 ```bash
@@ -254,6 +261,7 @@ Notes:
 
 - `python run_benchmark.py --dry-run` validates specs without Abaqus.
 - `abaqus-agent validate env` and the Environment panel record OS, Python, Abaqus command resolution, and `abaqus information=release` evidence before real validation.
+- `abaqus-agent report export` produces Markdown, standalone HTML, or zipped report bundles from offline run evidence.
 - Full regression requires a local Abaqus installation and license.
 - Current environment evidence is tracked in [docs/VALIDATION_MATRIX.md](docs/VALIDATION_MATRIX.md).
 - Current local validation has been done on Abaqus 2021 / Windows.
@@ -296,6 +304,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Browser preview/print mode for downstream PDF handoff
 - [x] Report bundle zip endpoint and web UI download action
 - [x] Environment preflight CLI/API/MCP/UI workflow for Linux/Windows/Abaqus version validation readiness
+- [x] Offline report export CLI for run directories, capsules, and result JSON files
 
 ## Acknowledgments
 
