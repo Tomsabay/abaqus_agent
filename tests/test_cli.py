@@ -117,6 +117,24 @@ def test_report_export_cli_accepts_pdf_format(monkeypatch, tmp_path, capsys):
     assert data["bytes"] == 456
 
 
+def test_report_export_cli_accepts_engineering_delivery_template(monkeypatch, tmp_path):
+    out = tmp_path / "delivery.html"
+
+    def fake_export(source, out_path, **kwargs):
+        assert source == "runs/demo"
+        assert out_path == str(out)
+        assert kwargs["template"] == "engineering_delivery"
+        return {"format": "html", "output_path": str(out), "bytes": 789}
+
+    monkeypatch.setattr(cli, "export_offline_run_report", fake_export)
+
+    assert cli.main([
+        "report", "export", "runs/demo",
+        "--out", str(out),
+        "--template", "engineering_delivery",
+    ]) == 0
+
+
 def test_doctor_cli_directory_mode(tmp_path, capsys):
     (tmp_path / "job.msg").write_text("Too many attempts made for this increment\n", encoding="utf-8")
 

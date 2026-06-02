@@ -82,6 +82,7 @@ Export an offline report from a run directory, `capsule.json`, or `result.json`:
 ```bash
 abaqus-agent report export runs/my_run --template client_summary --out report.html
 abaqus-agent report export runs/my_run --template client_summary --out report.pdf
+abaqus-agent report export runs/my_run --template engineering_delivery --out delivery.html
 abaqus-agent report export runs/my_run --out report.zip
 ```
 
@@ -305,6 +306,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] MCP tools for capsule init, contract check, Solver Doctor, and Simulation Diff
 - [x] ODB Lens direct Abaqus extractor coverage for frame, region, component, invariant, and reducer fields
 - [x] Markdown report templates
+- [x] Engineering delivery report template for downstream HTML/PDF handoff
 - [x] Validation matrix for Abaqus versions and operating systems
 - [x] Case Memory deterministic local capsule search
 - [x] Case Memory CLI/API/MCP/UI workflow with real capsule-history validation

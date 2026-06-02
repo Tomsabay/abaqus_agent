@@ -5,23 +5,31 @@ from __future__ import annotations
 from html import escape
 from urllib.parse import quote
 
+TEMPLATE_TITLES = {
+    "standard": "Abaqus Run Report",
+    "client_summary": "Simulation QA Summary",
+    "engineering_delivery": "Engineering Delivery Report",
+}
+
 
 def available_templates() -> list[str]:
     """Return supported run report template names."""
-    return ["standard", "client_summary"]
+    return list(TEMPLATE_TITLES)
 
 
 def render_run_report_markdown(report: dict, template: str = "standard") -> str:
     """Render a run report with a named Markdown template."""
     if template == "client_summary":
         return _render_client_summary(report)
+    if template == "engineering_delivery":
+        return _render_engineering_delivery(report)
     return _render_standard(report)
 
 
 def render_run_report_html(report: dict, template: str = "standard") -> str:
     """Render a run report as a standalone HTML document."""
     summary = report["summary"]
-    title = "Simulation QA Summary" if template == "client_summary" else "Abaqus Run Report"
+    title = TEMPLATE_TITLES.get(template, TEMPLATE_TITLES["standard"])
     contract_status, contract_class = _contract_status(report)
     run_id = summary.get("run_id") or "-"
     image_artifacts = report.get("image_artifacts", [])
@@ -117,6 +125,43 @@ def _render_client_summary(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _render_engineering_delivery(report: dict) -> str:
+    summary = report["summary"]
+    status = summary.get("status") or "-"
+    contract_status, _contract_class = _contract_status(report)
+    regression_status = _regression_status(report)
+    verdict = _delivery_verdict(status, contract_status, regression_status)
+    lines = [
+        "# Engineering Delivery Report",
+        "",
+        "## Acceptance Snapshot",
+        "",
+        f"- Delivery verdict: `{verdict}`",
+        f"- Run status: `{status}`",
+        f"- Physics contracts: `{contract_status}`",
+        f"- KPI regression: `{regression_status}`",
+        f"- Model: `{summary.get('model_name') or '-'}`",
+        f"- Abaqus release: `{summary.get('abaqus_release') or '-'}`",
+        "",
+        "## Traceability",
+        "",
+        f"- Run ID: `{summary.get('run_id') or '-'}`",
+        f"- Capsule path: `{summary.get('capsule_path') or '-'}`",
+        f"- Result path: `{summary.get('result_path') or '-'}`",
+        f"- Workdir: `{summary.get('workdir') or '-'}`",
+        "",
+        "## KPI Evidence",
+        "",
+        "| KPI | Value | Regression |",
+        "|-----|-------|------------|",
+    ]
+    _append_kpi_rows(lines, report)
+    _append_contract_section(lines, report)
+    _append_artifact_section(lines, report)
+    _append_doctor_section(lines, report)
+    return "\n".join(lines)
+
+
 def _append_kpi_rows(lines: list[str], report: dict) -> None:
     comparisons = report.get("regression", {}).get("comparisons", {})
     for name, value in sorted(report.get("kpis", {}).items()):
@@ -158,6 +203,22 @@ def _append_capsule_section(lines: list[str], report: dict) -> None:
     ]
 
 
+def _append_artifact_section(lines: list[str], report: dict) -> None:
+    artifacts = report.get("artifacts", {})
+    lines += [
+        "",
+        "## Artifact Inventory",
+        "",
+        "| Artifact | Bytes | SHA-256 |",
+        "|----------|-------|---------|",
+    ]
+    if not artifacts:
+        lines.append("| - | - | - |")
+        return
+    for name, meta in sorted(artifacts.items()):
+        lines.append(f"| {name} | {meta.get('bytes', '-')} | {meta.get('sha256', '-')} |")
+
+
 def _append_doctor_section(lines: list[str], report: dict) -> None:
     diagnosis = report.get("diagnosis", {})
     if not diagnosis.get("matched"):
@@ -183,6 +244,29 @@ def _contract_status(report: dict) -> tuple[str, str]:
     if contracts.get("passed"):
         return "PASS", "pass"
     return "FAIL", "fail"
+
+
+def _regression_status(report: dict) -> str:
+    comparisons = report.get("regression", {}).get("comparisons", {})
+    statuses = {str(comp.get("status", "")).upper() for comp in comparisons.values()}
+    statuses.discard("")
+    if not statuses:
+        return "-"
+    if "FAIL" in statuses:
+        return "FAIL"
+    if "WARNING" in statuses:
+        return "WARNING"
+    if statuses <= {"PASS", "INFO"}:
+        return "PASS"
+    return ",".join(sorted(statuses))
+
+
+def _delivery_verdict(status: str, contract_status: str, regression_status: str) -> str:
+    if status != "COMPLETED":
+        return "REVIEW"
+    if contract_status in {"-", "FAIL"} or regression_status in {"-", "FAIL"}:
+        return "REVIEW"
+    return "PASS"
 
 
 def _status_class(status: str | None) -> str:

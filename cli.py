@@ -62,7 +62,11 @@ def _build_parser() -> argparse.ArgumentParser:
     report_export = report_sub.add_parser("export", help="Export Markdown, HTML, PDF, or zip from a run/capsule/result")
     report_export.add_argument("source", help="Run directory, capsule.json, or result.json")
     report_export.add_argument("--out", required=True, help="Output .md, .html, .pdf, or .zip path")
-    report_export.add_argument("--template", default="standard", choices=["standard", "client_summary"])
+    report_export.add_argument(
+        "--template",
+        default="standard",
+        choices=["standard", "client_summary", "engineering_delivery"],
+    )
     report_export.add_argument("--format", default="auto", choices=["auto", "md", "html", "pdf", "zip"])
     report_export.add_argument("--max-artifact-bytes", type=int, default=25_000_000)
     report_export.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")

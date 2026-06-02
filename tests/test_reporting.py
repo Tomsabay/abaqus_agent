@@ -42,8 +42,8 @@ def _report() -> dict:
     }
 
 
-def test_available_templates_includes_standard_and_client_summary():
-    assert available_templates() == ["standard", "client_summary"]
+def test_available_templates_includes_delivery_template():
+    assert available_templates() == ["standard", "client_summary", "engineering_delivery"]
 
 
 def test_standard_run_report_template():
@@ -62,6 +62,21 @@ def test_client_summary_report_template():
     assert "Physics contracts: `PASS`" in text
 
 
+def test_engineering_delivery_report_template():
+    text = render_run_report_markdown(_report(), template="engineering_delivery")
+
+    assert "Engineering Delivery Report" in text
+    assert "Acceptance Snapshot" in text
+    assert "Delivery verdict: `PASS`" in text
+    assert "Traceability" in text
+    assert "Artifact Inventory" in text
+
+    missing_contracts = _report()
+    missing_contracts["contracts"] = {}
+    review_text = render_run_report_markdown(missing_contracts, template="engineering_delivery")
+    assert "Delivery verdict: `REVIEW`" in review_text
+
+
 def test_run_report_html_template_is_standalone_and_escaped():
     report = _report()
     report["summary"]["model_name"] = "Beam <bad>"
@@ -75,6 +90,9 @@ def test_run_report_html_template_is_standalone_and_escaped():
     assert "Physics Contracts" in html
     assert "Beam &lt;bad&gt;" in html
     assert "U_tip" in html
+
+    delivery_html = render_run_report_html(report, template="engineering_delivery")
+    assert "Engineering Delivery Report" in delivery_html
 
 
 def test_offline_report_export_from_run_directory(tmp_path, monkeypatch):
@@ -108,6 +126,10 @@ def test_offline_report_export_from_run_directory(tmp_path, monkeypatch):
     assert report["summary"]["model_name"] == "OfflineModel"
     assert "Simulation QA Summary" in report["markdown"]
     assert "data:image/png;base64," in report["html"]
+
+    delivery_report = build_offline_run_report(tmp_path, template="engineering_delivery")
+    assert "Engineering Delivery Report" in delivery_report["markdown"]
+    assert "Acceptance Snapshot" in delivery_report["markdown"]
 
     bundle = build_offline_report_bundle(tmp_path, template="client_summary")
     bundle_path = tmp_path / "report.zip"
