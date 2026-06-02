@@ -42,6 +42,8 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
             continue
         if not _passes_filters(entry, q):
             continue
+        if q.query and not _query_matches(entry, q.query):
+            continue
         score, reasons = _score_entry(entry, q, target)
         if score <= 0 and (q.query or target):
             continue
@@ -284,6 +286,14 @@ def _search_text(entry: dict) -> str:
         " ".join(entry.get("artifacts", {}).keys()),
     ]
     return " ".join(str(part).lower() for part in parts)
+
+
+def _query_matches(entry: dict, query: str) -> bool:
+    tokens = _tokens(query)
+    if not tokens:
+        return True
+    haystack = _search_text(entry)
+    return any(token in haystack for token in tokens)
 
 
 def _tokens(text: str) -> list[str]:
