@@ -40,7 +40,7 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | Solver Doctor | Implemented MVP | Diagnose `.sta/.msg/.log/.dat` failures from 30+ known patterns. |
 | MCP QA Tools | Implemented MVP | Expose capsule, contract, diff, and doctor kernels to MCP clients. |
 | Case Memory | Implemented MVP | Search and rank local run/capsule history by metadata, KPIs, contract names/results, diagnosis IDs, artifact names, similarity signals, count-based sort controls, and minimum score. |
-| Report Export | Implemented MVP | Produce Markdown, standalone/printable HTML, and zipped run report bundles from capsules, KPIs, contracts, and visuals across CLI/API/MCP/UI. |
+| Report Export | Implemented MVP | Produce Markdown, standalone/printable HTML, optional PDF, and zipped run report bundles from capsules, KPIs, contracts, evidence checklists, and visuals across CLI/API/MCP/UI. |
 | Environment Preflight | Implemented MVP | Record OS, Python, Abaqus command, and release-check evidence across CLI/API/MCP/UI before real validation. |
 
 See [docs/STRATEGY.md](docs/STRATEGY.md) for the product strategy.
@@ -307,6 +307,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] ODB Lens direct Abaqus extractor coverage for frame, region, component, invariant, and reducer fields
 - [x] Markdown report templates
 - [x] Engineering delivery report template for downstream HTML/PDF handoff
+- [x] Evidence checklist in delivery reports for capsule/result/KPI/regression/contract/artifact/doctor handoff
 - [x] Validation matrix for Abaqus versions and operating systems
 - [x] Case Memory deterministic local capsule search
 - [x] Case Memory CLI/API/MCP/UI workflow with real capsule-history validation

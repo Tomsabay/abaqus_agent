@@ -31,9 +31,28 @@ def render_run_report_html(report: dict, template: str = "standard") -> str:
     summary = report["summary"]
     title = TEMPLATE_TITLES.get(template, TEMPLATE_TITLES["standard"])
     contract_status, contract_class = _contract_status(report)
+    regression_status = _regression_status(report)
     run_id = summary.get("run_id") or "-"
     image_artifacts = report.get("image_artifacts", [])
     artifact_count = len(report.get("artifacts", {}))
+    metrics = [
+        _metric("Status", summary.get("status") or "-", _status_class(summary.get("status"))),
+        _metric("Model", summary.get("model_name") or "-"),
+        _metric("Abaqus", summary.get("abaqus_release") or "-"),
+        _metric("Contracts", contract_status, contract_class),
+        _metric("KPIs", str(len(report.get("kpis", {})))),
+        _metric("Artifacts", str(artifact_count)),
+    ]
+    if template == "engineering_delivery":
+        metrics.insert(
+            0,
+            _metric(
+                "Delivery Verdict",
+                _delivery_verdict(summary.get("status") or "-", contract_status, regression_status),
+                _status_class(_delivery_verdict(summary.get("status") or "-", contract_status, regression_status)),
+            ),
+        )
+        metrics.insert(4, _metric("Regression", regression_status, _status_class(regression_status)))
     return "\n".join([
         "<!doctype html>",
         '<html lang="en">',
@@ -52,13 +71,9 @@ def render_run_report_html(report: dict, template: str = "standard") -> str:
         f"<div class=\"run-id\">{escape(str(run_id))}</div>",
         "</section>",
         '<section class="metrics">',
-        _metric("Status", summary.get("status") or "-", _status_class(summary.get("status"))),
-        _metric("Model", summary.get("model_name") or "-"),
-        _metric("Abaqus", summary.get("abaqus_release") or "-"),
-        _metric("Contracts", contract_status, contract_class),
-        _metric("KPIs", str(len(report.get("kpis", {})))),
-        _metric("Artifacts", str(artifact_count)),
+        *metrics,
         "</section>",
+        _evidence_checklist_html(report),
         _kpi_table_html(report),
         _contract_table_html(report),
         _visuals_html(run_id, image_artifacts, report.get("image_artifact_sources", {})),
@@ -150,6 +165,14 @@ def _render_engineering_delivery(report: dict) -> str:
         f"- Result path: `{summary.get('result_path') or '-'}`",
         f"- Workdir: `{summary.get('workdir') or '-'}`",
         "",
+        "## Evidence Checklist",
+        "",
+        "| Evidence | Status | Detail |",
+        "|----------|--------|--------|",
+    ]
+    _append_evidence_rows(lines, report)
+    lines += [
+        "",
         "## KPI Evidence",
         "",
         "| KPI | Value | Regression |",
@@ -219,6 +242,14 @@ def _append_artifact_section(lines: list[str], report: dict) -> None:
         lines.append(f"| {name} | {meta.get('bytes', '-')} | {meta.get('sha256', '-')} |")
 
 
+def _append_evidence_rows(lines: list[str], report: dict) -> None:
+    for item in _evidence_items(report):
+        lines.append(
+            f"| {_markdown_cell(item['label'])} | {_markdown_cell(item['status'])} | "
+            f"{_markdown_cell(item['detail'])} |"
+        )
+
+
 def _append_doctor_section(lines: list[str], report: dict) -> None:
     diagnosis = report.get("diagnosis", {})
     if not diagnosis.get("matched"):
@@ -269,10 +300,89 @@ def _delivery_verdict(status: str, contract_status: str, regression_status: str)
     return "PASS"
 
 
+def _evidence_items(report: dict) -> list[dict[str, str]]:
+    summary = report["summary"]
+    contract_status, _contract_class = _contract_status(report)
+    regression_status = _regression_status(report)
+    artifacts = report.get("artifacts", {})
+    kpis = report.get("kpis", {})
+    diagnosis = report.get("diagnosis", {})
+    matches = diagnosis.get("matches", []) if isinstance(diagnosis, dict) else []
+    capsule_path = summary.get("capsule_path") or ""
+    result_path = summary.get("result_path") or ""
+    items = [
+        {
+            "label": "Run capsule",
+            "status": "PASS" if capsule_path or report.get("capsule") else "REVIEW",
+            "detail": capsule_path or "No capsule path recorded",
+        },
+        {
+            "label": "Result JSON",
+            "status": "PASS" if result_path or kpis or report.get("regression") else "REVIEW",
+            "detail": result_path or "Result evidence inferred from loaded report fields",
+        },
+        {
+            "label": "KPI extraction",
+            "status": "PASS" if kpis else "REVIEW",
+            "detail": f"{len(kpis)} KPI values recorded",
+        },
+        {
+            "label": "KPI regression",
+            "status": regression_status if regression_status != "-" else "REVIEW",
+            "detail": _regression_detail(report),
+        },
+        {
+            "label": "Physics contracts",
+            "status": contract_status if contract_status != "-" else "REVIEW",
+            "detail": _contract_detail(report),
+        },
+        {
+            "label": "Artifact inventory",
+            "status": "PASS" if artifacts else "REVIEW",
+            "detail": f"{len(artifacts)} artifacts recorded",
+        },
+    ]
+    if matches:
+        severities = ", ".join(sorted({str(match.get("severity", "-")) for match in matches}))
+        items.append({
+            "label": "Solver Doctor",
+            "status": "WARNING",
+            "detail": f"{len(matches)} diagnostic matches: {severities}",
+        })
+    else:
+        items.append({
+            "label": "Solver Doctor",
+            "status": "INFO",
+            "detail": "No diagnostic matches reported",
+        })
+    return items
+
+
+def _regression_detail(report: dict) -> str:
+    comparisons = report.get("regression", {}).get("comparisons", {})
+    if not comparisons:
+        return "No KPI regression comparisons reported"
+    counts: dict[str, int] = {}
+    for comp in comparisons.values():
+        status = str(comp.get("status") or "-").upper()
+        counts[status] = counts.get(status, 0) + 1
+    return ", ".join(f"{status}: {count}" for status, count in sorted(counts.items()))
+
+
+def _contract_detail(report: dict) -> str:
+    contracts = report.get("contracts", {})
+    results = contracts.get("results", []) if isinstance(contracts, dict) else []
+    if not results:
+        return "No Physics Contract results reported"
+    passed = sum(1 for item in results if item.get("status") == "PASS" or item.get("passed") is True)
+    failed = len(results) - passed
+    return f"{passed} passed, {failed} failed"
+
+
 def _status_class(status: str | None) -> str:
     if status in {"COMPLETED", "COMPLETED (sim)", "DRY_RUN_PASS", "PASS", "INFO"}:
         return "pass"
-    if status == "WARNING":
+    if status in {"WARNING", "REVIEW"}:
         return "warn"
     if status:
         return "fail"
@@ -341,6 +451,20 @@ def _artifact_table_html(report: dict) -> str:
     if not rows:
         rows.append('<tr><td colspan="3" class="muted">No artifacts reported.</td></tr>')
     return _table_block("Artifacts", ["Artifact", "Bytes", "SHA-256"], rows)
+
+
+def _evidence_checklist_html(report: dict) -> str:
+    rows = []
+    for item in _evidence_items(report):
+        status = item["status"]
+        rows.append(
+            "<tr>"
+            f"<td>{escape(item['label'])}</td>"
+            f"<td class=\"{_status_class(status)}\">{escape(status)}</td>"
+            f"<td>{escape(item['detail'])}</td>"
+            "</tr>"
+        )
+    return _table_block("Evidence Checklist", ["Evidence", "Status", "Detail"], rows)
 
 
 def _visuals_html(run_id: str, image_artifacts: list[str], sources: dict[str, str] | None = None) -> str:
@@ -486,3 +610,7 @@ pre {
   .block { overflow-x: auto; }
 }
 """.strip()
+
+
+def _markdown_cell(value: str) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
