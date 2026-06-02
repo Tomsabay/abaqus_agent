@@ -93,6 +93,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mem_search.add_argument("--diagnosis-id", default="", help="Filter by Solver Doctor pattern id")
     mem_search.add_argument("--kpi", default="", help="Filter by KPI name")
     mem_search.add_argument("--limit", type=int, default=10, help="Maximum matches to return")
+    mem_search.add_argument("--include-artifacts", action="store_true", help="Include full artifact manifests")
     mem_search.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     mem_search.add_argument("--out", help="Write Markdown report to this path")
     mem_search.set_defaults(func=_cmd_memory_search)
@@ -186,6 +187,7 @@ def _cmd_memory_search(args: argparse.Namespace) -> int:
         diagnosis_id=args.diagnosis_id,
         kpi=args.kpi,
         limit=args.limit,
+        include_artifacts=args.include_artifacts,
     ))
     if args.as_json:
         output = json.dumps(result, indent=2, ensure_ascii=False)

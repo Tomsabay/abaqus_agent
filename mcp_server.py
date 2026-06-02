@@ -232,6 +232,7 @@ async def case_memory_search_tool(
     diagnosis_id: str = "",
     kpi: str = "",
     limit: int = 10,
+    include_artifacts: bool = False,
 ) -> str:
     try:
         roots = json.loads(roots_json or "[]")
@@ -248,6 +249,7 @@ async def case_memory_search_tool(
             diagnosis_id=diagnosis_id,
             kpi=kpi,
             limit=limit,
+            include_artifacts=include_artifacts,
         ))
         result["markdown"] = render_memory_markdown(result)
         return json.dumps(result, ensure_ascii=False, default=str)
