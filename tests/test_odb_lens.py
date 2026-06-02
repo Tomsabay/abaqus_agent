@@ -8,6 +8,67 @@ import yaml
 
 import cli
 from odb_lens import load_recipe, normalize_plots, normalize_recipe, render_kpi_markdown
+from post.extract_kpis import _extract_single_kpi
+
+
+class FakeValue:
+    def __init__(self, data=None, mises=None, magnitude=None):
+        self.data = data
+        if mises is not None:
+            self.mises = mises
+        if magnitude is not None:
+            self.magnitude = magnitude
+
+
+class FakeRegion:
+    def __init__(self, name):
+        self.name = name
+
+
+class FakeField:
+    def __init__(self, values, subsets=None):
+        self.values = values
+        self.subsets = subsets or {}
+
+    def getSubset(self, region=None, position=None):
+        if region is not None:
+            return self.subsets[region.name]
+        return self
+
+
+class FakeHistoryOutput:
+    def __init__(self, data):
+        self.data = data
+
+
+class FakeHistoryRegion:
+    def __init__(self, outputs):
+        self.historyOutputs = outputs
+
+
+class FakeFrame:
+    def __init__(self, field_outputs=None, frequency=0.0):
+        self.fieldOutputs = field_outputs or {}
+        self.frequency = frequency
+
+
+class FakeStep:
+    def __init__(self, frames, history_regions=None):
+        self.frames = frames
+        self.historyRegions = history_regions or {}
+
+
+class FakeAssembly:
+    def __init__(self):
+        self.nodeSets = {"TIP": FakeRegion("TIP")}
+        self.elementSets = {"CRITICAL": FakeRegion("CRITICAL")}
+        self.surfaces = {}
+
+
+class FakeOdb:
+    def __init__(self, steps):
+        self.steps = steps
+        self.rootAssembly = FakeAssembly()
 
 
 def test_normalize_outputs_kpis_legacy_shape():
@@ -161,3 +222,66 @@ def test_lens_report_cli(tmp_path):
 
     assert rc == 0
     assert "ODB Lens KPI Report" in report.read_text(encoding="utf-8")
+
+
+def test_extract_single_kpi_uses_frame_region_and_invariant():
+    global_s = FakeField([FakeValue(mises=10.0), FakeValue(mises=90.0)])
+    critical_s = FakeField([FakeValue(mises=25.0), FakeValue(mises=42.0)])
+    frame0 = FakeFrame({"S": FakeField([FakeValue(mises=5.0)])})
+    frame1 = FakeFrame({"S": FakeField(global_s.values, {"CRITICAL": critical_s})})
+    odb = FakeOdb({"Step-1": FakeStep([frame0, frame1])})
+
+    value = _extract_single_kpi(odb, {
+        "name": "max_mises_critical",
+        "type": "field_max",
+        "field_variable": "S",
+        "invariant": "MISES",
+        "location": "set:critical",
+        "frame": "last",
+    })
+
+    assert value == 42.0
+
+
+def test_extract_single_kpi_respects_reducers():
+    tip_u = FakeField([
+        FakeValue(data=(0.0, -0.2, 0.0)),
+        FakeValue(data=(0.0, 0.15, 0.0)),
+    ])
+    u_field = FakeField(
+        [FakeValue(data=(0.0, 9.0, 0.0))],
+        {"TIP": tip_u},
+    )
+    frame = FakeFrame({"U": u_field})
+    odb = FakeOdb({"Step-1": FakeStep([frame])})
+
+    value = _extract_single_kpi(odb, {
+        "name": "tip_abs_u2",
+        "type": "nodal_displacement",
+        "location": "TIP",
+        "component": "u2",
+        "reducer": "abs_max",
+    })
+
+    assert value == -0.2
+
+
+def test_extract_single_history_output_supports_last_reducer():
+    step = FakeStep(
+        [FakeFrame()],
+        {
+            "Assembly ASSEMBLY": FakeHistoryRegion({
+                "ALLPD": FakeHistoryOutput([(0.0, 1.0), (1.0, 3.0), (2.0, 2.0)])
+            })
+        },
+    )
+    odb = FakeOdb({"Step-1": step})
+
+    value = _extract_single_kpi(odb, {
+        "name": "plastic_work_last",
+        "type": "history_output_max",
+        "variable": "ALLPD",
+        "reducer": "last",
+    })
+
+    assert value == 2.0
