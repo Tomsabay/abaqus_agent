@@ -114,6 +114,11 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert "mises_contour.png" in html_res.text
     assert "data:image/png;base64," in html_res.text
 
+    preview_res = client.get("/api/run/ui_report_001/report.html?template=client_summary&download=false")
+    assert preview_res.status_code == 200
+    assert "text/html" in preview_res.headers["content-type"]
+    assert 'inline; filename="abaqus-report-ui_report_001.html"' in preview_res.headers["content-disposition"]
+
     bundle_res = client.get("/api/run/ui_report_001/report.zip?template=client_summary")
     assert bundle_res.status_code == 200
     assert "application/zip" in bundle_res.headers["content-type"]

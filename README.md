@@ -40,7 +40,7 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | Solver Doctor | Implemented MVP | Diagnose `.sta/.msg/.log/.dat` failures from 30+ known patterns. |
 | MCP QA Tools | Implemented MVP | Expose capsule, contract, diff, and doctor kernels to MCP clients. |
 | Case Memory | Implemented MVP | Search local run/capsule history by metadata, KPIs, contracts, diagnosis IDs, and similarity signals. |
-| Report Export | Implemented MVP | Produce Markdown, standalone HTML, and zipped run report bundles from capsules, KPIs, contracts, and visuals. |
+| Report Export | Implemented MVP | Produce Markdown, standalone/printable HTML, and zipped run report bundles from capsules, KPIs, contracts, and visuals. |
 
 See [docs/STRATEGY.md](docs/STRATEGY.md) for the product strategy.
 
@@ -283,6 +283,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Case Memory CLI/API/MCP/UI workflow with real capsule-history validation
 - [x] Markdown report copy/download actions in the web UI
 - [x] Standalone HTML report export endpoint and web UI download action
+- [x] Browser preview/print mode for downstream PDF handoff
 - [x] Report bundle zip endpoint and web UI download action
 
 ## Acknowledgments

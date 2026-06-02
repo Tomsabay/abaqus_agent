@@ -145,7 +145,7 @@ v0.2 should deliver:
 
 Current v0.2-dev implementation status:
 
-- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, ODB Lens recipe normalization and KPI Markdown reports, physics contract evaluator, Simulation Diff reports, 30+ Solver Doctor patterns, CLI/API/UI report workflows, MCP QA tools, report templates, validation matrix, Case Memory search, Case Memory UI, Markdown/HTML report export actions, and report bundle export.
+- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, ODB Lens recipe normalization and KPI Markdown reports, physics contract evaluator, Simulation Diff reports, 30+ Solver Doctor patterns, CLI/API/UI report workflows, MCP QA tools, report templates, validation matrix, Case Memory search, Case Memory UI, Markdown/HTML report export actions, browser preview/print mode, and report bundle export.
 - Validated: full local test/build pipeline, CI on Python 3.10/3.11/3.12, real Windows Abaqus 2021 execution for all 5 public cases, a real cantilever baseline/candidate Simulation Diff, ODB Lens on real ODBs, and Case Memory search against real capsule history.
 - Planned next: PDF/downstream document export on top of the HTML/bundle artifacts, Linux/Abaqus validation, Abaqus 2026 repeat validation, and deeper Case Memory ranking/search controls.
 
