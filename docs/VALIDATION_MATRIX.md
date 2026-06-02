@@ -12,26 +12,30 @@ or unit-test coverage.
 | 2026-06-02 | macOS local dev, Python 3.12 venv | Not installed | `run_benchmark.py --dry-run` over 5 public cases | PASS | `5 / 5` dry-run validation |
 | 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | `cantilever` full orchestrator run | PASS | `status=COMPLETED`, `U_tip=-0.0019039579201489687`, `MISES_MAX=0.6528551578521729`, KPI errors `[]` |
 | 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | `plate_hole` full orchestrator run | PASS | `status=COMPLETED`, `MISES_HOLE_EDGE=295.57122802734375`, `U_X_MAX=0.05009150877594948`, `SCF=264.1424560546875`, regression PASS, KPI errors `[]`, exported `mises_contour.png` and `u_magnitude.png` |
+| 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | `modal` full orchestrator run | PASS | `status=COMPLETED`, `freq_1=210.24`, `freq_2=416.36`, `freq_3=1304.0`, regression PASS, KPI errors `[]` |
+| 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | `explicit_impact` full orchestrator run | PASS | `status=COMPLETED`, syntaxcheck warnings `4`, `RF_Z_MAX=31817.26953125`, `U_Z_MIN=-2.0`, regression PASS, KPI errors `[]`, exported `u_magnitude.png` |
+| 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | `blast_plate` full orchestrator run | PASS | `status=COMPLETED`, syntaxcheck warnings `2`, `U_MAX_DEFLECTION=-93.54364776611328`, `PEEQ_MAX=0.026396118104457855`, `ALLPD_MAX=125353184.0`, regression PASS, KPI errors `[]`, exported `u_magnitude.png` and `peeq_contour.png` |
 | 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | Physics Contracts on `cantilever` | PASS | `tip_deflects_downward`, `tip_displacement_regression_band`, `mises_max_reasonable` all PASS |
 | 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | Simulation Diff: baseline load `-1.0` vs candidate load `-1.1` | PASS / Expected WARNING | Diff report showed `bc_load.value -1 -> -1.1`, `U_tip` and `MISES_MAX` changed by `10.00%`, contracts stayed PASS |
 | 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | ODB Lens extractor on real `Cantilever.odb` | PASS | custom recipe with lowercase `u2` returned `U_tip_lower=-0.0019039579201489687`, `MISES_LAST=0.6528551578521729`, errors `[]` |
 | 2026-05-06 | External contributor validation | Abaqus 2026 | Cantilever GUI / Windows compatibility | PASS | GLY2024 contribution and case study, see `docs/CASE_STUDY_GLY2024.md` |
 
-## Public Case Dry-Run Coverage
+## Public Case Coverage
 
-These specs validate without an Abaqus installation:
+These specs validate without an Abaqus installation, and have now also passed
+full Abaqus 2021 execution on Windows:
 
-| Case | Status | Notes |
-|---|---|---|
-| `blast_plate` | DRY_RUN_PASS | Spec/schema path only |
-| `cantilever` | DRY_RUN_PASS | Spec/schema path only |
-| `explicit_impact` | DRY_RUN_PASS | Spec/schema path only |
-| `modal` | DRY_RUN_PASS | Spec/schema path only |
-| `plate_hole` | DRY_RUN_PASS | Spec/schema path only |
+| Case | Dry-run | Real Abaqus 2021 | Notes |
+|---|---|---|---|
+| `blast_plate` | PASS | PASS | Explicit blast workflow, PEEQ/U/history KPI extraction |
+| `cantilever` | PASS | PASS | Static baseline, contracts, diff, ODB Lens recipe |
+| `explicit_impact` | PASS | PASS | Explicit displacement workflow, RF/U KPI extraction |
+| `modal` | PASS | PASS | Frequency workflow, eigenfrequency KPI extraction |
+| `plate_hole` | PASS | PASS | Static stress concentration workflow and image export |
 
 ## Next Validation Targets
 
-- Windows + Abaqus 2021: continue full public-case validation for `modal`, `explicit_impact`, and `blast_plate`.
+- Windows + Abaqus 2021: repeat full public-case validation after major changes to build, submit, ODB extraction, or visualization.
 - Windows + Abaqus 2026: repeat cantilever and one ODB Lens recipe with contributor environment if available.
 - Linux + Abaqus: syntaxcheck and custom `.inp` capsule path.
 - Report templates: export-to-PDF or downstream document rendering once a PDF path is implemented.
