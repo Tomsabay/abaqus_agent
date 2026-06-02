@@ -418,6 +418,28 @@ def get_run_diff(
     return diff
 
 
+@app.get("/api/run/{baseline_run_id}/diff/{candidate_run_id}/diff.md")
+def get_run_diff_markdown(
+    baseline_run_id: str,
+    candidate_run_id: str,
+    rtol: float = 0.05,
+    tolerances_json: str = "",
+):
+    """Download a Markdown diff report for two in-memory runs by run id."""
+    diff = get_run_diff(
+        baseline_run_id,
+        candidate_run_id,
+        rtol=rtol,
+        tolerances_json=tolerances_json,
+    )
+    filename = f"abaqus-diff-{baseline_run_id}-vs-{candidate_run_id}.md"
+    return Response(
+        diff["markdown"] + "\n",
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.post("/api/diff")
 def post_diff(req: DiffRequest):
     """Diff two local run/capsule/result/KPI paths."""

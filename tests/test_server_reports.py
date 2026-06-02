@@ -279,6 +279,13 @@ def test_run_diff_endpoint_compares_two_runs():
     assert tuned["summary"]["sections"]["kpis"]["PASS"] == 1
     assert tuned["summary"]["sections"]["kpis"]["WARNING"] == 0
 
+    md_res = client.get("/api/run/diff_base/diff/diff_candidate/diff.md?rtol=0.05")
+    assert md_res.status_code == 200
+    assert "text/markdown" in md_res.headers["content-type"]
+    assert 'filename="abaqus-diff-diff_base-vs-diff_candidate.md"' in md_res.headers["content-disposition"]
+    assert "Simulation Diff Report" in md_res.text
+    assert "Change Summary" in md_res.text
+
     server.RUNS.pop("diff_base", None)
     server.RUNS.pop("diff_candidate", None)
 

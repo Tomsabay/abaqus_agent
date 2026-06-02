@@ -3410,6 +3410,7 @@ function renderDiff(diff) {
       <div class="report-band">
         <div class="report-band-title">Actions</div>
         <button class="btn btn-primary" id="btn-diff-latest-inline">⇄ 对比最近两次运行</button>
+        <button class="btn btn-secondary" id="btn-download-diff-md" style="margin-left:8px">下载 diff.md</button>
       </div>
     </div>
     <div class="report-band" style="margin-top:14px">
@@ -3429,6 +3430,51 @@ function renderDiff(diff) {
       <table class="report-table"><thead><tr><th>Field</th><th>Before</th><th>After</th><th>Status</th></tr></thead><tbody>${specRows}</tbody></table>
     </div>`;
   document.getElementById('btn-diff-latest-inline').onclick = compareLatestRuns;
+  document.getElementById('btn-download-diff-md').onclick = downloadDiffMarkdown;
+}
+
+function diffMarkdown(diff) {
+  if (diff.markdown) return diff.markdown;
+  const lines = [
+    '# Simulation Diff Report',
+    '',
+    `- Baseline: \`${diff.baseline?.run_id || '-'}\``,
+    `- Candidate: \`${diff.candidate?.run_id || '-'}\``,
+    `- Overall: \`${diff.passed ? 'PASS' : 'WARNING'}\``,
+    '',
+    '## Change Summary',
+    '',
+    '| Section | Total | PASS | WARNING | ADDED | REMOVED |',
+    '|---------|-------|------|---------|-------|---------|',
+  ];
+  Object.entries(diff.summary?.sections || {}).forEach(([name, counts]) => {
+    lines.push(`| ${name} | ${counts.total || 0} | ${counts.PASS || 0} | ${counts.WARNING || 0} | ${counts.ADDED || 0} | ${counts.REMOVED || 0} |`);
+  });
+  lines.push('', '## KPI Diff', '', '| KPI | Before | After | Delta | Rel Change | rtol | Status |', '|-----|--------|-------|-------|------------|------|--------|');
+  (diff.sections?.kpis?.changes || diff.changes || []).forEach(change => {
+    const rel = change.rel_change != null ? `${(change.rel_change * 100).toFixed(2)}%` : '-';
+    const rtol = change.rtol != null ? `${(Number(change.rtol) * 100).toFixed(2)}%` : '-';
+    lines.push(`| ${change.name} | ${change.before ?? '-'} | ${change.after ?? '-'} | ${change.delta ?? '-'} | ${rel} | ${rtol} | ${change.status} |`);
+  });
+  return lines.join('\n');
+}
+
+function downloadDiffMarkdown() {
+  if (!state.diff) {
+    toast('暂无 Diff 可下载', 'info');
+    return;
+  }
+  const text = diffMarkdown(state.diff);
+  const baseline = state.diff.baseline?.run_id || 'baseline';
+  const candidate = state.diff.candidate?.run_id || 'candidate';
+  const blob = new Blob([text + '\n'], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `abaqus-diff-${baseline}-vs-${candidate}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Diff Markdown 已下载', 'ok');
 }
 
 function memoryRoots() {
