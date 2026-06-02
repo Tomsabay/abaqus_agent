@@ -177,6 +177,30 @@ class TestMCPTools:
         assert data["inputs"]["model_name"] == "model"
         assert (out / "capsule.json").exists()
 
+    def test_case_memory_search_tool(self, tmp_path):
+        from mcp_server import case_memory_search_tool
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        (run_dir / "capsule.json").write_text(
+            json.dumps({
+                "schema_version": "0.2.0-dev",
+                "run_id": "mcp_memory",
+                "created_at": "2026-06-02T10:00:00",
+                "inputs": {"model_name": "McpMemoryModel"},
+                "artifacts": {},
+                "provenance": {"status": "COMPLETED"},
+            }),
+            encoding="utf-8",
+        )
+
+        result = asyncio.get_event_loop().run_until_complete(
+            case_memory_search_tool(json.dumps([str(tmp_path)]), query="McpMemoryModel")
+        )
+
+        data = json.loads(result)
+        assert data["matches"][0]["run_id"] == "mcp_memory"
+        assert "Case Memory Search" in data["markdown"]
+
     def test_run_benchmark(self):
         from mcp_server import run_benchmark_tool
         result = asyncio.get_event_loop().run_until_complete(

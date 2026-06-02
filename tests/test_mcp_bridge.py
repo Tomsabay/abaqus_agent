@@ -81,6 +81,13 @@ class MockMCPConnection:
                 "sections": {"kpis": {"changes": [{"name": "MISES", "status": "WARNING"}]}},
                 "markdown": "# Simulation Diff Report",
             }
+        elif tool_name == "case_memory_search_tool":
+            return {
+                "total_indexed": 1,
+                "total_matches": 1,
+                "matches": [{"run_id": "bridge_memory", "model_name": "BridgeMemoryModel"}],
+                "markdown": "# Case Memory Search",
+            }
         elif tool_name == "run_benchmark_tool":
             return {
                 "run_id": "bench_mock01",
@@ -219,6 +226,17 @@ class TestBridgeEndpoints:
         data = res.json()
         assert data["passed"] is False
         assert "Simulation Diff Report" in data["markdown"]
+
+    def test_memory_search_endpoint(self, mock_bridge):
+        client = self._client(mock_bridge)
+        res = client.post("/mcp/api/memory/search", json={
+            "roots": ["/tmp/runs"],
+            "query": "BridgeMemoryModel",
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["matches"][0]["run_id"] == "bridge_memory"
+        assert "Case Memory Search" in data["markdown"]
 
     def test_get_benchmark(self, mock_bridge):
         client = self._client(mock_bridge)

@@ -39,6 +39,7 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from case_memory import CaseMemoryQuery, render_memory_markdown, search_case_memory
 from core.helpers import CASES_DIR, check_abaqus, list_cases, make_run_id
 from core.pipeline import (
     run_benchmark_async,
@@ -94,6 +95,16 @@ class DiffRequest(BaseModel):
     baseline: str
     candidate: str
     rtol: float = 0.05
+
+class MemorySearchRequest(BaseModel):
+    roots: list[str]
+    query: str = ""
+    similar_to: str = ""
+    status: str = ""
+    model_name: str = ""
+    diagnosis_id: str = ""
+    kpi: str = ""
+    limit: int = 10
 
 
 # ── Routes ───────────────────────────────────────────────────────
@@ -231,6 +242,26 @@ def post_diff(req: DiffRequest):
         raise HTTPException(status_code=400, detail=str(e))
     diff["markdown"] = render_run_markdown(diff)
     return diff
+
+
+@app.post("/api/memory/search")
+def post_memory_search(req: MemorySearchRequest):
+    """Search local run/capsule directories as deterministic case memory."""
+    try:
+        result = search_case_memory(CaseMemoryQuery(
+            roots=tuple(req.roots),
+            query=req.query,
+            similar_to=req.similar_to or None,
+            status=req.status,
+            model_name=req.model_name,
+            diagnosis_id=req.diagnosis_id,
+            kpi=req.kpi,
+            limit=req.limit,
+        ))
+    except (OSError, json.JSONDecodeError, yaml.YAMLError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    result["markdown"] = render_memory_markdown(result)
+    return result
 
 
 @app.get("/api/run/{run_id}/artifact/{artifact_name:path}")

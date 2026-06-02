@@ -39,6 +39,7 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | Simulation Diff | Implemented MVP | Compare run/capsule inputs, KPIs, contracts, artifacts, and provenance. |
 | Solver Doctor | Implemented MVP | Diagnose `.sta/.msg/.log/.dat` failures from 30+ known patterns. |
 | MCP QA Tools | Implemented MVP | Expose capsule, contract, diff, and doctor kernels to MCP clients. |
+| Case Memory | Implemented MVP | Search local run/capsule history by metadata, KPIs, contracts, diagnosis IDs, and similarity signals. |
 
 See [docs/STRATEGY.md](docs/STRATEGY.md) for the product strategy.
 
@@ -147,6 +148,13 @@ Compare KPI results:
 
 ```bash
 abaqus-agent diff runs/baseline runs/candidate --out diff.md
+```
+
+Search local case memory:
+
+```bash
+abaqus-agent memory search runs/ --query too_many_attempts --json
+abaqus-agent memory search runs/ --similar-to runs/candidate --kpi U_tip --out memory.md
 ```
 
 ```python
@@ -267,9 +275,10 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] ODB Lens YAML KPI recipe normalization and KPI Markdown reports
 - [x] Simulation Diff CLI/API/UI with real Windows Abaqus validation
 - [x] MCP tools for capsule init, contract check, Solver Doctor, and Simulation Diff
-- [ ] ODB Lens direct Abaqus extractor coverage for all recipe fields
-- [ ] Markdown/PDF report templates
-- [ ] Validation matrix for Abaqus versions and operating systems
+- [x] ODB Lens direct Abaqus extractor coverage for frame, region, component, invariant, and reducer fields
+- [x] Markdown report templates
+- [x] Validation matrix for Abaqus versions and operating systems
+- [x] Case Memory deterministic local capsule search
 
 ## Acknowledgments
 
