@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from reporting import available_templates, render_run_report_markdown
+from reporting import available_templates, render_run_report_html, render_run_report_markdown
 
 
 def _report() -> dict:
@@ -49,3 +49,18 @@ def test_client_summary_report_template():
     assert "Simulation QA Summary" in text
     assert "Executive Result" in text
     assert "Physics contracts: `PASS`" in text
+
+
+def test_run_report_html_template_is_standalone_and_escaped():
+    report = _report()
+    report["summary"]["model_name"] = "Beam <bad>"
+    report["markdown"] = render_run_report_markdown(report)
+
+    html = render_run_report_html(report)
+
+    assert "<!doctype html>" in html
+    assert "Abaqus Run Report" in html
+    assert "KPI / Regression" in html
+    assert "Physics Contracts" in html
+    assert "Beam &lt;bad&gt;" in html
+    assert "U_tip" in html

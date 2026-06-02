@@ -88,6 +88,7 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert report["contracts"]["results"][0]["name"] == "tip_down"
     assert report["template"] == "standard"
     assert "Abaqus Run Report" in report["markdown"]
+    assert "Abaqus Run Report" in report["html"]
     assert "Physics Contracts" in report["markdown"]
 
     client_report_res = client.get("/api/run/ui_report_001/report?template=client_summary")
@@ -102,6 +103,14 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert "text/markdown" in markdown_res.headers["content-type"]
     assert 'filename="abaqus-report-ui_report_001.md"' in markdown_res.headers["content-disposition"]
     assert "Simulation QA Summary" in markdown_res.text
+
+    html_res = client.get("/api/run/ui_report_001/report.html?template=client_summary")
+    assert html_res.status_code == 200
+    assert "text/html" in html_res.headers["content-type"]
+    assert 'filename="abaqus-report-ui_report_001.html"' in html_res.headers["content-disposition"]
+    assert "Simulation QA Summary" in html_res.text
+    assert "mises_contour.png" in html_res.text
+    assert "data:image/png;base64," in html_res.text
 
     capsule_res = client.get("/api/run/ui_report_001/capsule")
     assert capsule_res.status_code == 200
