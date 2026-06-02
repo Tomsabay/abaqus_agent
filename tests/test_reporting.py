@@ -69,6 +69,9 @@ def test_engineering_delivery_report_template():
     assert "Acceptance Snapshot" in text
     assert "Delivery verdict: `PASS`" in text
     assert "Traceability" in text
+    assert "Delivery Manifest" in text
+    assert "| Artifact payload | PASS | 1 artifacts, 42 B recorded |" in text
+    assert "| Bundle contents | PASS | report.md, report.html, artifact_manifest.json, result.json |" in text
     assert "Evidence Checklist" in text
     assert "| KPI regression | PASS | PASS: 1 |" in text
     assert "| Physics contracts | PASS | 1 passed, 0 failed |" in text
@@ -99,6 +102,8 @@ def test_run_report_html_template_is_standalone_and_escaped():
     delivery_html = render_run_report_html(report, template="engineering_delivery")
     assert "Engineering Delivery Report" in delivery_html
     assert "Delivery Verdict" in delivery_html
+    assert "Delivery Manifest" in delivery_html
+    assert "Artifact payload" in delivery_html
     assert "KPI regression" in delivery_html
 
 

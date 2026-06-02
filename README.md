@@ -313,6 +313,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Markdown report templates
 - [x] Engineering delivery report template for downstream HTML/PDF handoff
 - [x] Evidence checklist in delivery reports for capsule/result/KPI/regression/contract/artifact/doctor handoff
+- [x] Delivery Manifest section for engineering handoff bundle/readiness/artifact payload summary
 - [x] Validation matrix for Abaqus versions and operating systems
 - [x] Case Memory deterministic local capsule search
 - [x] Case Memory CLI/API/MCP/UI workflow with real capsule-history validation
