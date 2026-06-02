@@ -144,6 +144,9 @@ def _build_parser() -> argparse.ArgumentParser:
     mem_search.add_argument("--similar-to", default="", help="Run/capsule path used as similarity target")
     mem_search.add_argument("--status", default="", help="Filter by run status")
     mem_search.add_argument("--model-name", default="", help="Filter by model name substring")
+    mem_search.add_argument("--geometry-type", default="", help="Filter by geometry type substring")
+    mem_search.add_argument("--solver", default="", help="Filter by solver, e.g. standard or explicit")
+    mem_search.add_argument("--material-name", default="", help="Filter by material name substring")
     mem_search.add_argument("--contract", default="", help="Filter by Physics Contract name substring")
     mem_search.add_argument("--contracts-passed", default="", choices=["", "passed", "failed"], help="Filter by overall Physics Contract result")
     mem_search.add_argument("--diagnosis-id", default="", help="Filter by Solver Doctor pattern id")
@@ -318,6 +321,9 @@ def _cmd_memory_search(args: argparse.Namespace) -> int:
         similar_to=args.similar_to or None,
         status=args.status,
         model_name=args.model_name,
+        geometry_type=args.geometry_type,
+        solver=args.solver,
+        material_name=args.material_name,
         contract=args.contract,
         contracts_passed=args.contracts_passed,
         diagnosis_id=args.diagnosis_id,

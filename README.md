@@ -39,7 +39,7 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | Simulation Diff | Implemented MVP | Compare run/capsule inputs, KPIs, contracts, artifacts, and provenance with structured change summaries. |
 | Solver Doctor | Implemented MVP | Diagnose `.sta/.msg/.log/.dat` failures from 30+ known patterns. |
 | MCP QA Tools | Implemented MVP | Expose capsule, contract, diff, and doctor kernels to MCP clients. |
-| Case Memory | Implemented MVP | Search and rank local run/capsule history by metadata, KPIs, contract names/results, diagnosis IDs, artifact names, similarity signals, count-based sort controls, and minimum score. |
+| Case Memory | Implemented MVP | Search and rank local run/capsule history by metadata, facet filters, KPIs, contract names/results, diagnosis IDs, artifact names, similarity signals, count-based sort controls, and minimum score. |
 | Report Export | Implemented MVP | Produce Markdown, standalone/printable HTML, optional PDF, and zipped run report bundles from capsules, KPIs, contracts, evidence checklists, and visuals across CLI/API/MCP/UI. |
 | Environment Preflight | Implemented MVP | Record OS, Python, Abaqus command, release-check, expected-release match, workdir writability, license markers, and runner config evidence across CLI/API/MCP/UI before real validation. |
 
@@ -324,6 +324,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Case Memory contract filters and KPI/artifact count sort controls across CLI/API/MCP/UI
 - [x] Case Memory free-text match mode controls (`any` / `all`) across CLI/API/MCP/UI
 - [x] Case Memory result facets for status/geometry/solver/material/contract-result summaries
+- [x] Case Memory facet filters for geometry, solver, and material across CLI/API/MCP/UI
 - [x] Markdown report copy/download actions in the web UI
 - [x] Standalone HTML report export endpoint and web UI download action
 - [x] Browser preview/print mode for downstream PDF handoff

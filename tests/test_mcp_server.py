@@ -264,6 +264,16 @@ class TestMCPTools:
         from mcp_server import case_memory_search_tool
         run_dir = tmp_path / "run"
         run_dir.mkdir()
+        spec = {
+            "meta": {"model_name": "McpMemoryModel", "abaqus_release": "2024"},
+            "geometry": {"type": "custom_inp"},
+            "material": {"name": "Steel"},
+            "analysis": {"solver": "standard"},
+        }
+        (run_dir / "result.json").write_text(
+            json.dumps({"run_id": "mcp_memory", "status": "COMPLETED", "spec": spec}),
+            encoding="utf-8",
+        )
         (run_dir / "capsule.json").write_text(
             json.dumps({
                 "schema_version": "0.2.0-dev",
@@ -282,6 +292,9 @@ class TestMCPTools:
                 json.dumps([str(tmp_path)]),
                 query="McpMemoryModel",
                 match_mode="all",
+                geometry_type="custom",
+                solver="standard",
+                material_name="Steel",
                 artifact="Job.log",
                 contract="tip",
                 contracts_passed="passed",
@@ -294,6 +307,9 @@ class TestMCPTools:
         data = json.loads(result)
         assert data["matches"][0]["run_id"] == "mcp_memory"
         assert data["query"]["match_mode"] == "all"
+        assert data["query"]["geometry_type"] == "custom"
+        assert data["query"]["solver"] == "standard"
+        assert data["query"]["material_name"] == "Steel"
         assert data["query"]["artifact"] == "Job.log"
         assert data["query"]["contract"] == "tip"
         assert data["query"]["contracts_passed"] == "passed"
