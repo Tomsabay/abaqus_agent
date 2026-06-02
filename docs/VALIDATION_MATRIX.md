@@ -36,6 +36,9 @@ or unit-test coverage.
 | 2026-06-02 | macOS local dev, Python 3.12 venv | Not installed | Engineering delivery manifest smoke | PASS | Unit coverage verified `Delivery Manifest` appears in Markdown/HTML engineering reports with bundle contents, run identity, artifact payload byte summary, and visual evidence rows |
 | 2026-06-02 | macOS local dev, Python 3.12 venv, headless Chrome UI | Not installed | Environment preflight expected-release smoke | PASS | `python cli.py validate env --expected-release 2026 --skip-release-check --json` returned `status=missing_abaqus`, `expected_release=2026`, `release_match.status=unknown`, and `abaqus_release_target` evidence without requiring Abaqus; headless Chrome Environment panel rendered `Expected 2026`, `Release Match unknown`, and the target check without layout overflow |
 | 2026-05-06 | External contributor validation | Abaqus 2026 | Cantilever GUI / Windows compatibility | PASS | GLY2024 contribution and case study, see `docs/CASE_STUDY_GLY2024.md` |
+| 2026-06-02 | Windows 11 23H2 DESKTOP-PH97BKO, Tailscale SSH, latest source 6ada851 | Abaqus 2021 | Environment preflight readiness | PASS | status=ready, resolved C:\SIMULIA\Commands\abaqus.BAT, detected release 2021, workdir writable, runner_cfg cpus=2/mp_mode=threads/timeout=600 |
+| 2026-06-02 | Windows 11 23H2 DESKTOP-PH97BKO, Tailscale SSH, latest source 6ada851 | Abaqus 2021 | cantilever full orchestrator run | PASS | run_id=6ad82dcf3a6fa88c, status=COMPLETED, U_tip=-0.0019039579201489687, MISES_MAX=0.6528551578521729, regression PASS |
+| 2026-06-02 | Windows 11 23H2 DESKTOP-PH97BKO, Tailscale SSH, latest source 6ada851 | Abaqus 2021 | Case Memory facet filters on real cantilever capsule | PASS | query Cantilever with geometry_type=cantilever, solver=standard, material_name=Steel matched run_id=6ad82dcf3a6fa88c; facets status COMPLETED=1, geometry cantilever_block=1, material Steel=1 |
 
 ## Public Case Coverage
 
