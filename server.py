@@ -45,6 +45,7 @@ from core.pipeline import (
     run_pipeline,
 )
 from core.spec_generator import generate_spec_async
+from reporting import render_run_report_markdown
 from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
 
@@ -191,11 +192,11 @@ def get_run(run_id: str):
 
 
 @app.get("/api/run/{run_id}/report")
-def get_run_report(run_id: str):
+def get_run_report(run_id: str, template: str = "standard"):
     """Return a UI-friendly report assembled from a run, result.json, and capsule.json."""
     if run_id not in RUNS:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-    return _build_run_report(RUNS[run_id])
+    return _build_run_report(RUNS[run_id], template=template)
 
 
 @app.get("/api/run/{run_id}/capsule")
@@ -388,7 +389,7 @@ def activate_premium(license_key: str = ""):
 
 # ── Report helpers ────────────────────────────────────────────────
 
-def _build_run_report(run: dict) -> dict:
+def _build_run_report(run: dict, template: str = "standard") -> dict:
     capsule = _load_run_capsule(run)
     artifacts = capsule.get("artifacts", {}) if capsule else {}
     image_artifacts = [
@@ -419,7 +420,8 @@ def _build_run_report(run: dict) -> dict:
         "image_artifacts": image_artifacts,
         "diagnosis": diagnosis,
     }
-    report["markdown"] = _render_run_report_markdown(report)
+    report["template"] = template
+    report["markdown"] = _render_run_report_markdown(report, template=template)
     return report
 
 
@@ -461,65 +463,8 @@ def _run_diff_payload(run: dict) -> dict:
     }
 
 
-def _render_run_report_markdown(report: dict) -> str:
-    summary = report["summary"]
-    lines = [
-        "# Abaqus Run Report",
-        "",
-        f"- Run ID: `{summary.get('run_id')}`",
-        f"- Status: `{summary.get('status')}`",
-        f"- Model: `{summary.get('model_name') or '-'}`",
-        f"- Abaqus release: `{summary.get('abaqus_release') or '-'}`",
-        "",
-        "## KPIs",
-        "",
-        "| KPI | Value | Regression |",
-        "|-----|-------|------------|",
-    ]
-    comparisons = report.get("regression", {}).get("comparisons", {})
-    for name, value in sorted(report.get("kpis", {}).items()):
-        comp = comparisons.get(name, {})
-        status = comp.get("status", "-")
-        if isinstance(value, dict):
-            raw_value = value.get("value", "-")
-            unit = value.get("unit") or comp.get("unit") or ""
-            display_value = f"{raw_value} {unit}".strip()
-        else:
-            display_value = value
-        lines.append(f"| {name} | {display_value} | {status} |")
-
-    contracts = report.get("contracts", {})
-    contract_results = contracts.get("results", []) if isinstance(contracts, dict) else []
-    if contract_results:
-        lines += [
-            "",
-            "## Physics Contracts",
-            "",
-            f"Overall: `{'PASS' if contracts.get('passed') else 'FAIL'}`",
-            "",
-            "| Name | Check | Severity | Status | Detail |",
-            "|------|-------|----------|--------|--------|",
-        ]
-        for item in contract_results:
-            detail = str(item.get("detail", "")).replace("\n", " ")
-            lines.append(
-                f"| {item.get('name', '-')} | {item.get('check') or item.get('type', '-')} | "
-                f"{item.get('severity', '-')} | {item.get('status', '-')} | {detail} |"
-            )
-
-    lines += [
-        "",
-        "## Capsule",
-        "",
-        f"- Capsule path: `{summary.get('capsule_path') or '-'}`",
-        f"- Artifacts: `{len(report.get('artifacts', {}))}`",
-    ]
-    diagnosis = report.get("diagnosis", {})
-    if diagnosis.get("matched"):
-        lines += ["", "## Solver Doctor", ""]
-        for match in diagnosis.get("matches", []):
-            lines.append(f"- `{match.get('id')}` {match.get('severity')}: {match.get('suggestion')}")
-    return "\n".join(lines)
+def _render_run_report_markdown(report: dict, template: str = "standard") -> str:
+    return render_run_report_markdown(report, template=template)
 
 
 # ── Main ──────────────────────────────────────────────────────────

@@ -86,8 +86,16 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert report["artifacts"]["Job.log"]["bytes"] > 0
     assert report["image_artifacts"] == ["mises_contour.png"]
     assert report["contracts"]["results"][0]["name"] == "tip_down"
+    assert report["template"] == "standard"
     assert "Abaqus Run Report" in report["markdown"]
     assert "Physics Contracts" in report["markdown"]
+
+    client_report_res = client.get("/api/run/ui_report_001/report?template=client_summary")
+    assert client_report_res.status_code == 200
+    client_report = client_report_res.json()
+    assert client_report["template"] == "client_summary"
+    assert "Simulation QA Summary" in client_report["markdown"]
+    assert "Executive Result" in client_report["markdown"]
 
     capsule_res = client.get("/api/run/ui_report_001/capsule")
     assert capsule_res.status_code == 200
