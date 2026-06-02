@@ -140,6 +140,30 @@ def test_case_memory_omits_artifacts_by_default_and_can_include_them(tmp_path):
     assert "artifacts" in verbose["matches"][0]
 
 
+def test_case_memory_sort_and_min_score_controls(tmp_path):
+    _write_case(tmp_path, "b_case", model_name="BeamB", geometry_type="custom_inp")
+    _write_case(tmp_path, "a_case", model_name="BeamA", geometry_type="custom_inp")
+    _write_case(tmp_path, "low", model_name="Low", geometry_type="custom_inp")
+
+    sorted_by_run = search_case_memory(CaseMemoryQuery(
+        roots=(tmp_path,),
+        sort_by="run_id",
+        sort_order="asc",
+        limit=5,
+    ))
+    filtered = search_case_memory(CaseMemoryQuery(
+        roots=(tmp_path,),
+        query="BeamA",
+        min_score=1.2,
+    ))
+
+    assert [match["run_id"] for match in sorted_by_run["matches"]] == ["a_case", "b_case", "low"]
+    assert filtered["total_matches"] == 1
+    assert filtered["matches"][0]["run_id"] == "a_case"
+    assert filtered["query"]["sort_by"] == "score"
+    assert filtered["query"]["min_score"] == 1.2
+
+
 def test_case_memory_loads_spec_from_capsule_when_result_lacks_spec(tmp_path):
     workdir = _write_case(tmp_path, "capsule_only", model_name="LensModel", geometry_type="beam")
     result = json.loads((workdir / "result.json").read_text(encoding="utf-8"))

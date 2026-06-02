@@ -1717,6 +1717,27 @@ reports</textarea>
                 <div class="input-label">Limit</div>
                 <input class="memory-input" id="memory-limit" type="number" min="1" max="50" value="10">
               </div>
+              <div>
+                <div class="input-label">Sort By</div>
+                <select class="memory-input" id="memory-sort-by">
+                  <option value="score">Score</option>
+                  <option value="created_at">Created At</option>
+                  <option value="run_id">Run ID</option>
+                  <option value="model_name">Model</option>
+                  <option value="status">Status</option>
+                </select>
+              </div>
+              <div>
+                <div class="input-label">Order</div>
+                <select class="memory-input" id="memory-sort-order">
+                  <option value="desc">Desc</option>
+                  <option value="asc">Asc</option>
+                </select>
+              </div>
+              <div>
+                <div class="input-label">Min Score</div>
+                <input class="memory-input" id="memory-min-score" type="number" min="0" step="0.1" value="0">
+              </div>
             </div>
             <div class="btn-row" style="margin-top:12px">
               <button class="btn btn-primary" id="btn-memory-search">⌕ 搜索案例</button>
@@ -3155,6 +3176,9 @@ async function searchMemory() {
       diagnosis_id: document.getElementById('memory-diagnosis').value.trim(),
       kpi: document.getElementById('memory-kpi').value.trim(),
       limit: parseInt(document.getElementById('memory-limit').value || '10', 10),
+      sort_by: document.getElementById('memory-sort-by').value,
+      sort_order: document.getElementById('memory-sort-order').value,
+      min_score: parseFloat(document.getElementById('memory-min-score').value || '0'),
     };
     const res = await fetch(`${API}/api/memory/search`, {
       method: 'POST',
@@ -3236,6 +3260,8 @@ function renderMemory(result) {
         <div class="report-metric"><div class="report-metric-label">Matches</div><div class="report-metric-value">${result.total_matches || 0}</div></div>
         <div class="report-metric"><div class="report-metric-label">Query</div><div class="report-metric-value">${escapeHTML(query.query || '—')}</div></div>
         <div class="report-metric"><div class="report-metric-label">Target</div><div class="report-metric-value">${escapeHTML(query.similar_to || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Sort</div><div class="report-metric-value">${escapeHTML(query.sort_by || 'score')} ${escapeHTML(query.sort_order || 'desc')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Min Score</div><div class="report-metric-value">${formatNum(query.min_score || 0)}</div></div>
       </div>
     </div>
     ${rows}`;

@@ -194,11 +194,20 @@ class TestMCPTools:
         )
 
         result = asyncio.get_event_loop().run_until_complete(
-            case_memory_search_tool(json.dumps([str(tmp_path)]), query="McpMemoryModel")
+            case_memory_search_tool(
+                json.dumps([str(tmp_path)]),
+                query="McpMemoryModel",
+                sort_by="run_id",
+                sort_order="asc",
+                min_score=0.5,
+            )
         )
 
         data = json.loads(result)
         assert data["matches"][0]["run_id"] == "mcp_memory"
+        assert data["query"]["sort_by"] == "run_id"
+        assert data["query"]["sort_order"] == "asc"
+        assert data["query"]["min_score"] == 0.5
         assert "Case Memory Search" in data["markdown"]
 
     def test_run_benchmark(self):

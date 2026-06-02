@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +29,9 @@ class CaseMemoryQuery:
     kpi: str = ""
     limit: int = 10
     include_artifacts: bool = False
+    sort_by: str = "score"
+    sort_order: str = "desc"
+    min_score: float = 0.0
 
 
 def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
@@ -48,11 +51,13 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
         score, reasons = _score_entry(entry, q, target)
         if score <= 0 and (q.query or target):
             continue
+        if score < q.min_score:
+            continue
         ranked = _public_entry(entry, include_artifacts=q.include_artifacts)
         ranked.update({"score": round(score, 3), "reasons": reasons})
         scored.append(ranked)
 
-    scored.sort(key=lambda item: (item["score"], item.get("created_at") or ""), reverse=True)
+    _sort_matches(scored, q.sort_by, q.sort_order)
     limit = max(1, q.limit)
     return {
         "total_indexed": len(entries),
@@ -67,6 +72,9 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
             "kpi": q.kpi,
             "limit": limit,
             "include_artifacts": q.include_artifacts,
+            "sort_by": q.sort_by,
+            "sort_order": q.sort_order,
+            "min_score": q.min_score,
         },
         "matches": scored[:limit],
     }
@@ -103,7 +111,12 @@ def render_memory_markdown(result: dict) -> str:
 
 def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
     if isinstance(query, CaseMemoryQuery):
-        return query
+        return replace(
+            query,
+            sort_by=_normalize_sort_by(query.sort_by),
+            sort_order=_normalize_sort_order(query.sort_order),
+            min_score=float(query.min_score),
+        )
     roots = query.get("roots") or ()
     if isinstance(roots, (str, Path)):
         roots = (roots,)
@@ -117,7 +130,29 @@ def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
         kpi=str(query.get("kpi", "")),
         limit=int(query.get("limit", 10)),
         include_artifacts=bool(query.get("include_artifacts", False)),
+        sort_by=_normalize_sort_by(str(query.get("sort_by", "score"))),
+        sort_order=_normalize_sort_order(str(query.get("sort_order", "desc"))),
+        min_score=float(query.get("min_score", 0.0)),
     )
+
+
+def _sort_matches(matches: list[dict], sort_by: str, sort_order: str) -> None:
+    reverse = sort_order == "desc"
+    if sort_by == "score":
+        matches.sort(key=lambda item: (item.get("score", 0), item.get("created_at") or ""), reverse=reverse)
+        return
+    if sort_by == "created_at":
+        matches.sort(key=lambda item: (item.get("created_at") or "", item.get("score", 0)), reverse=reverse)
+        return
+    matches.sort(key=lambda item: str(item.get(sort_by, "")).lower(), reverse=reverse)
+
+
+def _normalize_sort_by(value: str) -> str:
+    return value if value in {"score", "created_at", "run_id", "model_name", "status"} else "score"
+
+
+def _normalize_sort_order(value: str) -> str:
+    return "asc" if value.lower() == "asc" else "desc"
 
 
 def _public_entry(entry: dict, include_artifacts: bool) -> dict:
