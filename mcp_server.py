@@ -15,6 +15,7 @@ Tools:
   simulation_diff_tool - run/capsule/KPI diff report
   check_contracts_tool - physics contract evaluation
   capsule_init_from_inp_tool - initialize capsule from .inp
+  case_memory_search_tool - search local run/capsule case memory
   run_benchmark       - trigger benchmark dry-run
   health_check        - health status
   get_premium_features - premium feature status
@@ -43,6 +44,7 @@ from mcp.server.fastmcp import FastMCP
 sys.path.insert(0, str(Path(__file__).parent))
 
 from capsule.store import init_from_inp
+from case_memory import CaseMemoryQuery, render_memory_markdown, search_case_memory
 from contracts import evaluate_contracts
 from core.helpers import CASES_DIR, check_abaqus, list_cases, make_run_id
 from core.pipeline import (
@@ -217,6 +219,39 @@ async def capsule_init_from_inp_tool(from_inp: str, out: str, model_name: str = 
         capsule = init_from_inp(from_inp, out, model_name=model_name or None)
         return json.dumps(capsule, ensure_ascii=False, default=str)
     except (FileNotFoundError, OSError, ValueError) as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(description="Search local run/capsule directories as deterministic case memory")
+async def case_memory_search_tool(
+    roots_json: str,
+    query: str = "",
+    similar_to: str = "",
+    status: str = "",
+    model_name: str = "",
+    diagnosis_id: str = "",
+    kpi: str = "",
+    limit: int = 10,
+) -> str:
+    try:
+        roots = json.loads(roots_json or "[]")
+        if isinstance(roots, str):
+            roots = [roots]
+        if not isinstance(roots, list):
+            return json.dumps({"error": "roots_json must decode to a list of paths"})
+        result = search_case_memory(CaseMemoryQuery(
+            roots=tuple(roots),
+            query=query,
+            similar_to=similar_to or None,
+            status=status,
+            model_name=model_name,
+            diagnosis_id=diagnosis_id,
+            kpi=kpi,
+            limit=limit,
+        ))
+        result["markdown"] = render_memory_markdown(result)
+        return json.dumps(result, ensure_ascii=False, default=str)
+    except (json.JSONDecodeError, OSError, ValueError, yaml.YAMLError) as e:
         return json.dumps({"error": str(e)})
 
 

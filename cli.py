@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 from capsule.store import init_from_inp
+from case_memory import CaseMemoryQuery, render_memory_markdown, search_case_memory
 from contracts import evaluate_contracts
 from doctor import diagnose_logs
 from odb_lens import load_recipe, render_kpi_markdown
@@ -80,6 +81,21 @@ def _build_parser() -> argparse.ArgumentParser:
     diff.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     diff.add_argument("--out", help="Write Markdown report to this path")
     diff.set_defaults(func=_cmd_diff)
+
+    memory = sub.add_parser("memory", help="Search local case memory capsules")
+    memory_sub = memory.add_subparsers(dest="memory_command", required=True)
+    mem_search = memory_sub.add_parser("search", help="Search run/capsule directories")
+    mem_search.add_argument("roots", nargs="+", help="Run, capsule, result, or parent directories")
+    mem_search.add_argument("--query", default="", help="Free-text query over indexed case fields")
+    mem_search.add_argument("--similar-to", default="", help="Run/capsule path used as similarity target")
+    mem_search.add_argument("--status", default="", help="Filter by run status")
+    mem_search.add_argument("--model-name", default="", help="Filter by model name substring")
+    mem_search.add_argument("--diagnosis-id", default="", help="Filter by Solver Doctor pattern id")
+    mem_search.add_argument("--kpi", default="", help="Filter by KPI name")
+    mem_search.add_argument("--limit", type=int, default=10, help="Maximum matches to return")
+    mem_search.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
+    mem_search.add_argument("--out", help="Write Markdown report to this path")
+    mem_search.set_defaults(func=_cmd_memory_search)
 
     return parser
 
@@ -158,6 +174,26 @@ def _cmd_diff(args: argparse.Namespace) -> int:
 
     _write_or_print(output, args.out)
     return 0 if result["passed"] else 1
+
+
+def _cmd_memory_search(args: argparse.Namespace) -> int:
+    result = search_case_memory(CaseMemoryQuery(
+        roots=tuple(args.roots),
+        query=args.query,
+        similar_to=args.similar_to or None,
+        status=args.status,
+        model_name=args.model_name,
+        diagnosis_id=args.diagnosis_id,
+        kpi=args.kpi,
+        limit=args.limit,
+    ))
+    if args.as_json:
+        output = json.dumps(result, indent=2, ensure_ascii=False)
+    else:
+        output = render_memory_markdown(result)
+
+    _write_or_print(output, args.out)
+    return 0
 
 
 def _collect_log_paths(paths: list[str]) -> list[Path]:

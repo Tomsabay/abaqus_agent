@@ -15,6 +15,7 @@ Endpoints mirror server.py under /mcp prefix:
   GET  /mcp/api/run/{run_id}/stream → SSE polling get_run_status
   POST /mcp/api/doctor           → tools/call diagnose_logs_tool
   POST /mcp/api/diff             → tools/call simulation_diff_tool
+  POST /mcp/api/memory/search    → tools/call case_memory_search_tool
   GET  /mcp/api/benchmark        → resources/read benchmark://cases
   POST /mcp/api/benchmark/run    → tools/call run_benchmark_tool
   GET  /mcp/health               → tools/call health_check
@@ -243,6 +244,17 @@ class DiffRequest(BaseModel):
     rtol: float = 0.05
 
 
+class MemorySearchRequest(BaseModel):
+    roots: list[str]
+    query: str = ""
+    similar_to: str = ""
+    status: str = ""
+    model_name: str = ""
+    diagnosis_id: str = ""
+    kpi: str = ""
+    limit: int = 10
+
+
 # ── Bridge endpoints ──────────────────────────────────────────────
 
 @app.get("/")
@@ -322,6 +334,23 @@ async def bridge_diff(req: DiffRequest):
             "baseline": req.baseline,
             "candidate": req.candidate,
             "rtol": req.rtol,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/api/memory/search")
+async def bridge_memory_search(req: MemorySearchRequest):
+    try:
+        return await mcp_conn.call_tool("case_memory_search_tool", {
+            "roots_json": json.dumps(req.roots),
+            "query": req.query,
+            "similar_to": req.similar_to,
+            "status": req.status,
+            "model_name": req.model_name,
+            "diagnosis_id": req.diagnosis_id,
+            "kpi": req.kpi,
+            "limit": req.limit,
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

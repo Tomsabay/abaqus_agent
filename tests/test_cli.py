@@ -100,3 +100,25 @@ def test_diff_cli_writes_markdown(tmp_path):
     text = report.read_text(encoding="utf-8")
     assert "Simulation Diff Report" in text
     assert "MISES" in text
+
+
+def test_memory_search_cli_prints_json(tmp_path, capsys):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "capsule.json").write_text(
+        json.dumps({
+            "schema_version": "0.2.0-dev",
+            "run_id": "memory_cli",
+            "created_at": "2026-06-02T10:00:00",
+            "inputs": {"model_name": "MemoryCliModel"},
+            "artifacts": {},
+            "provenance": {"status": "COMPLETED"},
+        }),
+        encoding="utf-8",
+    )
+
+    rc = cli.main(["memory", "search", str(tmp_path), "--query", "MemoryCliModel", "--json"])
+
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert data["matches"][0]["run_id"] == "memory_cli"

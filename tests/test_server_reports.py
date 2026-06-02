@@ -141,3 +141,27 @@ def test_run_diff_endpoint_compares_two_runs():
 
     server.RUNS.pop("diff_base", None)
     server.RUNS.pop("diff_candidate", None)
+
+
+def test_memory_search_endpoint(tmp_path):
+    client, _server = _client()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "capsule.json").write_text(
+        json.dumps({
+            "schema_version": "0.2.0-dev",
+            "run_id": "api_memory",
+            "created_at": "2026-06-02T10:00:00",
+            "inputs": {"model_name": "ApiMemoryModel"},
+            "artifacts": {},
+            "provenance": {"status": "COMPLETED"},
+        }),
+        encoding="utf-8",
+    )
+
+    res = client.post("/api/memory/search", json={"roots": [str(tmp_path)], "query": "ApiMemoryModel"})
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["matches"][0]["run_id"] == "api_memory"
+    assert "Case Memory Search" in data["markdown"]

@@ -112,7 +112,7 @@ The MVP now compares KPI changes, contract status, spec fields, capsule inputs, 
 
 ### Case Memory
 
-Over time, customer-local capsules should become searchable memory:
+Customer-local capsules are now searchable deterministic memory:
 
 - similar geometry
 - similar materials
@@ -120,6 +120,10 @@ Over time, customer-local capsules should become searchable memory:
 - known KPI recipes
 - report templates
 - internal expert workflows
+
+The MVP scans local run/capsule directories and ranks cases by metadata, status,
+KPI overlap, contract results, Solver Doctor diagnosis IDs, input hashes, and
+simple similarity signals. It is available through CLI, HTTP API, and MCP.
 
 ## v0.2 Scope
 
@@ -139,9 +143,9 @@ v0.2 should deliver:
 
 Current v0.2-dev implementation status:
 
-- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, ODB Lens recipe normalization and KPI Markdown reports, physics contract evaluator, Simulation Diff reports, 30+ Solver Doctor patterns, CLI/API/UI report workflows, and MCP QA tools.
+- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, ODB Lens recipe normalization and KPI Markdown reports, physics contract evaluator, Simulation Diff reports, 30+ Solver Doctor patterns, CLI/API/UI report workflows, MCP QA tools, report templates, validation matrix, and Case Memory search.
 - Validated: full local test/build pipeline, CI on Python 3.10/3.11/3.12, and a real Windows Abaqus cantilever baseline/candidate Simulation Diff.
-- Planned next: frame/region-aware ODB extraction tests on real Abaqus, report templates, validation matrix, and case-memory search.
+- Planned next: broaden real Abaqus validation across more public cases and add UI workflows for Case Memory and report export.
 
 ## Commercial Path
 
