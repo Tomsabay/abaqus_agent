@@ -15,6 +15,7 @@ from contracts import evaluate_contracts
 from doctor import diagnose_logs
 from odb_lens import load_recipe, render_kpi_markdown
 from simdiff import diff_runs, render_run_markdown
+from validation import render_preflight_markdown, run_environment_preflight
 
 LOG_SUFFIXES = {".sta", ".msg", ".log", ".dat"}
 
@@ -39,6 +40,21 @@ def _build_parser() -> argparse.ArgumentParser:
 
     serve = sub.add_parser("serve", help="Start the FastAPI server")
     serve.set_defaults(func=_cmd_serve)
+
+    validate = sub.add_parser("validate", help="Run validation readiness checks")
+    validate_sub = validate.add_subparsers(dest="validate_command", required=True)
+    validate_env = validate_sub.add_parser("env", help="Check local Abaqus validation environment")
+    validate_env.add_argument("--abaqus-cmd", help="Explicit Abaqus executable path or command")
+    validate_env.add_argument("--timeout", type=float, default=15.0, help="Release check timeout in seconds")
+    validate_env.add_argument(
+        "--skip-release-check",
+        action="store_true",
+        help="Only resolve the command; do not run 'abaqus information=release'",
+    )
+    validate_env.add_argument("--strict", action="store_true", help="Return non-zero unless ready")
+    validate_env.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
+    validate_env.add_argument("--out", help="Write Markdown report to this path")
+    validate_env.set_defaults(func=_cmd_validate_env)
 
     capsule = sub.add_parser("capsule", help="Manage experiment capsules")
     capsule_sub = capsule.add_subparsers(dest="capsule_command", required=True)
@@ -120,6 +136,21 @@ def _cmd_capsule_init(args: argparse.Namespace) -> int:
     )
     print(json.dumps(capsule, indent=2, ensure_ascii=False))
     return 0
+
+
+def _cmd_validate_env(args: argparse.Namespace) -> int:
+    result = run_environment_preflight(
+        abaqus_cmd=args.abaqus_cmd,
+        timeout_seconds=args.timeout,
+        check_release=not args.skip_release_check,
+    )
+    if args.as_json:
+        output = json.dumps(result, indent=2, ensure_ascii=False)
+    else:
+        output = render_preflight_markdown(result)
+
+    _write_or_print(output, args.out)
+    return 0 if not args.strict or result["status"] == "ready" else 1
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
