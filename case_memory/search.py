@@ -62,10 +62,12 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
         scored.append(ranked)
 
     _sort_matches(scored, q.sort_by, q.sort_order)
+    facets = _facets(scored)
     limit = max(1, q.limit)
     return {
         "total_indexed": len(entries),
         "total_matches": len(scored),
+        "facets": facets,
         "query": {
             "roots": [str(root) for root in q.roots],
             "query": q.query,
@@ -199,6 +201,33 @@ def _public_entry(entry: dict, include_artifacts: bool) -> dict:
     if include_artifacts:
         public["artifacts"] = artifacts
     return public
+
+
+def _facets(matches: list[dict]) -> dict[str, dict[str, int]]:
+    return {
+        "status": _facet_counts(matches, "status"),
+        "geometry_type": _facet_counts(matches, "geometry_type"),
+        "solver": _facet_counts(matches, "solver"),
+        "material_name": _facet_counts(matches, "material_name"),
+        "contracts_passed": _facet_counts(matches, "contracts_passed", formatter=_format_contracts_passed),
+    }
+
+
+def _facet_counts(matches: list[dict], key: str, formatter=None) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in matches:
+        raw_value = item.get(key)
+        value = formatter(raw_value) if formatter else str(raw_value or "-")
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+def _format_contracts_passed(value) -> str:
+    if value is True:
+        return "passed"
+    if value is False:
+        return "failed"
+    return "unknown"
 
 
 def _discover_capsules(roots: tuple[str | Path, ...]) -> list[Path]:

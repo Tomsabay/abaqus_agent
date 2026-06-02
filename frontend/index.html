@@ -3587,6 +3587,11 @@ function renderMemory(result) {
   const area = document.getElementById('memory-results');
   const matches = result.matches || [];
   const query = result.query || {};
+  const facetRows = Object.entries(result.facets || {}).map(([name, values]) => `
+    <tr>
+      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(name)}</td>
+      <td>${Object.entries(values || {}).slice(0, 6).map(([value, count]) => `<span class="memory-chip">${escapeHTML(value)} ${count}</span>`).join(' ') || '—'}</td>
+    </tr>`).join('');
   if (!matches.length) {
     area.innerHTML = `
       <div class="report-band">
@@ -3631,6 +3636,10 @@ function renderMemory(result) {
         <div class="report-metric"><div class="report-metric-label">Min Score</div><div class="report-metric-value">${formatNum(query.min_score || 0)}</div></div>
       </div>
     </div>
+    ${facetRows ? `<div class="report-band" style="margin-bottom:14px">
+      <div class="report-band-title">Facets</div>
+      <table class="report-table"><thead><tr><th>Facet</th><th>Top Values</th></tr></thead><tbody>${facetRows}</tbody></table>
+    </div>` : ''}
     ${rows}`;
 }
 
