@@ -277,6 +277,19 @@ def test_case_memory_contract_filters_and_count_sort(tmp_path):
     assert kpi_sorted["matches"][0]["kpi_count"] == 2
 
 
+def test_case_memory_result_facets_summarize_matches(tmp_path):
+    _write_case(tmp_path, "completed_a", model_name="FacetA", geometry_type="custom_inp", contracts_passed=True)
+    _write_case(tmp_path, "completed_b", model_name="FacetB", geometry_type="custom_inp", contracts_passed=False)
+    _write_case(tmp_path, "failed_modal", model_name="FacetC", geometry_type="modal", status="FAILED")
+
+    result = search_case_memory(CaseMemoryQuery(roots=(tmp_path,), query="Facet"))
+
+    assert result["facets"]["status"] == {"COMPLETED": 2, "FAILED": 1}
+    assert result["facets"]["geometry_type"] == {"custom_inp": 2, "modal": 1}
+    assert result["facets"]["solver"] == {"standard": 3}
+    assert result["facets"]["contracts_passed"] == {"passed": 2, "failed": 1}
+
+
 def test_case_memory_loads_spec_from_capsule_when_result_lacks_spec(tmp_path):
     workdir = _write_case(tmp_path, "capsule_only", model_name="LensModel", geometry_type="beam")
     result = json.loads((workdir / "result.json").read_text(encoding="utf-8"))
