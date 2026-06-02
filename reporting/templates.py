@@ -53,6 +53,7 @@ def render_run_report_html(report: dict, template: str = "standard") -> str:
             ),
         )
         metrics.insert(4, _metric("Regression", regression_status, _status_class(regression_status)))
+    delivery_blocks = [_delivery_manifest_html(report)] if template == "engineering_delivery" else []
     return "\n".join([
         "<!doctype html>",
         '<html lang="en">',
@@ -73,6 +74,7 @@ def render_run_report_html(report: dict, template: str = "standard") -> str:
         '<section class="metrics">',
         *metrics,
         "</section>",
+        *delivery_blocks,
         _evidence_checklist_html(report),
         _kpi_table_html(report),
         _contract_table_html(report),
@@ -165,6 +167,14 @@ def _render_engineering_delivery(report: dict) -> str:
         f"- Result path: `{summary.get('result_path') or '-'}`",
         f"- Workdir: `{summary.get('workdir') or '-'}`",
         "",
+        "## Delivery Manifest",
+        "",
+        "| Item | Status | Detail |",
+        "|------|--------|--------|",
+    ]
+    _append_delivery_manifest_rows(lines, report)
+    lines += [
+        "",
         "## Evidence Checklist",
         "",
         "| Evidence | Status | Detail |",
@@ -244,6 +254,14 @@ def _append_artifact_section(lines: list[str], report: dict) -> None:
 
 def _append_evidence_rows(lines: list[str], report: dict) -> None:
     for item in _evidence_items(report):
+        lines.append(
+            f"| {_markdown_cell(item['label'])} | {_markdown_cell(item['status'])} | "
+            f"{_markdown_cell(item['detail'])} |"
+        )
+
+
+def _append_delivery_manifest_rows(lines: list[str], report: dict) -> None:
+    for item in _delivery_manifest_items(report):
         lines.append(
             f"| {_markdown_cell(item['label'])} | {_markdown_cell(item['status'])} | "
             f"{_markdown_cell(item['detail'])} |"
@@ -358,6 +376,40 @@ def _evidence_items(report: dict) -> list[dict[str, str]]:
     return items
 
 
+def _delivery_manifest_items(report: dict) -> list[dict[str, str]]:
+    summary = report["summary"]
+    artifacts = report.get("artifacts", {})
+    image_artifacts = report.get("image_artifacts", [])
+    total_bytes = sum(_artifact_bytes(meta) for meta in artifacts.values())
+    bundle_parts = ["report.md", "report.html", "artifact_manifest.json"]
+    if report.get("capsule"):
+        bundle_parts.append("capsule.json")
+    if summary.get("result_path") or report.get("kpis") or report.get("regression"):
+        bundle_parts.append("result.json")
+    return [
+        {
+            "label": "Run identity",
+            "status": "PASS" if summary.get("run_id") else "REVIEW",
+            "detail": f"run_id={summary.get('run_id') or '-'}, model={summary.get('model_name') or '-'}",
+        },
+        {
+            "label": "Bundle contents",
+            "status": "PASS" if report.get("capsule") or artifacts else "REVIEW",
+            "detail": ", ".join(bundle_parts),
+        },
+        {
+            "label": "Artifact payload",
+            "status": "PASS" if artifacts else "REVIEW",
+            "detail": f"{len(artifacts)} artifacts, {_format_bytes(total_bytes)} recorded",
+        },
+        {
+            "label": "Visual evidence",
+            "status": "PASS" if image_artifacts else "INFO",
+            "detail": f"{len(image_artifacts)} image artifacts",
+        },
+    ]
+
+
 def _regression_detail(report: dict) -> str:
     comparisons = report.get("regression", {}).get("comparisons", {})
     if not comparisons:
@@ -453,6 +505,20 @@ def _artifact_table_html(report: dict) -> str:
     return _table_block("Artifacts", ["Artifact", "Bytes", "SHA-256"], rows)
 
 
+def _delivery_manifest_html(report: dict) -> str:
+    rows = []
+    for item in _delivery_manifest_items(report):
+        status = item["status"]
+        rows.append(
+            "<tr>"
+            f"<td>{escape(item['label'])}</td>"
+            f"<td class=\"{_status_class(status)}\">{escape(status)}</td>"
+            f"<td>{escape(item['detail'])}</td>"
+            "</tr>"
+        )
+    return _table_block("Delivery Manifest", ["Item", "Status", "Detail"], rows)
+
+
 def _evidence_checklist_html(report: dict) -> str:
     rows = []
     for item in _evidence_items(report):
@@ -494,6 +560,28 @@ def _table_block(title: str, headers: list[str], rows: list[str]) -> str:
         "</table>"
         "</section>"
     )
+
+
+def _artifact_bytes(meta) -> int:
+    if not isinstance(meta, dict):
+        return 0
+    try:
+        return int(meta.get("bytes") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _format_bytes(num_bytes: int) -> str:
+    units = ["B", "KB", "MB", "GB"]
+    value = float(num_bytes)
+    unit = units[0]
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            break
+        value /= 1024
+    if unit == "B":
+        return f"{int(value)} {unit}"
+    return f"{value:.1f} {unit}"
 
 
 def _html_styles() -> str:
