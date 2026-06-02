@@ -97,6 +97,12 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert "Simulation QA Summary" in client_report["markdown"]
     assert "Executive Result" in client_report["markdown"]
 
+    markdown_res = client.get("/api/run/ui_report_001/report.md?template=client_summary")
+    assert markdown_res.status_code == 200
+    assert "text/markdown" in markdown_res.headers["content-type"]
+    assert 'filename="abaqus-report-ui_report_001.md"' in markdown_res.headers["content-disposition"]
+    assert "Simulation QA Summary" in markdown_res.text
+
     capsule_res = client.get("/api/run/ui_report_001/capsule")
     assert capsule_res.status_code == 200
     assert capsule_res.json()["run_id"] == "ui_report_001"
