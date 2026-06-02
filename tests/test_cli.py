@@ -117,8 +117,18 @@ def test_memory_search_cli_prints_json(tmp_path, capsys):
         encoding="utf-8",
     )
 
-    rc = cli.main(["memory", "search", str(tmp_path), "--query", "MemoryCliModel", "--json"])
+    rc = cli.main([
+        "memory", "search", str(tmp_path),
+        "--query", "MemoryCliModel",
+        "--sort-by", "run_id",
+        "--sort-order", "asc",
+        "--min-score", "0.5",
+        "--json",
+    ])
 
     data = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert data["matches"][0]["run_id"] == "memory_cli"
+    assert data["query"]["sort_by"] == "run_id"
+    assert data["query"]["sort_order"] == "asc"
+    assert data["query"]["min_score"] == 0.5

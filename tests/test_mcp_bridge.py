@@ -20,6 +20,7 @@ class MockMCPConnection:
 
     def __init__(self):
         self._initialized = True
+        self.calls = []
 
     async def start(self):
         pass
@@ -28,6 +29,7 @@ class MockMCPConnection:
         pass
 
     async def call_tool(self, tool_name: str, arguments: dict) -> dict:
+        self.calls.append((tool_name, arguments))
         if tool_name == "health_check":
             return {
                 "status": "ok",
@@ -232,11 +234,19 @@ class TestBridgeEndpoints:
         res = client.post("/mcp/api/memory/search", json={
             "roots": ["/tmp/runs"],
             "query": "BridgeMemoryModel",
+            "sort_by": "run_id",
+            "sort_order": "asc",
+            "min_score": 0.5,
         })
         assert res.status_code == 200
         data = res.json()
         assert data["matches"][0]["run_id"] == "bridge_memory"
         assert "Case Memory Search" in data["markdown"]
+        tool_name, arguments = mock_bridge.mcp_conn.calls[-1]
+        assert tool_name == "case_memory_search_tool"
+        assert arguments["sort_by"] == "run_id"
+        assert arguments["sort_order"] == "asc"
+        assert arguments["min_score"] == 0.5
 
     def test_get_benchmark(self, mock_bridge):
         client = self._client(mock_bridge)

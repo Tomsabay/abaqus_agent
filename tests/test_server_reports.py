@@ -194,9 +194,18 @@ def test_memory_search_endpoint(tmp_path):
         encoding="utf-8",
     )
 
-    res = client.post("/api/memory/search", json={"roots": [str(tmp_path)], "query": "ApiMemoryModel"})
+    res = client.post("/api/memory/search", json={
+        "roots": [str(tmp_path)],
+        "query": "ApiMemoryModel",
+        "sort_by": "run_id",
+        "sort_order": "asc",
+        "min_score": 0.5,
+    })
 
     assert res.status_code == 200
     data = res.json()
     assert data["matches"][0]["run_id"] == "api_memory"
+    assert data["query"]["sort_by"] == "run_id"
+    assert data["query"]["sort_order"] == "asc"
+    assert data["query"]["min_score"] == 0.5
     assert "Case Memory Search" in data["markdown"]

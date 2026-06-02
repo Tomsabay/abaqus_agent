@@ -254,6 +254,9 @@ class MemorySearchRequest(BaseModel):
     kpi: str = ""
     limit: int = 10
     include_artifacts: bool = False
+    sort_by: str = "score"
+    sort_order: str = "desc"
+    min_score: float = 0.0
 
 
 # ── Bridge endpoints ──────────────────────────────────────────────
@@ -353,6 +356,9 @@ async def bridge_memory_search(req: MemorySearchRequest):
             "kpi": req.kpi,
             "limit": req.limit,
             "include_artifacts": req.include_artifacts,
+            "sort_by": req.sort_by,
+            "sort_order": req.sort_order,
+            "min_score": req.min_score,
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -94,6 +94,9 @@ def _build_parser() -> argparse.ArgumentParser:
     mem_search.add_argument("--kpi", default="", help="Filter by KPI name")
     mem_search.add_argument("--limit", type=int, default=10, help="Maximum matches to return")
     mem_search.add_argument("--include-artifacts", action="store_true", help="Include full artifact manifests")
+    mem_search.add_argument("--sort-by", default="score", choices=["score", "created_at", "run_id", "model_name", "status"])
+    mem_search.add_argument("--sort-order", default="desc", choices=["asc", "desc"])
+    mem_search.add_argument("--min-score", type=float, default=0.0, help="Minimum ranking score to include")
     mem_search.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     mem_search.add_argument("--out", help="Write Markdown report to this path")
     mem_search.set_defaults(func=_cmd_memory_search)
@@ -188,6 +191,9 @@ def _cmd_memory_search(args: argparse.Namespace) -> int:
         kpi=args.kpi,
         limit=args.limit,
         include_artifacts=args.include_artifacts,
+        sort_by=args.sort_by,
+        sort_order=args.sort_order,
+        min_score=args.min_score,
     ))
     if args.as_json:
         output = json.dumps(result, indent=2, ensure_ascii=False)

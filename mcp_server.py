@@ -233,6 +233,9 @@ async def case_memory_search_tool(
     kpi: str = "",
     limit: int = 10,
     include_artifacts: bool = False,
+    sort_by: str = "score",
+    sort_order: str = "desc",
+    min_score: float = 0.0,
 ) -> str:
     try:
         roots = json.loads(roots_json or "[]")
@@ -250,6 +253,9 @@ async def case_memory_search_tool(
             kpi=kpi,
             limit=limit,
             include_artifacts=include_artifacts,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            min_score=min_score,
         ))
         result["markdown"] = render_memory_markdown(result)
         return json.dumps(result, ensure_ascii=False, default=str)
