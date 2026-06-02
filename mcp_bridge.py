@@ -40,7 +40,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+
+try:
+    from pydantic import BaseModel, ConfigDict
+except ImportError:  # pragma: no cover - pydantic v1 compatibility
+    from pydantic import BaseModel
+    ConfigDict = None
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -245,6 +250,9 @@ class DiffRequest(BaseModel):
 
 
 class MemorySearchRequest(BaseModel):
+    if ConfigDict:
+        model_config = ConfigDict(protected_namespaces=())
+
     roots: list[str]
     query: str = ""
     similar_to: str = ""

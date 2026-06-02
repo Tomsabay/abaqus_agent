@@ -124,6 +124,17 @@ def test_case_memory_text_query_filters_unrelated_completed_cases(tmp_path):
     assert result["matches"][0]["run_id"] == "explicit"
 
 
+def test_case_memory_query_matches_path_and_compact_case_name(tmp_path):
+    _write_case(tmp_path, "plate_hole", model_name="StressCase", geometry_type="custom_inp")
+    _write_case(tmp_path, "modal_case", model_name="ModalCase", geometry_type="modal")
+
+    result = search_case_memory(CaseMemoryQuery(roots=(tmp_path,), query="PlateHole"))
+
+    assert result["total_matches"] == 1
+    assert result["matches"][0]["run_id"] == "plate_hole"
+    assert "text:platehole" in result["matches"][0]["reasons"]
+
+
 def test_case_memory_omits_artifacts_by_default_and_can_include_them(tmp_path):
     _write_case(tmp_path, "artifact_case", model_name="ArtifactModel", geometry_type="custom_inp")
 

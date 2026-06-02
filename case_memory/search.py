@@ -322,6 +322,9 @@ def _similarity_score(entry: dict, target: dict) -> tuple[float, list[str]]:
 def _search_text(entry: dict) -> str:
     parts = [
         entry.get("run_id", ""),
+        entry.get("workdir", ""),
+        entry.get("capsule_path", ""),
+        entry.get("result_path", ""),
         entry.get("model_name", ""),
         entry.get("status", ""),
         entry.get("abaqus_release", ""),
@@ -334,7 +337,9 @@ def _search_text(entry: dict) -> str:
         " ".join(entry.get("diagnosis_ids", [])),
         " ".join(entry.get("artifacts", {}).keys()),
     ]
-    return " ".join(str(part).lower() for part in parts)
+    text = " ".join(str(part).lower() for part in parts)
+    compact = re.sub(r"[^a-z0-9]+", "", text)
+    return f"{text} {compact}"
 
 
 def _query_matches(entry: dict, query: str) -> bool:
