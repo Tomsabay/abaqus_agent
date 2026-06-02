@@ -99,6 +99,13 @@ class MockMCPConnection:
                 },
                 "markdown": "# Abaqus Environment Preflight",
             }
+        elif tool_name == "offline_report_export_tool":
+            return {
+                "summary": {"run_id": "bridge_offline_report", "model_name": "BridgeOffline"},
+                "offline_source": arguments.get("source"),
+                "markdown": "# Simulation QA Summary",
+                "html": "<!doctype html>",
+            }
         elif tool_name == "run_benchmark_tool":
             return {
                 "run_id": "bench_mock01",
@@ -275,6 +282,48 @@ class TestBridgeEndpoints:
         assert arguments["abaqus_cmd"] == "abaqus"
         assert arguments["timeout_seconds"] == 2.0
         assert arguments["check_release"] is False
+
+    def test_offline_report_export_endpoint(self, mock_bridge):
+        client = self._client(mock_bridge)
+        res = client.post("/mcp/api/report/export", json={
+            "source": "/tmp/run",
+            "template": "client_summary",
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["summary"]["run_id"] == "bridge_offline_report"
+        assert data["offline_source"] == "/tmp/run"
+        assert "Simulation QA Summary" in data["markdown"]
+        tool_name, arguments = mock_bridge.mcp_conn.calls[-1]
+        assert tool_name == "offline_report_export_tool"
+        assert arguments["source"] == "/tmp/run"
+        assert arguments["template"] == "client_summary"
+
+    def test_offline_report_export_bundle_endpoint(self, mock_bridge, tmp_path):
+        artifact = tmp_path / "Job.log"
+        artifact.write_text("Abaqus JOB Job COMPLETED\n", encoding="utf-8")
+        (tmp_path / "capsule.json").write_text(
+            json.dumps({
+                "run_id": "bridge_zip_report",
+                "inputs": {"model_name": "BridgeZip"},
+                "provenance": {"status": "COMPLETED", "abaqus_release": "2024"},
+                "artifacts": {"Job.log": {"path": "Job.log", "sha256": "abc", "bytes": artifact.stat().st_size}},
+            }),
+            encoding="utf-8",
+        )
+        (tmp_path / "result.json").write_text(
+            json.dumps({"run_id": "bridge_zip_report", "status": "COMPLETED", "kpis": {}}),
+            encoding="utf-8",
+        )
+
+        client = self._client(mock_bridge)
+        res = client.post("/mcp/api/report/export.zip", json={
+            "source": str(tmp_path),
+            "template": "client_summary",
+        })
+        assert res.status_code == 200
+        assert "application/zip" in res.headers["content-type"]
+        assert 'filename="abaqus-report-bridge_zip_report.zip"' in res.headers["content-disposition"]
 
     def test_get_benchmark(self, mock_bridge):
         client = self._client(mock_bridge)

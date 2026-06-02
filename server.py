@@ -54,7 +54,12 @@ from core.pipeline import (
     run_pipeline,
 )
 from core.spec_generator import generate_spec_async
-from reporting import render_run_report_html, render_run_report_markdown
+from reporting import (
+    build_offline_report_bundle,
+    build_offline_run_report,
+    render_run_report_html,
+    render_run_report_markdown,
+)
 from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
 from validation import render_preflight_markdown, run_environment_preflight
@@ -130,6 +135,12 @@ class EnvironmentPreflightRequest(BaseModel):
     check_release: bool = True
 
 
+class OfflineReportRequest(BaseModel):
+    source: str
+    template: str = "standard"
+    max_artifact_bytes: int = 25_000_000
+
+
 # ── Routes ───────────────────────────────────────────────────────
 
 @app.get("/")
@@ -165,6 +176,40 @@ def post_environment_preflight(req: EnvironmentPreflightRequest):
         raise HTTPException(status_code=400, detail=str(e))
     result["markdown"] = render_preflight_markdown(result)
     return result
+
+
+# ── Offline report endpoints ──────────────────────────────────────
+
+@app.post("/api/report/export")
+def post_offline_report_export(req: OfflineReportRequest):
+    """Build a report from a run directory, capsule.json, or result.json source path."""
+    try:
+        report = build_offline_run_report(req.source, template=req.template, embed_images=True)
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    report["offline_source"] = req.source
+    return report
+
+
+@app.post("/api/report/export.zip")
+def post_offline_report_export_bundle(req: OfflineReportRequest):
+    """Download an offline report bundle from a run directory, capsule.json, or result.json."""
+    try:
+        report = build_offline_run_report(req.source, template=req.template, embed_images=False)
+        content = build_offline_report_bundle(
+            req.source,
+            template=req.template,
+            max_artifact_bytes=req.max_artifact_bytes,
+        )
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    run_id = report.get("summary", {}).get("run_id") or "offline"
+    filename = f"abaqus-report-{run_id}.zip"
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Spec endpoints ────────────────────────────────────────────────

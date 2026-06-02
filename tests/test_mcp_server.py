@@ -157,6 +157,35 @@ class TestMCPTools:
         assert data["status"] == "unknown"
         assert "Abaqus Environment Preflight" in data["markdown"]
 
+    def test_offline_report_export_tool(self, tmp_path):
+        from mcp_server import offline_report_export_tool
+
+        (tmp_path / "capsule.json").write_text(
+            json.dumps({
+                "run_id": "mcp_offline_report",
+                "inputs": {"model_name": "McpOffline"},
+                "provenance": {"status": "COMPLETED", "abaqus_release": "2024"},
+                "artifacts": {},
+            }),
+            encoding="utf-8",
+        )
+        (tmp_path / "result.json").write_text(
+            json.dumps({
+                "run_id": "mcp_offline_report",
+                "status": "COMPLETED",
+                "kpis": {"U_tip": -0.002},
+            }),
+            encoding="utf-8",
+        )
+
+        result = asyncio.get_event_loop().run_until_complete(
+            offline_report_export_tool(str(tmp_path), template="client_summary")
+        )
+        data = json.loads(result)
+        assert data["summary"]["run_id"] == "mcp_offline_report"
+        assert data["offline_source"] == str(tmp_path)
+        assert "Simulation QA Summary" in data["markdown"]
+
     def test_diagnose_logs_tool(self):
         from mcp_server import diagnose_logs_tool
         result = asyncio.get_event_loop().run_until_complete(
