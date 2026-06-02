@@ -33,7 +33,7 @@ from typing import AsyncGenerator
 import yaml
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -209,6 +209,20 @@ def get_run_report(run_id: str, template: str = "standard"):
     if run_id not in RUNS:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
     return _build_run_report(RUNS[run_id], template=template)
+
+
+@app.get("/api/run/{run_id}/report.md")
+def get_run_report_markdown(run_id: str, template: str = "standard"):
+    """Download a run report as Markdown."""
+    if run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    report = _build_run_report(RUNS[run_id], template=template)
+    filename = f"abaqus-report-{run_id}.md"
+    return Response(
+        content=report.get("markdown", "") + "\n",
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/run/{run_id}/capsule")
