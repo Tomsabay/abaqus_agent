@@ -1611,6 +1611,7 @@ body::after {
               <select class="memory-input" id="offline-report-template">
                 <option value="standard">standard</option>
                 <option value="client_summary">client_summary</option>
+                <option value="engineering_delivery">engineering_delivery</option>
               </select>
             </div>
           </div>
@@ -3147,7 +3148,12 @@ function previewReportHTML() {
 
 function makeReportHTML(report) {
   const summary = report.summary || {};
-  const title = report.template === 'client_summary' ? 'Simulation QA Summary' : 'Abaqus Run Report';
+  const titles = {
+    standard: 'Abaqus Run Report',
+    client_summary: 'Simulation QA Summary',
+    engineering_delivery: 'Engineering Delivery Report',
+  };
+  const title = titles[report.template] || titles.standard;
   const kpis = Object.entries(report.kpis || {})
     .map(([name, value]) => {
       const actual = typeof value === 'object' ? value.value : value;
