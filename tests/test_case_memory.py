@@ -114,6 +114,16 @@ def test_case_memory_similarity_uses_inputs_and_kpis(tmp_path):
     assert "target" not in [match["run_id"] for match in result["matches"]]
 
 
+def test_case_memory_text_query_filters_unrelated_completed_cases(tmp_path):
+    _write_case(tmp_path, "explicit", model_name="ExplicitImpact", geometry_type="cantilever_block")
+    _write_case(tmp_path, "modal", model_name="ModalBeam", geometry_type="cantilever_block")
+
+    result = search_case_memory(CaseMemoryQuery(roots=(tmp_path,), query="ExplicitImpact"))
+
+    assert result["total_matches"] == 1
+    assert result["matches"][0]["run_id"] == "explicit"
+
+
 def test_case_memory_loads_spec_from_capsule_when_result_lacks_spec(tmp_path):
     workdir = _write_case(tmp_path, "capsule_only", model_name="LensModel", geometry_type="beam")
     result = json.loads((workdir / "result.json").read_text(encoding="utf-8"))
