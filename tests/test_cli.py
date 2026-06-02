@@ -37,6 +37,7 @@ def test_capsule_init_cli(tmp_path, capsys):
 
 def test_validate_env_cli_prints_json(monkeypatch, capsys):
     def fake_preflight(**_kwargs):
+        assert _kwargs["expected_release"] == "2026"
         return {
             "status": "ready",
             "platform": {},
@@ -46,7 +47,7 @@ def test_validate_env_cli_prints_json(monkeypatch, capsys):
 
     monkeypatch.setattr(cli, "run_environment_preflight", fake_preflight)
 
-    rc = cli.main(["validate", "env", "--json"])
+    rc = cli.main(["validate", "env", "--expected-release", "2026", "--json"])
 
     data = json.loads(capsys.readouterr().out)
     assert rc == 0

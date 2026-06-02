@@ -283,6 +283,7 @@ class EnvironmentPreflightRequest(BaseModel):
     abaqus_cmd: str = ""
     timeout_seconds: float = 15.0
     check_release: bool = True
+    expected_release: str = ""
 
 
 class OfflineReportRequest(BaseModel):
@@ -406,6 +407,7 @@ async def bridge_environment_preflight(req: EnvironmentPreflightRequest):
             "abaqus_cmd": req.abaqus_cmd,
             "timeout_seconds": req.timeout_seconds,
             "check_release": req.check_release,
+            "expected_release": req.expected_release,
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
