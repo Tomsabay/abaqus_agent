@@ -34,10 +34,11 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 |---|---:|---|
 | `custom_inp` first | Implemented | Bring existing customer `.inp` files instead of forcing NL/spec generation. |
 | Experiment Capsule | Implemented | Store inputs, artifacts, hashes, environment, and provenance in `capsule.json`. |
-| ODB Lens / KPI DSL | Started | Reusable KPI extraction recipes for `.odb` files. |
-| Physics Contracts | Started | Check ranges, directions, relative error, and ordered KPIs. |
-| Simulation Diff | Started | Compare KPI changes between baseline and candidate runs. |
-| Solver Doctor | Implemented | Diagnose `.sta/.msg/.log/.dat` failures from known patterns. |
+| ODB Lens / KPI DSL | Implemented MVP | Reusable KPI extraction recipes and KPI Markdown reports for `.odb` outputs. |
+| Physics Contracts | Implemented MVP | Check ranges, directions, relative error, and ordered KPIs. |
+| Simulation Diff | Implemented MVP | Compare run/capsule inputs, KPIs, contracts, artifacts, and provenance. |
+| Solver Doctor | Implemented MVP | Diagnose `.sta/.msg/.log/.dat` failures from 30+ known patterns. |
+| MCP QA Tools | Implemented MVP | Expose capsule, contract, diff, and doctor kernels to MCP clients. |
 
 See [docs/STRATEGY.md](docs/STRATEGY.md) for the product strategy.
 
@@ -145,13 +146,13 @@ diagnosis = diagnose_logs(paths=["Job-1.msg", "Job-1.sta"])
 Compare KPI results:
 
 ```bash
-abaqus-agent diff baseline_kpis.json candidate_kpis.json --out diff.md
+abaqus-agent diff runs/baseline runs/candidate --out diff.md
 ```
 
 ```python
-from simdiff import diff_kpis
+from simdiff import diff_runs
 
-diff = diff_kpis({"U_tip": -0.002}, {"U_tip": -0.0021})
+diff = diff_runs("runs/baseline", "runs/candidate")
 ```
 
 Normalize an ODB Lens KPI recipe and render a KPI report:
@@ -259,12 +260,13 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] MCP server and HTTP bridge
 - [x] FastAPI/SSE web API
 - [x] `custom_inp` no-CAE build path
-- [x] v0.2 capsule / contract / diff / doctor kernel skeleton
+- [x] v0.2 capsule / contract / diff / doctor kernel MVP
 - [x] Capsule-backed run output from the orchestrator
 - [x] Solver Doctor / contract check / KPI diff CLI
 - [x] ODB Lens YAML KPI recipe normalization and KPI Markdown reports
+- [x] Simulation Diff CLI/API/UI with real Windows Abaqus validation
+- [x] MCP tools for capsule init, contract check, Solver Doctor, and Simulation Diff
 - [ ] ODB Lens direct Abaqus extractor coverage for all recipe fields
-- [ ] Physics contract checks in benchmark reports
 - [ ] Markdown/PDF report templates
 - [ ] Validation matrix for Abaqus versions and operating systems
 
