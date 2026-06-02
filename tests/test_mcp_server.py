@@ -277,6 +277,7 @@ class TestMCPTools:
             case_memory_search_tool(
                 json.dumps([str(tmp_path)]),
                 query="McpMemoryModel",
+                match_mode="all",
                 artifact="Job.log",
                 contract="tip",
                 contracts_passed="passed",
@@ -288,6 +289,7 @@ class TestMCPTools:
 
         data = json.loads(result)
         assert data["matches"][0]["run_id"] == "mcp_memory"
+        assert data["query"]["match_mode"] == "all"
         assert data["query"]["artifact"] == "Job.log"
         assert data["query"]["contract"] == "tip"
         assert data["query"]["contracts_passed"] == "passed"

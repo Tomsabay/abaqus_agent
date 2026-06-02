@@ -282,6 +282,7 @@ async def capsule_init_from_inp_tool(from_inp: str, out: str, model_name: str = 
 async def case_memory_search_tool(
     roots_json: str,
     query: str = "",
+    match_mode: str = "any",
     similar_to: str = "",
     status: str = "",
     model_name: str = "",
@@ -305,6 +306,7 @@ async def case_memory_search_tool(
         result = search_case_memory(CaseMemoryQuery(
             roots=tuple(roots),
             query=query,
+            match_mode=match_mode,
             similar_to=similar_to or None,
             status=status,
             model_name=model_name,

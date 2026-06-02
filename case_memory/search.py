@@ -22,6 +22,7 @@ class CaseMemoryQuery:
 
     roots: tuple[str | Path, ...]
     query: str = ""
+    match_mode: str = "any"
     similar_to: str | Path | None = None
     status: str = ""
     model_name: str = ""
@@ -49,7 +50,7 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
             continue
         if not _passes_filters(entry, q):
             continue
-        if q.query and not _query_matches(entry, q.query):
+        if q.query and not _query_matches(entry, q.query, q.match_mode):
             continue
         score, reasons = _score_entry(entry, q, target)
         if score <= 0 and (q.query or target):
@@ -68,6 +69,7 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
         "query": {
             "roots": [str(root) for root in q.roots],
             "query": q.query,
+            "match_mode": q.match_mode,
             "similar_to": str(q.similar_to) if q.similar_to else "",
             "status": q.status,
             "model_name": q.model_name,
@@ -119,6 +121,7 @@ def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
     if isinstance(query, CaseMemoryQuery):
         return replace(
             query,
+            match_mode=_normalize_match_mode(query.match_mode),
             contracts_passed=_normalize_contracts_passed(query.contracts_passed),
             sort_by=_normalize_sort_by(query.sort_by),
             sort_order=_normalize_sort_order(query.sort_order),
@@ -130,6 +133,7 @@ def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
     return CaseMemoryQuery(
         roots=tuple(roots),
         query=str(query.get("query", "")),
+        match_mode=_normalize_match_mode(str(query.get("match_mode", "any"))),
         similar_to=query.get("similar_to") or None,
         status=str(query.get("status", "")),
         model_name=str(query.get("model_name", "")),
@@ -174,6 +178,10 @@ def _normalize_sort_by(value: str) -> str:
 
 def _normalize_sort_order(value: str) -> str:
     return "asc" if value.lower() == "asc" else "desc"
+
+
+def _normalize_match_mode(value: str) -> str:
+    return "all" if value.lower() == "all" else "any"
 
 
 def _normalize_contracts_passed(value: str) -> str:
@@ -391,11 +399,13 @@ def _search_text(entry: dict) -> str:
     return f"{text} {compact}"
 
 
-def _query_matches(entry: dict, query: str) -> bool:
+def _query_matches(entry: dict, query: str, match_mode: str = "any") -> bool:
     tokens = _tokens(query)
     if not tokens:
         return True
     haystack = _search_text(entry)
+    if match_mode == "all":
+        return all(token in haystack for token in tokens)
     return any(token in haystack for token in tokens)
 
 

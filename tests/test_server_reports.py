@@ -330,6 +330,7 @@ def test_memory_search_endpoint(tmp_path):
     res = client.post("/api/memory/search", json={
         "roots": [str(tmp_path)],
         "query": "ApiMemoryModel",
+        "match_mode": "all",
         "artifact": "Job.log",
         "contract": "tip",
         "contracts_passed": "passed",
@@ -341,6 +342,7 @@ def test_memory_search_endpoint(tmp_path):
     assert res.status_code == 200
     data = res.json()
     assert data["matches"][0]["run_id"] == "api_memory"
+    assert data["query"]["match_mode"] == "all"
     assert data["query"]["artifact"] == "Job.log"
     assert data["query"]["contract"] == "tip"
     assert data["query"]["contracts_passed"] == "passed"
