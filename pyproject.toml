@@ -61,6 +61,7 @@ packages = [
     "simdiff",
     "tools",
     "premium",
+    "reporting",
     "server.py",
     "mcp_bridge.py",
     "mcp_server.py",
