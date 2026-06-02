@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import sys
 import time
+import zipfile
+from io import BytesIO
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -111,6 +113,19 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert "Simulation QA Summary" in html_res.text
     assert "mises_contour.png" in html_res.text
     assert "data:image/png;base64," in html_res.text
+
+    bundle_res = client.get("/api/run/ui_report_001/report.zip?template=client_summary")
+    assert bundle_res.status_code == 200
+    assert "application/zip" in bundle_res.headers["content-type"]
+    assert 'filename="abaqus-report-ui_report_001.zip"' in bundle_res.headers["content-disposition"]
+    with zipfile.ZipFile(BytesIO(bundle_res.content)) as bundle:
+        names = set(bundle.namelist())
+        assert {"report.md", "report.html", "capsule.json", "artifact_manifest.json"} <= names
+        assert "artifacts/Job.log" in names
+        assert "artifacts/mises_contour.png" in names
+        assert "Simulation QA Summary" in bundle.read("report.md").decode("utf-8")
+        manifest = json.loads(bundle.read("artifact_manifest.json"))
+        assert manifest["included_artifacts"][0]["name"] == "Job.log"
 
     capsule_res = client.get("/api/run/ui_report_001/capsule")
     assert capsule_res.status_code == 200

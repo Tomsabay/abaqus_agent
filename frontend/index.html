@@ -2793,12 +2793,14 @@ function renderReport(report) {
         <button class="btn btn-secondary" id="btn-copy-report-md">复制 Markdown</button>
         <button class="btn btn-secondary" id="btn-download-report-md">下载 .md</button>
         <button class="btn btn-secondary" id="btn-download-report-html">下载 .html</button>
+        <button class="btn btn-secondary" id="btn-download-report-bundle">下载 bundle</button>
       </div>
       <div class="markdown-preview">${escapeHTML(report.markdown || '')}</div>
     </div>`;
   document.getElementById('btn-copy-report-md').onclick = copyReportMarkdown;
   document.getElementById('btn-download-report-md').onclick = downloadReportMarkdown;
   document.getElementById('btn-download-report-html').onclick = downloadReportHTML;
+  document.getElementById('btn-download-report-bundle').onclick = downloadReportBundle;
 }
 
 function renderCapsule(capsule, report = null) {
@@ -2904,6 +2906,27 @@ function downloadReportHTML() {
   a.remove();
   URL.revokeObjectURL(url);
   toast('报告 HTML 已下载', 'ok');
+}
+
+function downloadReportBundle() {
+  if (!state.report) {
+    toast('当前没有可下载的报告 bundle', 'info');
+    return;
+  }
+  const runId = state.report?.summary?.run_id || state.runId || '';
+  const status = state.report?.summary?.status || '';
+  if (!state.serverOnline || !runId || status === 'COMPLETED (sim)') {
+    toast('bundle 需要真实 Abaqus run 和服务端 artifacts', 'info');
+    return;
+  }
+  const template = state.report?.template || 'standard';
+  const a = document.createElement('a');
+  a.href = `${API}/api/run/${encodeURIComponent(runId)}/report.zip?template=${encodeURIComponent(template)}`;
+  a.download = `abaqus-report-${runId}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('报告 bundle 已下载', 'ok');
 }
 
 function makeReportHTML(report) {

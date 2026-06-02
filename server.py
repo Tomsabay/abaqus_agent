@@ -22,13 +22,13 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import io
 import json
 import mimetypes
-
-# ── Project imports ──────────────────────────────────────────────
 import sys
 import time
 import uuid
+import zipfile
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -41,6 +41,7 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+# ── Project imports ──────────────────────────────────────────────
 from case_memory import CaseMemoryQuery, render_memory_markdown, search_case_memory
 from core.helpers import CASES_DIR, check_abaqus, list_cases, make_run_id
 from core.pipeline import (
@@ -237,6 +238,20 @@ def get_run_report_html(run_id: str, template: str = "standard"):
     return Response(
         content=report.get("html", ""),
         media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/api/run/{run_id}/report.zip")
+def get_run_report_bundle(run_id: str, template: str = "standard", max_artifact_bytes: int = 25_000_000):
+    """Download a report bundle with Markdown, HTML, capsule, and small artifacts."""
+    if run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    content = _build_run_report_bundle(RUNS[run_id], template=template, max_artifact_bytes=max_artifact_bytes)
+    filename = f"abaqus-report-{run_id}.zip"
+    return Response(
+        content=content,
+        media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
@@ -528,6 +543,45 @@ def _load_image_artifact_sources(run: dict, image_artifacts: list[str]) -> dict[
         data = base64.b64encode(artifact_path.read_bytes()).decode("ascii")
         sources[name] = f"data:{media_type};base64,{data}"
     return sources
+
+
+def _build_run_report_bundle(run: dict, template: str = "standard", max_artifact_bytes: int = 25_000_000) -> bytes:
+    report = _build_run_report(run, template=template, embed_images=True)
+    workdir = _run_workdir(run)
+    manifest = {
+        "run_id": run.get("run_id"),
+        "template": template,
+        "included_artifacts": [],
+        "skipped_artifacts": [],
+    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        bundle.writestr("report.md", report.get("markdown", "") + "\n")
+        bundle.writestr("report.html", report.get("html", ""))
+        if report.get("capsule"):
+            bundle.writestr("capsule.json", json.dumps(report["capsule"], indent=2, sort_keys=True))
+        if workdir:
+            for name in sorted(report.get("artifacts", {})):
+                artifact_path = (workdir / name).resolve()
+                if workdir not in artifact_path.parents and artifact_path != workdir:
+                    manifest["skipped_artifacts"].append({"name": name, "reason": "invalid_path"})
+                    continue
+                if not artifact_path.is_file():
+                    manifest["skipped_artifacts"].append({"name": name, "reason": "missing"})
+                    continue
+                size = artifact_path.stat().st_size
+                if size > max_artifact_bytes:
+                    manifest["skipped_artifacts"].append({"name": name, "reason": "too_large", "bytes": size})
+                    continue
+                bundle.write(artifact_path, _artifact_zip_name(name))
+                manifest["included_artifacts"].append({"name": name, "bytes": size})
+        bundle.writestr("artifact_manifest.json", json.dumps(manifest, indent=2, sort_keys=True))
+    return buffer.getvalue()
+
+
+def _artifact_zip_name(name: str) -> str:
+    parts = [part for part in Path(name).parts if part not in {"", ".", ".."}]
+    return "artifacts/" + "/".join(parts or ["artifact"])
 
 
 def _run_diff_payload(run: dict) -> dict:
