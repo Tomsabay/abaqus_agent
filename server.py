@@ -105,6 +105,7 @@ class MemorySearchRequest(BaseModel):
     diagnosis_id: str = ""
     kpi: str = ""
     limit: int = 10
+    include_artifacts: bool = False
 
 
 # ── Routes ───────────────────────────────────────────────────────
@@ -257,6 +258,7 @@ def post_memory_search(req: MemorySearchRequest):
             diagnosis_id=req.diagnosis_id,
             kpi=req.kpi,
             limit=req.limit,
+            include_artifacts=req.include_artifacts,
         ))
     except (OSError, json.JSONDecodeError, yaml.YAMLError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))

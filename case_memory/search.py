@@ -28,6 +28,7 @@ class CaseMemoryQuery:
     diagnosis_id: str = ""
     kpi: str = ""
     limit: int = 10
+    include_artifacts: bool = False
 
 
 def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
@@ -47,7 +48,8 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
         score, reasons = _score_entry(entry, q, target)
         if score <= 0 and (q.query or target):
             continue
-        ranked = {**entry, "score": round(score, 3), "reasons": reasons}
+        ranked = _public_entry(entry, include_artifacts=q.include_artifacts)
+        ranked.update({"score": round(score, 3), "reasons": reasons})
         scored.append(ranked)
 
     scored.sort(key=lambda item: (item["score"], item.get("created_at") or ""), reverse=True)
@@ -64,6 +66,7 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
             "diagnosis_id": q.diagnosis_id,
             "kpi": q.kpi,
             "limit": limit,
+            "include_artifacts": q.include_artifacts,
         },
         "matches": scored[:limit],
     }
@@ -113,7 +116,18 @@ def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
         diagnosis_id=str(query.get("diagnosis_id", "")),
         kpi=str(query.get("kpi", "")),
         limit=int(query.get("limit", 10)),
+        include_artifacts=bool(query.get("include_artifacts", False)),
     )
+
+
+def _public_entry(entry: dict, include_artifacts: bool) -> dict:
+    public = dict(entry)
+    artifacts = public.pop("artifacts", {}) or {}
+    public["artifact_count"] = len(artifacts)
+    public["artifact_names"] = sorted(artifacts)[:20]
+    if include_artifacts:
+        public["artifacts"] = artifacts
+    return public
 
 
 def _discover_capsules(roots: tuple[str | Path, ...]) -> list[Path]:

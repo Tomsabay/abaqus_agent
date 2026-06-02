@@ -253,6 +253,7 @@ class MemorySearchRequest(BaseModel):
     diagnosis_id: str = ""
     kpi: str = ""
     limit: int = 10
+    include_artifacts: bool = False
 
 
 # ── Bridge endpoints ──────────────────────────────────────────────
@@ -351,6 +352,7 @@ async def bridge_memory_search(req: MemorySearchRequest):
             "diagnosis_id": req.diagnosis_id,
             "kpi": req.kpi,
             "limit": req.limit,
+            "include_artifacts": req.include_artifacts,
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

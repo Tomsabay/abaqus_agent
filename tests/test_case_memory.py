@@ -124,6 +124,22 @@ def test_case_memory_text_query_filters_unrelated_completed_cases(tmp_path):
     assert result["matches"][0]["run_id"] == "explicit"
 
 
+def test_case_memory_omits_artifacts_by_default_and_can_include_them(tmp_path):
+    _write_case(tmp_path, "artifact_case", model_name="ArtifactModel", geometry_type="custom_inp")
+
+    compact = search_case_memory(CaseMemoryQuery(roots=(tmp_path,), query="ArtifactModel"))
+    verbose = search_case_memory(CaseMemoryQuery(
+        roots=(tmp_path,),
+        query="ArtifactModel",
+        include_artifacts=True,
+    ))
+
+    assert "artifacts" not in compact["matches"][0]
+    assert compact["matches"][0]["artifact_count"] == 1
+    assert compact["matches"][0]["artifact_names"] == ["Job.log"]
+    assert "artifacts" in verbose["matches"][0]
+
+
 def test_case_memory_loads_spec_from_capsule_when_result_lacks_spec(tmp_path):
     workdir = _write_case(tmp_path, "capsule_only", model_name="LensModel", geometry_type="beam")
     result = json.loads((workdir / "result.json").read_text(encoding="utf-8"))

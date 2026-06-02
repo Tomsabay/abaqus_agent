@@ -3102,7 +3102,7 @@ function renderMemory(result) {
           <div class="memory-score">${formatNum(item.score || 0)}</div>
           <div class="memory-run">
             <div class="memory-run-id">${escapeHTML(item.run_id || '—')}</div>
-            <div class="memory-run-meta">${escapeHTML(item.model_name || '—')} · ${escapeHTML(item.geometry_type || '—')} · ${escapeHTML(item.material_name || '—')}</div>
+            <div class="memory-run-meta">${escapeHTML(item.model_name || '—')} · ${escapeHTML(item.geometry_type || '—')} · ${escapeHTML(item.material_name || '—')} · ${item.artifact_count || 0} artifacts</div>
           </div>
           <div class="memory-status ${statusClass}">${escapeHTML(item.status || '—')}</div>
         </div>
