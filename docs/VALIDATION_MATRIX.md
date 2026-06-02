@@ -39,6 +39,8 @@ or unit-test coverage.
 | 2026-06-02 | Windows 11 23H2 BUILD-HOST, Tailscale SSH, latest source 6ada851 | Abaqus 2021 | Environment preflight readiness | PASS | status=ready, resolved C:\SIMULIA\Commands\abaqus.BAT, detected release 2021, workdir writable, runner_cfg cpus=2/mp_mode=threads/timeout=600 |
 | 2026-06-02 | Windows 11 23H2 BUILD-HOST, Tailscale SSH, latest source 6ada851 | Abaqus 2021 | cantilever full orchestrator run | PASS | run_id=6ad82dcf3a6fa88c, status=COMPLETED, U_tip=-0.0019039579201489687, MISES_MAX=0.6528551578521729, regression PASS |
 | 2026-06-02 | Windows 11 23H2 BUILD-HOST, Tailscale SSH, latest source 6ada851 | Abaqus 2021 | Case Memory facet filters on real cantilever capsule | PASS | query Cantilever with geometry_type=cantilever, solver=standard, material_name=Steel matched run_id=6ad82dcf3a6fa88c; facets status COMPLETED=1, geometry cantilever_block=1, material Steel=1 |
+| 2026-06-02 | Windows 11 23H2 BUILD-HOST, Tailscale SSH, latest source 6ada851 | Abaqus 2021 | 5 public cases full benchmark | PASS | blast_plate, cantilever, explicit_impact, modal, plate_hole all COMPLETED; pipeline 5/5, regression 5/5; report benchmark_20260602_185758.json |
+| 2026-06-02 | Windows 11 23H2 BUILD-HOST, Tailscale SSH, latest source 6ada851 | Abaqus 2021 | Case Memory solver facet filters on 5 real capsules | PASS | status=COMPLETED --solver standard matched 3 runs; --solver explicit matched 2 runs; facets reported geometry/material distributions correctly |
 
 ## Public Case Coverage
 
