@@ -183,6 +183,41 @@ def get_run(run_id: str):
     return {**run, "elapsed": time.time() - run["started_at"]}
 
 
+@app.get("/api/run/{run_id}/report")
+def get_run_report(run_id: str):
+    """Return a UI-friendly report assembled from a run, result.json, and capsule.json."""
+    if run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    return _build_run_report(RUNS[run_id])
+
+
+@app.get("/api/run/{run_id}/capsule")
+def get_run_capsule(run_id: str):
+    """Return capsule.json for a completed real Abaqus run."""
+    if run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    capsule = _load_run_capsule(RUNS[run_id])
+    if not capsule:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} has no capsule")
+    return capsule
+
+
+@app.get("/api/run/{run_id}/artifact/{artifact_name:path}")
+def get_run_artifact(run_id: str, artifact_name: str):
+    """Download a run artifact from the capsule workdir."""
+    if run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    workdir = _run_workdir(RUNS[run_id])
+    if not workdir:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} has no artifact directory")
+    artifact_path = (workdir / artifact_name).resolve()
+    if workdir not in artifact_path.parents and artifact_path != workdir:
+        raise HTTPException(status_code=400, detail="Invalid artifact path")
+    if not artifact_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Artifact not found: {artifact_name}")
+    return FileResponse(str(artifact_path))
+
+
 @app.get("/api/run/{run_id}/stream")
 async def stream_run(run_id: str):
     """
@@ -193,30 +228,37 @@ async def stream_run(run_id: str):
         raise HTTPException(status_code=404)
 
     async def event_gen() -> AsyncGenerator[str, None]:
-        last_status = None
-        last_stages_hash = None
+        last_payload_hash = None
         timeout = 300  # max 5 min
         t0 = time.time()
 
         while time.time() - t0 < timeout:
             run = RUNS.get(run_id, {})
             cur_status = run.get("status")
-            stages_hash = hashlib.md5(
-                json.dumps(run.get("stages", {}), sort_keys=True, default=str).encode()
-            ).hexdigest()
+            payload_hash = hashlib.md5(json.dumps({
+                "status": cur_status,
+                "progress_pct": run.get("progress_pct", 0),
+                "stages": run.get("stages", {}),
+                "kpis": run.get("kpis", {}),
+                "regression": run.get("regression", {}),
+                "capsule_path": run.get("capsule_path"),
+                "result_path": run.get("result_path"),
+            }, sort_keys=True, default=str).encode()).hexdigest()
 
-            if cur_status != last_status or stages_hash != last_stages_hash:
+            if payload_hash != last_payload_hash:
                 payload = {
                     "run_id": run_id,
                     "status": cur_status,
                     "progress_pct": run.get("progress_pct", 0),
                     "stages": run.get("stages", {}),
                     "kpis": run.get("kpis", {}),
+                    "regression": run.get("regression", {}),
+                    "capsule_path": run.get("capsule_path"),
+                    "result_path": run.get("result_path"),
                     "elapsed": time.time() - run.get("started_at", time.time()),
                 }
                 yield f"data: {json.dumps(payload)}\n\n"
-                last_status = cur_status
-                last_stages_hash = stages_hash
+                last_payload_hash = payload_hash
 
             if cur_status in ("COMPLETED", "FAILED", "ABORTED"):
                 yield "data: {\"event\": \"done\"}\n\n"
@@ -309,6 +351,105 @@ def activate_premium(license_key: str = ""):
         return {"valid": False, "error": "No license key provided"}
     except ImportError:
         return {"valid": False, "error": "Premium module not available"}
+
+
+# ── Report helpers ────────────────────────────────────────────────
+
+def _build_run_report(run: dict) -> dict:
+    capsule = _load_run_capsule(run)
+    artifacts = capsule.get("artifacts", {}) if capsule else {}
+    image_artifacts = [
+        name for name in artifacts
+        if Path(name).suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".svg"}
+    ]
+    diagnosis = capsule.get("diagnosis", {}) if capsule else {}
+    summary = {
+        "run_id": run.get("run_id"),
+        "status": run.get("status"),
+        "model_name": run.get("spec", {}).get("meta", {}).get("model_name"),
+        "abaqus_release": run.get("spec", {}).get("meta", {}).get("abaqus_release"),
+        "started_at": run.get("started_at"),
+        "finished_at": run.get("finished_at"),
+        "capsule_path": run.get("capsule_path"),
+        "result_path": run.get("result_path"),
+        "workdir": str(_run_workdir(run) or ""),
+    }
+    report = {
+        "summary": summary,
+        "kpis": run.get("kpis", {}),
+        "regression": run.get("regression", {}),
+        "stages": run.get("stages", {}),
+        "capsule": capsule,
+        "artifacts": artifacts,
+        "image_artifacts": image_artifacts,
+        "diagnosis": diagnosis,
+    }
+    report["markdown"] = _render_run_report_markdown(report)
+    return report
+
+
+def _load_run_capsule(run: dict) -> dict | None:
+    capsule_path = run.get("capsule_path")
+    if not capsule_path:
+        return None
+    path = Path(capsule_path)
+    if not path.exists() or not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _run_workdir(run: dict) -> Path | None:
+    if run.get("workdir"):
+        return Path(run["workdir"]).resolve()
+    capsule_path = run.get("capsule_path")
+    if capsule_path:
+        return Path(capsule_path).resolve().parent
+    return None
+
+
+def _render_run_report_markdown(report: dict) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Abaqus Run Report",
+        "",
+        f"- Run ID: `{summary.get('run_id')}`",
+        f"- Status: `{summary.get('status')}`",
+        f"- Model: `{summary.get('model_name') or '-'}`",
+        f"- Abaqus release: `{summary.get('abaqus_release') or '-'}`",
+        "",
+        "## KPIs",
+        "",
+        "| KPI | Value | Regression |",
+        "|-----|-------|------------|",
+    ]
+    comparisons = report.get("regression", {}).get("comparisons", {})
+    for name, value in sorted(report.get("kpis", {}).items()):
+        comp = comparisons.get(name, {})
+        status = comp.get("status", "-")
+        if isinstance(value, dict):
+            raw_value = value.get("value", "-")
+            unit = value.get("unit") or comp.get("unit") or ""
+            display_value = f"{raw_value} {unit}".strip()
+        else:
+            display_value = value
+        lines.append(f"| {name} | {display_value} | {status} |")
+
+    lines += [
+        "",
+        "## Capsule",
+        "",
+        f"- Capsule path: `{summary.get('capsule_path') or '-'}`",
+        f"- Artifacts: `{len(report.get('artifacts', {}))}`",
+    ]
+    diagnosis = report.get("diagnosis", {})
+    if diagnosis.get("matched"):
+        lines += ["", "## Solver Doctor", ""]
+        for match in diagnosis.get("matches", []):
+            lines.append(f"- `{match.get('id')}` {match.get('severity')}: {match.get('suggestion')}")
+    return "\n".join(lines)
 
 
 # ── Main ──────────────────────────────────────────────────────────
