@@ -2680,6 +2680,7 @@ function makeLocalReport(runId, status) {
 }
 
 function renderReport(report) {
+  state.report = report;
   const area = document.getElementById('report-area');
   const summary = report.summary || {};
   const kpis = report.kpis || {};
@@ -2788,8 +2789,14 @@ function renderReport(report) {
     </div>
     <div class="report-band" style="margin-top:14px">
       <div class="report-band-title">Markdown Report</div>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button class="btn btn-secondary" id="btn-copy-report-md">复制 Markdown</button>
+        <button class="btn btn-secondary" id="btn-download-report-md">下载 .md</button>
+      </div>
       <div class="markdown-preview">${escapeHTML(report.markdown || '')}</div>
     </div>`;
+  document.getElementById('btn-copy-report-md').onclick = copyReportMarkdown;
+  document.getElementById('btn-download-report-md').onclick = downloadReportMarkdown;
 }
 
 function renderCapsule(capsule, report = null) {
@@ -2831,6 +2838,39 @@ function renderCapsule(capsule, report = null) {
       <div class="capsule-band-title">Artifacts</div>
       <div class="artifact-list">${artifactRows || '<div style="color:var(--text3)">暂无 artifacts</div>'}</div>
     </div>`;
+}
+
+async function copyReportMarkdown() {
+  const text = state.report?.markdown || '';
+  if (!text) {
+    toast('当前没有可复制的报告 Markdown', 'info');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('报告 Markdown 已复制', 'ok');
+  } catch {
+    toast('复制失败，请手动选中 Markdown', 'error');
+  }
+}
+
+function downloadReportMarkdown() {
+  const text = state.report?.markdown || '';
+  if (!text) {
+    toast('当前没有可下载的报告 Markdown', 'info');
+    return;
+  }
+  const runId = state.report?.summary?.run_id || state.runId || 'run';
+  const blob = new Blob([text + '\n'], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `abaqus-report-${runId}.md`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('报告 Markdown 已下载', 'ok');
 }
 
 // ── Simulation Diff ──────────────────────────────────────────────
