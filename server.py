@@ -37,7 +37,12 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+
+try:
+    from pydantic import BaseModel, ConfigDict
+except ImportError:  # pragma: no cover - pydantic v1 compatibility
+    from pydantic import BaseModel
+    ConfigDict = None
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -100,6 +105,9 @@ class DiffRequest(BaseModel):
     rtol: float = 0.05
 
 class MemorySearchRequest(BaseModel):
+    if ConfigDict:
+        model_config = ConfigDict(protected_namespaces=())
+
     roots: list[str]
     query: str = ""
     similar_to: str = ""
