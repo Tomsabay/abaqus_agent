@@ -108,7 +108,7 @@ Simulation Diff compares two runs like software diff:
 - contracts
 - report conclusions
 
-The first version can start with KPI and contract diff.
+The MVP now compares KPI changes, contract status, spec fields, capsule inputs, artifacts, and provenance.
 
 ### Case Memory
 
@@ -131,16 +131,17 @@ v0.2 should deliver:
 - capsule manifest and hash store
 - KPI DSL / ODB Lens MVP
 - physics contract evaluator
-- KPI diff report
-- 20+ Solver Doctor patterns
+- Simulation Diff report
+- 30+ Solver Doctor patterns
+- MCP tools for deterministic QA kernels
 - README and GitHub presentation aligned with the new positioning
 - CI green
 
 Current v0.2-dev implementation status:
 
-- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, contract evaluator, KPI diff, Solver Doctor patterns, CLI report workflows, ODB Lens recipe normalization and KPI Markdown reports.
-- In progress: benchmark-level contract reports, richer report templates, and broader ODB Lens extractor coverage.
-- Planned next: frame/region-aware ODB extraction tests on real Abaqus and report templates.
+- Implemented: `custom_inp` no-CAE path, orchestrator-produced capsules, capsule manifest helpers, ODB Lens recipe normalization and KPI Markdown reports, physics contract evaluator, Simulation Diff reports, 30+ Solver Doctor patterns, CLI/API/UI report workflows, and MCP QA tools.
+- Validated: full local test/build pipeline, CI on Python 3.10/3.11/3.12, and a real Windows Abaqus cantilever baseline/candidate Simulation Diff.
+- Planned next: frame/region-aware ODB extraction tests on real Abaqus, report templates, validation matrix, and case-memory search.
 
 ## Commercial Path
 
