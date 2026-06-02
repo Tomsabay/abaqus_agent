@@ -27,6 +27,7 @@ class CaseMemoryQuery:
     model_name: str = ""
     diagnosis_id: str = ""
     kpi: str = ""
+    artifact: str = ""
     limit: int = 10
     include_artifacts: bool = False
     sort_by: str = "score"
@@ -70,6 +71,7 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
             "model_name": q.model_name,
             "diagnosis_id": q.diagnosis_id,
             "kpi": q.kpi,
+            "artifact": q.artifact,
             "limit": limit,
             "include_artifacts": q.include_artifacts,
             "sort_by": q.sort_by,
@@ -128,6 +130,7 @@ def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
         model_name=str(query.get("model_name", "")),
         diagnosis_id=str(query.get("diagnosis_id", "")),
         kpi=str(query.get("kpi", "")),
+        artifact=str(query.get("artifact", "")),
         limit=int(query.get("limit", 10)),
         include_artifacts=bool(query.get("include_artifacts", False)),
         sort_by=_normalize_sort_by(str(query.get("sort_by", "score"))),
@@ -247,6 +250,11 @@ def _passes_filters(entry: dict, query: CaseMemoryQuery) -> bool:
         return False
     if query.kpi and query.kpi not in entry.get("kpi_names", []):
         return False
+    if query.artifact:
+        needle = query.artifact.lower()
+        artifact_names = [name.lower() for name in entry.get("artifacts", {})]
+        if not any(needle in name for name in artifact_names):
+            return False
     return True
 
 
@@ -261,6 +269,10 @@ def _score_entry(entry: dict, query: CaseMemoryQuery, target: dict | None) -> tu
         if hits:
             score += len(hits) * 1.0
             reasons.append("text:" + ",".join(hits[:5]))
+
+    if query.artifact:
+        score += 0.75
+        reasons.append(f"artifact:{query.artifact}")
 
     if not tokens and not target:
         score += 0.1

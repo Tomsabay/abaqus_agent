@@ -234,6 +234,7 @@ class TestBridgeEndpoints:
         res = client.post("/mcp/api/memory/search", json={
             "roots": ["/tmp/runs"],
             "query": "BridgeMemoryModel",
+            "artifact": "Job.log",
             "sort_by": "run_id",
             "sort_order": "asc",
             "min_score": 0.5,
@@ -244,6 +245,7 @@ class TestBridgeEndpoints:
         assert "Case Memory Search" in data["markdown"]
         tool_name, arguments = mock_bridge.mcp_conn.calls[-1]
         assert tool_name == "case_memory_search_tool"
+        assert arguments["artifact"] == "Job.log"
         assert arguments["sort_by"] == "run_id"
         assert arguments["sort_order"] == "asc"
         assert arguments["min_score"] == 0.5

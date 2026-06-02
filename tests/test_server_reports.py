@@ -188,7 +188,7 @@ def test_memory_search_endpoint(tmp_path):
             "run_id": "api_memory",
             "created_at": "2026-06-02T10:00:00",
             "inputs": {"model_name": "ApiMemoryModel"},
-            "artifacts": {},
+            "artifacts": {"Job.log": {"path": "Job.log", "sha256": "abc", "bytes": 10}},
             "provenance": {"status": "COMPLETED"},
         }),
         encoding="utf-8",
@@ -197,6 +197,7 @@ def test_memory_search_endpoint(tmp_path):
     res = client.post("/api/memory/search", json={
         "roots": [str(tmp_path)],
         "query": "ApiMemoryModel",
+        "artifact": "Job.log",
         "sort_by": "run_id",
         "sort_order": "asc",
         "min_score": 0.5,
@@ -205,6 +206,7 @@ def test_memory_search_endpoint(tmp_path):
     assert res.status_code == 200
     data = res.json()
     assert data["matches"][0]["run_id"] == "api_memory"
+    assert data["query"]["artifact"] == "Job.log"
     assert data["query"]["sort_by"] == "run_id"
     assert data["query"]["sort_order"] == "asc"
     assert data["query"]["min_score"] == 0.5

@@ -1710,6 +1710,10 @@ reports</textarea>
                 <input class="memory-input" id="memory-kpi" placeholder="U_tip">
               </div>
               <div>
+                <div class="input-label">Artifact</div>
+                <input class="memory-input" id="memory-artifact" placeholder="mises_contour.png">
+              </div>
+              <div>
                 <div class="input-label">Diagnosis ID</div>
                 <input class="memory-input" id="memory-diagnosis" placeholder="missing_node_set">
               </div>
@@ -3175,6 +3179,7 @@ async function searchMemory() {
       status: document.getElementById('memory-status').value,
       diagnosis_id: document.getElementById('memory-diagnosis').value.trim(),
       kpi: document.getElementById('memory-kpi').value.trim(),
+      artifact: document.getElementById('memory-artifact').value.trim(),
       limit: parseInt(document.getElementById('memory-limit').value || '10', 10),
       sort_by: document.getElementById('memory-sort-by').value,
       sort_order: document.getElementById('memory-sort-order').value,

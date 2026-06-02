@@ -111,7 +111,7 @@ def test_memory_search_cli_prints_json(tmp_path, capsys):
             "run_id": "memory_cli",
             "created_at": "2026-06-02T10:00:00",
             "inputs": {"model_name": "MemoryCliModel"},
-            "artifacts": {},
+            "artifacts": {"Job.log": {"path": "Job.log", "sha256": "abc", "bytes": 10}},
             "provenance": {"status": "COMPLETED"},
         }),
         encoding="utf-8",
@@ -120,6 +120,7 @@ def test_memory_search_cli_prints_json(tmp_path, capsys):
     rc = cli.main([
         "memory", "search", str(tmp_path),
         "--query", "MemoryCliModel",
+        "--artifact", "Job.log",
         "--sort-by", "run_id",
         "--sort-order", "asc",
         "--min-score", "0.5",
@@ -129,6 +130,7 @@ def test_memory_search_cli_prints_json(tmp_path, capsys):
     data = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert data["matches"][0]["run_id"] == "memory_cli"
+    assert data["query"]["artifact"] == "Job.log"
     assert data["query"]["sort_by"] == "run_id"
     assert data["query"]["sort_order"] == "asc"
     assert data["query"]["min_score"] == 0.5
