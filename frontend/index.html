@@ -1720,6 +1720,7 @@ const state = {
   currentStage: -1,
   stageResults: {},
   kpis: [],
+  contracts: {},
   report: null,
   capsule: null,
   serverOnline: false,
@@ -2061,6 +2062,7 @@ const STAGES = [
   { id: 'submit_job',     label: 'submit_job',      desc: '提交 Abaqus analysis 作业',   duration: [1000,2000] },
   { id: 'monitor_job',    label: 'monitor_job',     desc: '轮询 .sta 作业状态',          duration: [600,1200] },
   { id: 'extract_kpis',   label: 'extract_kpis',    desc: '从 ODB 提取 KPI 指标',        duration: [500,1000] },
+  { id: 'physics_contracts', label: 'physics_contracts', desc: '评估 Physics Contracts', duration: [200,500] },
 ];
 
 // ── Render pipeline stages ───────────────────────────────────────
@@ -2110,6 +2112,7 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
   state.pipelineRunning = true;
   state.stageResults = {};
   state.kpis = [];
+  state.contracts = {};
   state.terminalRunId = null;
   document.getElementById('btn-start-run').disabled = true;
   document.getElementById('btn-abort-run').disabled = false;
@@ -2238,6 +2241,7 @@ async function _applyRunUpdate(data, stageBadge) {
     try {
       setProgress(100);
       state.kpis = _flattenKpis(data.kpis || {}, data.regression || {});
+      state.contracts = data.contracts || {};
       renderKPIs();
       const localReport = makeLocalReport(data.run_id, data.status);
       state.report = localReport;
@@ -2264,6 +2268,7 @@ async function _applyRunUpdate(data, stageBadge) {
     try {
       toast('运行失败', 'error');
       state.kpis = [];
+      state.contracts = data.contracts || {};
       await loadRunReport(data.run_id, data);
       _addHistory({
         runId: data.run_id,
@@ -2433,6 +2438,7 @@ async function loadRunReport(runId, fallbackData = {}) {
         const report = await res.json();
         state.report = report;
         state.capsule = report.capsule || null;
+        state.contracts = report.contracts || {};
         renderReport(report);
         renderCapsule(report.capsule, report);
         return;
@@ -2440,6 +2446,7 @@ async function loadRunReport(runId, fallbackData = {}) {
     } catch {}
   }
   const report = makeLocalReport(runId || state.runId || 'local', fallbackData.status || 'COMPLETED');
+  report.contracts = fallbackData.contracts || report.contracts;
   state.report = report;
   state.capsule = null;
   renderReport(report);
@@ -2469,6 +2476,7 @@ function makeLocalReport(runId, status) {
     },
     kpis,
     regression: { passed: true, comparisons },
+    contracts: state.contracts || { passed: true, results: [] },
     stages: state.stageResults,
     artifacts: {},
     image_artifacts: [],
@@ -2481,10 +2489,18 @@ function renderReport(report) {
   const summary = report.summary || {};
   const kpis = report.kpis || {};
   const comparisons = report.regression?.comparisons || {};
+  const contracts = report.contracts || {};
+  const contractResults = Array.isArray(contracts.results) ? contracts.results : [];
   const artifactCount = Object.keys(report.artifacts || {}).length;
   const imageArtifacts = report.image_artifacts || [];
   const statusClass = summary.status === 'COMPLETED' || summary.status === 'COMPLETED (sim)'
     ? 'report-pass' : 'report-fail';
+  const contractOverall = contractResults.length
+    ? (contracts.passed ? 'PASS' : 'FAIL')
+    : '—';
+  const contractOverallClass = contractOverall === 'PASS'
+    ? 'report-pass'
+    : (contractOverall === 'FAIL' ? 'report-fail' : '');
 
   const kpiRows = Object.entries(kpis).map(([name, value]) => {
     const comp = comparisons[name] || {};
@@ -2500,6 +2516,21 @@ function renderReport(report) {
         <td class="${regClass}">${escapeHTML(reg)}</td>
       </tr>`;
   }).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 KPI</td></tr>';
+
+  const contractRows = contractResults.map(item => {
+    const status = item.status || (item.passed ? 'PASS' : 'FAIL');
+    const cls = status === 'PASS' || status === 'INFO'
+      ? 'report-pass'
+      : (status === 'WARNING' ? 'report-warn' : 'report-fail');
+    return `
+      <tr>
+        <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(item.name || '—')}</td>
+        <td>${escapeHTML(item.check || item.type || '—')}</td>
+        <td>${escapeHTML(item.severity || '—')}</td>
+        <td class="${cls}">${escapeHTML(status)}</td>
+        <td>${escapeHTML(item.detail || '')}</td>
+      </tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:var(--text3)">暂无 Physics Contract</td></tr>';
 
   const visualHtml = imageArtifacts.length
     ? imageArtifacts.map(name => `
@@ -2535,6 +2566,10 @@ function renderReport(report) {
             <div class="report-metric-label">Artifacts</div>
             <div class="report-metric-value">${artifactCount}</div>
           </div>
+          <div class="report-metric">
+            <div class="report-metric-label">Contracts</div>
+            <div class="report-metric-value ${contractOverallClass}">${escapeHTML(contractOverall)}</div>
+          </div>
         </div>
       </div>
       <div class="report-band">
@@ -2547,6 +2582,13 @@ function renderReport(report) {
       <table class="report-table">
         <thead><tr><th>KPI</th><th>Actual</th><th>Expected</th><th>Status</th></tr></thead>
         <tbody>${kpiRows}</tbody>
+      </table>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Physics Contracts</div>
+      <table class="report-table">
+        <thead><tr><th>Name</th><th>Check</th><th>Severity</th><th>Status</th><th>Detail</th></tr></thead>
+        <tbody>${contractRows}</tbody>
       </table>
     </div>
     <div class="report-band" style="margin-top:14px">

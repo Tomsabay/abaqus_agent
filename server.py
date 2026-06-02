@@ -165,6 +165,7 @@ async def start_run(req: StartRunRequest, background_tasks: BackgroundTasks):
         "runner_cfg": req.runner_cfg,
         "stages": {},
         "kpis": {},
+        "contracts": {},
         "started_at": time.time(),
         "finished_at": None,
         "progress_pct": 0,
@@ -241,6 +242,7 @@ async def stream_run(run_id: str):
                 "stages": run.get("stages", {}),
                 "kpis": run.get("kpis", {}),
                 "regression": run.get("regression", {}),
+                "contracts": run.get("contracts", {}),
                 "capsule_path": run.get("capsule_path"),
                 "result_path": run.get("result_path"),
             }, sort_keys=True, default=str).encode()).hexdigest()
@@ -253,6 +255,7 @@ async def stream_run(run_id: str):
                     "stages": run.get("stages", {}),
                     "kpis": run.get("kpis", {}),
                     "regression": run.get("regression", {}),
+                    "contracts": run.get("contracts", {}),
                     "capsule_path": run.get("capsule_path"),
                     "result_path": run.get("result_path"),
                     "elapsed": time.time() - run.get("started_at", time.time()),
@@ -313,6 +316,7 @@ async def run_benchmark(background_tasks: BackgroundTasks, dry_run: bool = True)
         "results": {},
         "started_at": time.time(),
         "progress_pct": 0,
+        "contracts": {},
     }
     background_tasks.add_task(run_benchmark_async, run_id, RUNS, dry_run)
     return {"run_id": run_id, "cases": cases, "dry_run": dry_run}
@@ -363,6 +367,7 @@ def _build_run_report(run: dict) -> dict:
         if Path(name).suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".svg"}
     ]
     diagnosis = capsule.get("diagnosis", {}) if capsule else {}
+    contracts = run.get("contracts") or (capsule.get("contracts", {}) if capsule else {})
     summary = {
         "run_id": run.get("run_id"),
         "status": run.get("status"),
@@ -378,6 +383,7 @@ def _build_run_report(run: dict) -> dict:
         "summary": summary,
         "kpis": run.get("kpis", {}),
         "regression": run.get("regression", {}),
+        "contracts": contracts,
         "stages": run.get("stages", {}),
         "capsule": capsule,
         "artifacts": artifacts,
@@ -436,6 +442,25 @@ def _render_run_report_markdown(report: dict) -> str:
         else:
             display_value = value
         lines.append(f"| {name} | {display_value} | {status} |")
+
+    contracts = report.get("contracts", {})
+    contract_results = contracts.get("results", []) if isinstance(contracts, dict) else []
+    if contract_results:
+        lines += [
+            "",
+            "## Physics Contracts",
+            "",
+            f"Overall: `{'PASS' if contracts.get('passed') else 'FAIL'}`",
+            "",
+            "| Name | Check | Severity | Status | Detail |",
+            "|------|-------|----------|--------|--------|",
+        ]
+        for item in contract_results:
+            detail = str(item.get("detail", "")).replace("\n", " ")
+            lines.append(
+                f"| {item.get('name', '-')} | {item.get('check') or item.get('type', '-')} | "
+                f"{item.get('severity', '-')} | {item.get('status', '-')} | {detail} |"
+            )
 
     lines += [
         "",

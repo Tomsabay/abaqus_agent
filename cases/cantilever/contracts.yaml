@@ -1,0 +1,22 @@
+contracts:
+  - name: tip_deflects_downward
+    check: operator
+    kpi: U_tip
+    operator: <
+    value: 0.0
+    severity: error
+
+  - name: tip_displacement_regression_band
+    check: relative_error
+    kpi: U_tip
+    expected: -2.0e-3
+    rtol: 0.10
+    atol: 1.0e-6
+    severity: error
+
+  - name: mises_max_reasonable
+    check: range
+    kpi: MISES_MAX
+    min: 0.45
+    max: 0.80
+    severity: warning

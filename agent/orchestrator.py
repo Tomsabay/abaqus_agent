@@ -31,6 +31,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from capsule.store import create_capsule, hash_file, write_capsule
+from contracts import evaluate_contracts
 from doctor import diagnose_logs
 from odb_lens import normalize_plots, normalize_recipe
 from post.export_odb_images import export_odb_images
@@ -52,6 +53,7 @@ class AbaqusOrchestrator:
     spec_path       : Path to spec.yaml (or None if spec_dict provided)
     workdir         : Override working directory
     expected_path   : Path to expected.json for regression comparison
+    contracts_path  : Path to physics contracts YAML for QA checks
     runner_cfg_path : Path to runner.json (cpus, timeout, etc.)
     on_progress     : Optional callback(stage: str, data: dict)
     spec_dict       : Spec dict directly (alternative to spec_path)
@@ -63,10 +65,12 @@ class AbaqusOrchestrator:
         spec_path: str | Path | None = None,
         workdir: str | Path | None = None,
         expected_path: str | Path | None = None,
+        contracts_path: str | Path | None = None,
         runner_cfg_path: str | Path | None = None,
         on_progress: Callable[[str, dict], None] | None = None,
         spec_dict: dict | None = None,
         runner_cfg: dict | None = None,
+        contracts: list[dict] | dict | None = None,
     ):
         if spec_dict:
             self.spec = spec_dict
@@ -102,6 +106,8 @@ class AbaqusOrchestrator:
             with open(expected_path, encoding="utf-8") as f:
                 self.expected = json.load(f)
 
+        self.contracts = self._load_contracts(contracts_path, contracts)
+
         # Pipeline result accumulator
         self.result: dict = {
             "spec_path": str(self.spec_path) if self.spec_path else None,
@@ -109,9 +115,25 @@ class AbaqusOrchestrator:
             "stages": {},
             "kpis": {},
             "regression": {},
+            "contracts": {},
             "status": "PENDING",
         }
         self._build_result: dict = {}
+
+    def _load_contracts(
+        self,
+        contracts_path: str | Path | None,
+        contracts: list[dict] | dict | None,
+    ) -> list[dict]:
+        """Load physics contracts from explicit args, spec, or YAML."""
+        raw = contracts
+        if raw is None:
+            raw = self.spec.get("contracts") or self.spec.get("physics_contracts")
+        if raw is None and contracts_path and Path(contracts_path).exists():
+            raw = yaml.safe_load(Path(contracts_path).read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            raw = raw.get("contracts", [])
+        return list(raw or [])
 
     # -------------------------------------------------------------------------
     # Main entry point
@@ -144,6 +166,7 @@ class AbaqusOrchestrator:
 
                 if self.expected:
                     self._stage_compare(kpi_result.get("kpis", {}))
+                self._stage_contracts(kpi_result.get("kpis", {}))
 
                 self.result["status"] = "COMPLETED"
                 if attempt > 0:
@@ -407,6 +430,23 @@ class AbaqusOrchestrator:
         }
         self.on_progress("compare_kpis", {"passed": all_pass, "details": comparison})
 
+    def _stage_contracts(self, actual_kpis: dict):
+        """Evaluate physics contracts against extracted KPIs."""
+        if not self.contracts:
+            self.result["contracts"] = {"passed": True, "results": []}
+            return
+
+        result = evaluate_contracts(self.contracts, actual_kpis)
+        self.result["contracts"] = result
+        self.result["stages"]["physics_contracts"] = {
+            "passed": result.get("passed", False),
+            "checks": len(result.get("results", [])),
+        }
+        self.on_progress("physics_contracts", {
+            "passed": result.get("passed", False),
+            "checks": len(result.get("results", [])),
+        })
+
     # -------------------------------------------------------------------------
     # Persistence
     # -------------------------------------------------------------------------
@@ -442,6 +482,10 @@ class AbaqusOrchestrator:
             artifacts=artifacts,
             metadata=metadata,
         )
+
+        if self.result.get("contracts"):
+            capsule["contracts"] = self.result["contracts"]
+            write_capsule(capsule, workdir)
 
         if self.result.get("status") != "COMPLETED":
             log_paths = [workdir / name for name in artifacts if Path(name).suffix.lower() in {".sta", ".msg", ".log", ".dat"}]
@@ -489,7 +533,7 @@ class AbaqusOrchestrator:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python agent/orchestrator.py <spec.yaml> [expected.json] [runner.json]")
+        print("Usage: python agent/orchestrator.py <spec.yaml> [expected.json] [runner.json] [contracts.yaml]")
         sys.exit(1)
 
     def _progress(stage, data):
@@ -499,6 +543,7 @@ if __name__ == "__main__":
         spec_path=sys.argv[1],
         expected_path=sys.argv[2] if len(sys.argv) > 2 else None,
         runner_cfg_path=sys.argv[3] if len(sys.argv) > 3 else None,
+        contracts_path=sys.argv[4] if len(sys.argv) > 4 else None,
         on_progress=_progress,
     )
     result = orch.run()

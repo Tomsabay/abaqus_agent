@@ -65,9 +65,9 @@ class TestHelpers:
 class TestPipeline:
     def test_stages_defined(self):
         from core.pipeline import STAGE_LOGS, STAGES
-        assert len(STAGES) == 6
+        assert len(STAGES) == 7
         assert all(len(s) == 4 for s in STAGES)
-        assert len(STAGE_LOGS) == 6
+        assert len(STAGE_LOGS) == 7
 
     def test_simulate_stage(self):
         from core.pipeline import simulate_stage
@@ -147,7 +147,7 @@ class TestPipeline:
 
         assert runs[run_id]["status"] == "COMPLETED"
         assert runs[run_id]["progress_pct"] == 100
-        assert len(runs[run_id]["stages"]) == 6
+        assert len(runs[run_id]["stages"]) == 7
         assert len(events) > 0
         # Last event should be "done"
         assert events[-1][0] == "done"

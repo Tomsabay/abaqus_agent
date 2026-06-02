@@ -47,6 +47,19 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
             "status": "COMPLETED",
             "abaqus_release": "2024",
         },
+        "contracts": {
+            "passed": True,
+            "results": [
+                {
+                    "name": "tip_down",
+                    "check": "operator",
+                    "severity": "error",
+                    "status": "PASS",
+                    "passed": True,
+                    "detail": "U_tip=-0.0019, expected < 0.0",
+                }
+            ],
+        },
     }
     capsule_path = workdir / "capsule.json"
     capsule_path.write_text(json.dumps(capsule), encoding="utf-8")
@@ -58,6 +71,7 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
         "stages": {},
         "kpis": {"U_tip": -0.0019},
         "regression": {"comparisons": {"U_tip": {"status": "PASS", "expected": -0.002}}},
+        "contracts": {},
         "started_at": time.time(),
         "finished_at": time.time(),
         "capsule_path": str(capsule_path),
@@ -71,7 +85,9 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert report["summary"]["run_id"] == "ui_report_001"
     assert report["artifacts"]["Job.log"]["bytes"] > 0
     assert report["image_artifacts"] == ["mises_contour.png"]
+    assert report["contracts"]["results"][0]["name"] == "tip_down"
     assert "Abaqus Run Report" in report["markdown"]
+    assert "Physics Contracts" in report["markdown"]
 
     capsule_res = client.get("/api/run/ui_report_001/capsule")
     assert capsule_res.status_code == 200

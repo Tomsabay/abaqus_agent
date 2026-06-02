@@ -51,8 +51,8 @@ class TestRealPipelineDispatch:
             )
 
         assert runs[run_id]["status"] == "COMPLETED"
-        # Simulated path sets all 6 stages
-        assert len(runs[run_id]["stages"]) == 6
+        # Simulated path sets all stages, including physics contracts.
+        assert len(runs[run_id]["stages"]) == 7
 
     def test_dispatches_to_real_when_abaqus_available(self):
         from core.pipeline import run_pipeline
@@ -65,6 +65,7 @@ class TestRealPipelineDispatch:
             "status": "COMPLETED",
             "kpis": {"U_tip": -0.002},
             "regression": {"passed": True},
+            "contracts": {"passed": True, "results": []},
         }
 
         mock_orch = MagicMock()
@@ -78,6 +79,7 @@ class TestRealPipelineDispatch:
 
         assert runs[run_id]["status"] == "COMPLETED"
         assert runs[run_id]["kpis"] == {"U_tip": -0.002}
+        assert runs[run_id]["contracts"] == {"passed": True, "results": []}
 
 
 class TestRealPipelineExecution:
@@ -94,6 +96,7 @@ class TestRealPipelineExecution:
             "status": "COMPLETED",
             "kpis": {"max_mises": 290.5, "U_tip": -0.00195},
             "regression": {"passed": True, "comparisons": {}},
+            "contracts": {"passed": True, "results": []},
         }
 
         mock_orch = MagicMock()
@@ -109,6 +112,7 @@ class TestRealPipelineExecution:
         assert run["progress_pct"] == 100
         assert run["kpis"] == mock_result["kpis"]
         assert run["regression"] == mock_result["regression"]
+        assert run["contracts"] == mock_result["contracts"]
         assert run["finished_at"] is not None
 
     def test_real_pipeline_failed(self):
@@ -187,7 +191,7 @@ class TestRealPipelineExecution:
         assert "done" in events
 
     def test_real_pipeline_sets_initial_stages(self):
-        """Verify all 6 stages are initialized before orchestrator runs."""
+        """Verify all stages are initialized before orchestrator runs."""
         from core.pipeline import _run_pipeline_real
 
         runs = {}
@@ -211,8 +215,8 @@ class TestRealPipelineExecution:
                 _run_pipeline_real(run_id, runs)
             )
 
-        # All 6 stages should have been initialized
-        assert len(captured_stages) == 6
+        # All stages should have been initialized.
+        assert len(captured_stages) == 7
         for stage_data in captured_stages.values():
             assert stage_data["status"] == "pending"
 
@@ -385,6 +389,7 @@ class TestRunSnapshot:
             "progress_pct": 50,
             "stages": {"validate_spec": {"status": "done"}},
             "kpis": {"U_tip": -0.002},
+            "contracts": {"passed": True, "results": []},
             "started_at": time.time() - 10,
         }
 
@@ -393,6 +398,7 @@ class TestRunSnapshot:
         assert snap["status"] == "RUNNING"
         assert snap["progress_pct"] == 50
         assert "validate_spec" in snap["stages"]
+        assert snap["contracts"] == {"passed": True, "results": []}
         assert snap["elapsed"] > 0
 
     def test_snapshot_handles_missing_fields(self):
