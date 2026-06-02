@@ -20,8 +20,10 @@ Run:
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
+import mimetypes
 
 # ── Project imports ──────────────────────────────────────────────
 import sys
@@ -46,7 +48,7 @@ from core.pipeline import (
     run_pipeline,
 )
 from core.spec_generator import generate_spec_async
-from reporting import render_run_report_markdown
+from reporting import render_run_report_html, render_run_report_markdown
 from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
 
@@ -221,6 +223,20 @@ def get_run_report_markdown(run_id: str, template: str = "standard"):
     return Response(
         content=report.get("markdown", "") + "\n",
         media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/api/run/{run_id}/report.html")
+def get_run_report_html(run_id: str, template: str = "standard"):
+    """Download a run report as standalone HTML."""
+    if run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    report = _build_run_report(RUNS[run_id], template=template, embed_images=True)
+    filename = f"abaqus-report-{run_id}.html"
+    return Response(
+        content=report.get("html", ""),
+        media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
@@ -436,7 +452,7 @@ def activate_premium(license_key: str = ""):
 
 # ── Report helpers ────────────────────────────────────────────────
 
-def _build_run_report(run: dict, template: str = "standard") -> dict:
+def _build_run_report(run: dict, template: str = "standard", embed_images: bool = False) -> dict:
     capsule = _load_run_capsule(run)
     artifacts = capsule.get("artifacts", {}) if capsule else {}
     image_artifacts = [
@@ -467,8 +483,11 @@ def _build_run_report(run: dict, template: str = "standard") -> dict:
         "image_artifacts": image_artifacts,
         "diagnosis": diagnosis,
     }
+    if embed_images:
+        report["image_artifact_sources"] = _load_image_artifact_sources(run, image_artifacts)
     report["template"] = template
     report["markdown"] = _render_run_report_markdown(report, template=template)
+    report["html"] = _render_run_report_html(report, template=template)
     return report
 
 
@@ -494,6 +513,23 @@ def _run_workdir(run: dict) -> Path | None:
     return None
 
 
+def _load_image_artifact_sources(run: dict, image_artifacts: list[str]) -> dict[str, str]:
+    workdir = _run_workdir(run)
+    if not workdir:
+        return {}
+    sources = {}
+    for name in image_artifacts:
+        artifact_path = (workdir / name).resolve()
+        if workdir not in artifact_path.parents and artifact_path != workdir:
+            continue
+        if not artifact_path.is_file() or artifact_path.stat().st_size > 5 * 1024 * 1024:
+            continue
+        media_type = mimetypes.guess_type(artifact_path.name)[0] or "application/octet-stream"
+        data = base64.b64encode(artifact_path.read_bytes()).decode("ascii")
+        sources[name] = f"data:{media_type};base64,{data}"
+    return sources
+
+
 def _run_diff_payload(run: dict) -> dict:
     capsule = _load_run_capsule(run) or {}
     return {
@@ -512,6 +548,10 @@ def _run_diff_payload(run: dict) -> dict:
 
 def _render_run_report_markdown(report: dict, template: str = "standard") -> str:
     return render_run_report_markdown(report, template=template)
+
+
+def _render_run_report_html(report: dict, template: str = "standard") -> str:
+    return render_run_report_html(report, template=template)
 
 
 # ── Main ──────────────────────────────────────────────────────────
