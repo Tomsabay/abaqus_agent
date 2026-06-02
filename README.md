@@ -279,6 +279,8 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Markdown report templates
 - [x] Validation matrix for Abaqus versions and operating systems
 - [x] Case Memory deterministic local capsule search
+- [x] Case Memory CLI/API/MCP/UI workflow with real capsule-history validation
+- [x] Markdown report copy/download actions in the web UI
 
 ## Acknowledgments
 
