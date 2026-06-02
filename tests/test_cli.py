@@ -76,6 +76,50 @@ def test_validate_env_cli_strict_fails_when_not_ready(monkeypatch):
     assert cli.main(["validate", "env", "--strict", "--json"]) == 1
 
 
+def test_validate_record_cli_dry_run(capsys):
+    rc = cli.main([
+        "validate", "record",
+        "--date", "2026-06-02",
+        "--environment", "macOS",
+        "--abaqus", "Not installed",
+        "--workflow", "dry-run",
+        "--result", "PASS",
+        "--evidence", "5 / 5",
+        "--dry-run",
+    ])
+
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "| 2026-06-02 | macOS | Not installed | dry-run | PASS | 5 / 5 |" in out
+
+
+def test_validate_record_cli_appends_matrix(tmp_path, capsys):
+    matrix = tmp_path / "VALIDATION_MATRIX.md"
+    matrix.write_text(
+        "# Validation Matrix\n\n"
+        "## Current Evidence\n\n"
+        "| Date | Environment | Abaqus | Case / Workflow | Result | Evidence |\n"
+        "|---|---|---|---|---|---|\n\n"
+        "## Public Case Coverage\n",
+        encoding="utf-8",
+    )
+
+    rc = cli.main([
+        "validate", "record",
+        "--matrix", str(matrix),
+        "--date", "2026-06-02",
+        "--environment", "Windows",
+        "--abaqus", "Abaqus 2021",
+        "--workflow", "cantilever",
+        "--result", "PASS",
+        "--evidence", "status=COMPLETED",
+    ])
+
+    assert rc == 0
+    assert "Appended validation evidence" in capsys.readouterr().out
+    assert "| 2026-06-02 | Windows | Abaqus 2021 | cantilever | PASS | status=COMPLETED |" in matrix.read_text(encoding="utf-8")
+
+
 def test_report_export_cli_writes_json(monkeypatch, tmp_path, capsys):
     out = tmp_path / "report.md"
 

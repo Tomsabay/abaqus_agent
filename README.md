@@ -76,6 +76,7 @@ Check whether the current machine is ready for real Abaqus validation:
 abaqus-agent validate env --json
 abaqus-agent validate env --expected-release 2026 --strict --out validation-preflight.md
 abaqus-agent validate env --workdir runs --runner-json '{"cpus":4,"mp_mode":"threads","timeout_seconds":900}' --json
+abaqus-agent validate record --environment "Windows 11" --abaqus "Abaqus 2021" --workflow "cantilever" --result PASS --evidence "status=COMPLETED"
 ```
 
 Export an offline report from a run directory, `capsule.json`, or `result.json`:
@@ -274,6 +275,7 @@ Notes:
 
 - `python run_benchmark.py --dry-run` validates specs without Abaqus.
 - `abaqus-agent validate env` and the Environment panel record OS, Python, Abaqus command resolution, `abaqus information=release`, expected-release match, workdir writability, license markers, and runner config evidence before real validation.
+- `abaqus-agent validate record` appends a normalized evidence row to `docs/VALIDATION_MATRIX.md` after real Windows/Linux/Abaqus runs.
 - `abaqus-agent report export`, `/api/report/export`, MCP bridge, and the Report panel produce Markdown, standalone HTML, optional PDF, or zipped report bundles from offline run evidence.
 - Full regression requires a local Abaqus installation and license.
 - Current environment evidence is tracked in [docs/VALIDATION_MATRIX.md](docs/VALIDATION_MATRIX.md).
@@ -330,6 +332,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Environment preflight CLI/API/MCP/UI workflow for Linux/Windows/Abaqus version validation readiness
 - [x] Expected Abaqus release matching in Environment Preflight across CLI/API/MCP/UI
 - [x] Workdir, license marker, and runner config readiness checks in Environment Preflight
+- [x] Validation matrix evidence recorder CLI for real-run evidence rows
 - [x] Offline report export CLI/API/MCP/UI workflow for run directories, capsules, and result JSON files
 
 ## Acknowledgments
