@@ -617,6 +617,163 @@ html, body {
 .kpi-badge.fail { background: rgba(255,69,96,0.15); color: var(--red); }
 .kpi-badge.info { background: rgba(77,142,255,0.15); color: var(--blue); }
 
+/* ── Report and capsule panels ───────────────────────────────────── */
+.report-area,
+.capsule-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.85fr) minmax(360px, 1.35fr);
+  gap: 14px;
+}
+
+.report-band,
+.capsule-band {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3);
+  padding: 14px;
+  min-width: 0;
+}
+
+.report-band-title,
+.capsule-band-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.report-metric {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  min-height: 66px;
+}
+
+.report-metric-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.report-metric-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.report-pass { color: var(--green); }
+.report-fail { color: var(--red); }
+.report-warn { color: var(--yellow); }
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.report-table th {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border2);
+  text-transform: uppercase;
+}
+
+.report-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.artifact-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.artifact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 10px;
+  min-width: 0;
+}
+
+.artifact-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-size {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  flex: 0 0 auto;
+}
+
+.markdown-preview {
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+  line-height: 1.7;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.visual-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  background:
+    linear-gradient(135deg, rgba(77,142,255,0.08), transparent 40%),
+    linear-gradient(315deg, rgba(255,107,43,0.08), transparent 45%),
+    var(--bg2);
+  border: 1px dashed var(--border2);
+  border-radius: 8px;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+  padding: 18px;
+}
+
+@media (max-width: 980px) {
+  .report-grid { grid-template-columns: 1fr; }
+  .report-metrics { grid-template-columns: 1fr; }
+}
+
 /* ── Benchmark table ─────────────────────────────────────────────── */
 .bench-area {
   flex: 1;
@@ -1161,6 +1318,12 @@ body::after {
     </div>
 
     <div class="nav-section" style="margin-top:8px">评估</div>
+    <div class="nav-item" data-panel="report">
+      <span class="nav-icon">▣</span> 运行报告
+    </div>
+    <div class="nav-item" data-panel="capsule">
+      <span class="nav-icon">◇</span> 实验胶囊
+    </div>
     <div class="nav-item" data-panel="benchmark">
       <span class="nav-icon">≡</span> Benchmark
     </div>
@@ -1317,10 +1480,36 @@ body::after {
       </div>
     </section>
 
+    <!-- ── Panel: Report ───────────────────────────────────── -->
+    <section class="panel" id="panel-report">
+      <div class="panel-header">
+        <div class="panel-title"><span>05</span>运行报告</div>
+      </div>
+      <div class="report-area" id="report-area">
+        <div class="empty-state" id="report-empty">
+          <div class="empty-icon">▣</div>
+          <div class="empty-label">运行完成后生成报告视图</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Panel: Capsule ──────────────────────────────────── -->
+    <section class="panel" id="panel-capsule">
+      <div class="panel-header">
+        <div class="panel-title"><span>06</span>实验胶囊</div>
+      </div>
+      <div class="capsule-area" id="capsule-area">
+        <div class="empty-state" id="capsule-empty">
+          <div class="empty-icon">◇</div>
+          <div class="empty-label">真实 Abaqus 运行后显示 artifacts / provenance</div>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Panel: Benchmark ────────────────────────────────── -->
     <section class="panel" id="panel-benchmark">
       <div class="panel-header">
-        <div class="panel-title"><span>05</span>Benchmark 报告</div>
+        <div class="panel-title"><span>07</span>Benchmark 报告</div>
       </div>
       <div class="bench-area">
         <div class="section-title" style="margin-bottom:16px">基准算例 · 4 cases</div>
@@ -1357,7 +1546,7 @@ body::after {
     <!-- ── Panel: History ───────────────────────────────────── -->
     <section class="panel" id="panel-history">
       <div class="panel-header">
-        <div class="panel-title"><span>06</span>运行历史</div>
+        <div class="panel-title"><span>08</span>运行历史</div>
       </div>
       <div class="history-area" id="history-area">
         <div class="history-header">
@@ -1377,7 +1566,7 @@ body::after {
     <!-- ── Panel: Settings ─────────────────────────────────── -->
     <section class="panel" id="panel-settings">
       <div class="panel-header">
-        <div class="panel-title"><span>07</span>设置</div>
+        <div class="panel-title"><span>09</span>设置</div>
       </div>
       <div class="settings-area">
 
@@ -1530,9 +1719,13 @@ const state = {
   pipelineRunning: false,
   currentStage: -1,
   stageResults: {},
-  kpis: {},
+  kpis: [],
+  report: null,
+  capsule: null,
   serverOnline: false,
   es: null,  // EventSource
+  pollTimer: null,
+  terminalRunId: null,
   history: JSON.parse(localStorage.getItem('abaqus_agent_history') || '[]'),
 };
 
@@ -1873,7 +2066,8 @@ const STAGES = [
 // ── Render pipeline stages ───────────────────────────────────────
 function renderPipeline() {
   const container = document.getElementById('pipeline-stages');
-  document.getElementById('pipeline-empty').style.display = 'none';
+  const empty = document.getElementById('pipeline-empty');
+  if (empty) empty.style.display = 'none';
 
   // Include dynamic stages from real Abaqus (e.g., autorepair, compare_kpis)
   const allStages = [...STAGES, ...(state._dynamicStages || [])];
@@ -1915,7 +2109,8 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
 
   state.pipelineRunning = true;
   state.stageResults = {};
-  state.kpis = {};
+  state.kpis = [];
+  state.terminalRunId = null;
   document.getElementById('btn-start-run').disabled = true;
   document.getElementById('btn-abort-run').disabled = false;
   renderPipeline();
@@ -1939,6 +2134,7 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
       }
       const { run_id } = await res.json();
       state.runId = run_id;
+      _startRunPolling(run_id, stageBadge);
 
       // Subscribe to SSE
       if (state.es) state.es.close();
@@ -1951,15 +2147,28 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
         _resetRunBtn();
       };
 
-      es.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        if (data.event === 'done') { es.close(); return; }
-        _applyRunUpdate(data, stageBadge);
+      es.onmessage = async (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.event === 'done') {
+            es.close();
+            await _refreshFinalRun(run_id, stageBadge);
+            return;
+          }
+          await _applyRunUpdate(data, stageBadge);
+        } catch (err) {
+          console.error('Run stream update failed', err);
+          es.close();
+          toast('运行状态更新失败', 'error');
+          _resetRunBtn();
+        }
       };
 
       es.onerror = () => {
         es.close();
-        _resetRunBtn();
+        if (!state.pollTimer) {
+          _resetRunBtn();
+        }
       };
 
     } catch (err) {
@@ -1975,7 +2184,32 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
   }
 });
 
-function _applyRunUpdate(data, stageBadge) {
+async function _refreshFinalRun(runId, stageBadge) {
+  const reportRunId = state.report?.summary?.run_id;
+  if (!state.pipelineRunning && reportRunId === runId) return;
+  try {
+    const res = await fetch(`${API}/api/run/${runId}`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    await _applyRunUpdate(data, stageBadge);
+  } catch {
+    if (state.pipelineRunning) {
+      await loadRunReport(runId, { status: 'COMPLETED' });
+      _resetRunBtn();
+    }
+  }
+}
+
+async function _applyRunUpdate(data, stageBadge) {
+  const isTerminal = ['COMPLETED', 'FAILED', 'ABORTED'].includes(data.status);
+  if (isTerminal && !state.pipelineRunning && state.report?.summary?.run_id === data.run_id) {
+    return;
+  }
+  if (isTerminal) {
+    if (state.terminalRunId === data.run_id) return;
+    state.terminalRunId = data.run_id;
+  }
+
   setProgress(data.progress_pct || 0);
   const stages = data.stages || {};
   let done = 0;
@@ -2001,30 +2235,49 @@ function _applyRunUpdate(data, stageBadge) {
   renderPipeline();
 
   if (data.status === 'COMPLETED') {
-    setProgress(100);
-    state.kpis = _flattenKpis(data.kpis || {}, data.regression || {});
-    renderKPIs();
-    toast('运行完成 ✓', 'ok');
-    _addHistory({
-      runId: data.run_id,
-      status: 'COMPLETED',
-      model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
-      kpis: state.kpis,
-      elapsed: Math.round(data.elapsed || 0),
-      ts: Date.now(),
-    });
-    _resetRunBtn();
+    try {
+      setProgress(100);
+      state.kpis = _flattenKpis(data.kpis || {}, data.regression || {});
+      renderKPIs();
+      const localReport = makeLocalReport(data.run_id, data.status);
+      state.report = localReport;
+      state.capsule = null;
+      renderReport(localReport);
+      renderCapsule(null, localReport);
+      await loadRunReport(data.run_id, data);
+      toast('运行完成 ✓', 'ok');
+      _addHistory({
+        runId: data.run_id,
+        status: 'COMPLETED',
+        model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
+        kpis: state.kpis,
+        elapsed: Math.round(data.elapsed || 0),
+        ts: Date.now(),
+      });
+    } catch (err) {
+      console.error('Failed to render completed run', err);
+      toast('运行完成，但报告渲染失败', 'error');
+    } finally {
+      _resetRunBtn();
+    }
   } else if (data.status === 'FAILED') {
-    toast('运行失败', 'error');
-    _addHistory({
-      runId: data.run_id,
-      status: 'FAILED',
-      model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
-      kpis: [],
-      elapsed: Math.round(data.elapsed || 0),
-      ts: Date.now(),
-    });
-    _resetRunBtn();
+    try {
+      toast('运行失败', 'error');
+      state.kpis = [];
+      await loadRunReport(data.run_id, data);
+      _addHistory({
+        runId: data.run_id,
+        status: 'FAILED',
+        model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
+        kpis: [],
+        elapsed: Math.round(data.elapsed || 0),
+        ts: Date.now(),
+      });
+    } catch (err) {
+      console.error('Failed to render failed run', err);
+    } finally {
+      _resetRunBtn();
+    }
   }
 }
 
@@ -2042,6 +2295,36 @@ function _flattenKpis(kpisObj, regression) {
       regStatus: comp.status || null,
     };
   });
+}
+
+function _startRunPolling(runId, stageBadge) {
+  _stopRunPolling();
+  let attempts = 0;
+  state.pollTimer = setInterval(async () => {
+    if (!state.pipelineRunning) {
+      _stopRunPolling();
+      return;
+    }
+    attempts += 1;
+    try {
+      const res = await fetch(`${API}/api/run/${runId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      await _applyRunUpdate(data, stageBadge);
+      if (['COMPLETED', 'FAILED', 'ABORTED'].includes(data.status)) {
+        _stopRunPolling();
+      }
+    } catch {
+      if (attempts > 600) _stopRunPolling();
+    }
+  }, 700);
+}
+
+function _stopRunPolling() {
+  if (state.pollTimer) {
+    clearInterval(state.pollTimer);
+    state.pollTimer = null;
+  }
 }
 
 async function _simulatedRun(specYaml, stageBadge) {
@@ -2063,9 +2346,13 @@ async function _simulatedRun(specYaml, stageBadge) {
     stageBadge.textContent = `${STAGES.length}/${STAGES.length}`;
     state.kpis = generateMockKPIs(specYaml);
     renderKPIs();
+    const simRunId = 'sim_' + Date.now().toString(36);
+    state.runId = simRunId;
+    renderReport(makeLocalReport(simRunId, 'COMPLETED (sim)'));
+    renderCapsule(null);
     toast('模拟运行完成 ✓', 'ok');
     _addHistory({
-      runId: 'sim_' + Date.now().toString(36),
+      runId: simRunId,
       status: 'COMPLETED (sim)',
       model: specYaml.match(/model_name:\s*(\S+)/)?.[1] || '—',
       kpis: state.kpis,
@@ -2080,6 +2367,7 @@ async function _simulatedRun(specYaml, stageBadge) {
 }
 
 function _resetRunBtn() {
+  _stopRunPolling();
   state.pipelineRunning = false;
   document.getElementById('btn-start-run').disabled = false;
   document.getElementById('btn-abort-run').disabled = true;
@@ -2137,10 +2425,202 @@ function generateMockKPIs(yaml) {
   return kpis;
 }
 
+async function loadRunReport(runId, fallbackData = {}) {
+  if (state.serverOnline && runId) {
+    try {
+      const res = await fetch(`${API}/api/run/${runId}/report`);
+      if (res.ok) {
+        const report = await res.json();
+        state.report = report;
+        state.capsule = report.capsule || null;
+        renderReport(report);
+        renderCapsule(report.capsule, report);
+        return;
+      }
+    } catch {}
+  }
+  const report = makeLocalReport(runId || state.runId || 'local', fallbackData.status || 'COMPLETED');
+  state.report = report;
+  state.capsule = null;
+  renderReport(report);
+  renderCapsule(null, report);
+}
+
+function makeLocalReport(runId, status) {
+  const kpis = {};
+  const comparisons = {};
+  state.kpis.forEach(k => {
+    kpis[k.name] = k.value;
+    comparisons[k.name] = {
+      status: k.regStatus || 'INFO',
+      expected: k.expected,
+      actual: k.value,
+      rtol: k.rtol,
+    };
+  });
+  return {
+    summary: {
+      run_id: runId,
+      status,
+      model_name: (state.spec || specEditor.value).match(/model_name:\s*(\S+)/)?.[1] || '—',
+      abaqus_release: (state.spec || specEditor.value).match(/abaqus_release:\s*["']?(\S+?)["']?$/m)?.[1] || '—',
+      capsule_path: '',
+      workdir: '',
+    },
+    kpis,
+    regression: { passed: true, comparisons },
+    stages: state.stageResults,
+    artifacts: {},
+    image_artifacts: [],
+    markdown: '# Abaqus Run Report\n\n本地模拟运行报告。真实 Abaqus 运行完成后这里会显示 capsule、artifacts 和 provenance。',
+  };
+}
+
+function renderReport(report) {
+  const area = document.getElementById('report-area');
+  const summary = report.summary || {};
+  const kpis = report.kpis || {};
+  const comparisons = report.regression?.comparisons || {};
+  const artifactCount = Object.keys(report.artifacts || {}).length;
+  const imageArtifacts = report.image_artifacts || [];
+  const statusClass = summary.status === 'COMPLETED' || summary.status === 'COMPLETED (sim)'
+    ? 'report-pass' : 'report-fail';
+
+  const kpiRows = Object.entries(kpis).map(([name, value]) => {
+    const comp = comparisons[name] || {};
+    const reg = comp.status || 'INFO';
+    const regClass = reg === 'PASS' || reg === 'INFO' ? 'report-pass' : 'report-fail';
+    const expected = comp.expected != null ? formatNum(comp.expected) : '—';
+    const actual = typeof value === 'object' ? value.value : value;
+    return `
+      <tr>
+        <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(name)}</td>
+        <td>${formatNum(actual)}</td>
+        <td>${expected}</td>
+        <td class="${regClass}">${escapeHTML(reg)}</td>
+      </tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 KPI</td></tr>';
+
+  const visualHtml = imageArtifacts.length
+    ? imageArtifacts.map(name => `
+        <img src="${API}/api/run/${summary.run_id}/artifact/${encodeURIComponent(name)}"
+             alt="${escapeHTML(name)}"
+             style="max-width:100%;border-radius:6px;border:1px solid var(--border);margin-bottom:10px">`
+      ).join('')
+    : `<div class="visual-placeholder">
+        <div>
+          <div style="color:var(--text2);margin-bottom:6px">ODB 场图占位</div>
+          <div>下一步由 Abaqus Python 导出 Mises / U magnitude PNG 后在这里展示</div>
+        </div>
+      </div>`;
+
+  area.innerHTML = `
+    <div class="report-grid">
+      <div class="report-band">
+        <div class="report-band-title">Run Summary</div>
+        <div class="report-metrics">
+          <div class="report-metric">
+            <div class="report-metric-label">Status</div>
+            <div class="report-metric-value ${statusClass}">${escapeHTML(summary.status || '—')}</div>
+          </div>
+          <div class="report-metric">
+            <div class="report-metric-label">Run ID</div>
+            <div class="report-metric-value">${escapeHTML(summary.run_id || '—')}</div>
+          </div>
+          <div class="report-metric">
+            <div class="report-metric-label">Model</div>
+            <div class="report-metric-value">${escapeHTML(summary.model_name || '—')}</div>
+          </div>
+          <div class="report-metric">
+            <div class="report-metric-label">Artifacts</div>
+            <div class="report-metric-value">${artifactCount}</div>
+          </div>
+        </div>
+      </div>
+      <div class="report-band">
+        <div class="report-band-title">ODB Visuals</div>
+        ${visualHtml}
+      </div>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">KPI / Regression</div>
+      <table class="report-table">
+        <thead><tr><th>KPI</th><th>Actual</th><th>Expected</th><th>Status</th></tr></thead>
+        <tbody>${kpiRows}</tbody>
+      </table>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Markdown Report</div>
+      <div class="markdown-preview">${escapeHTML(report.markdown || '')}</div>
+    </div>`;
+}
+
+function renderCapsule(capsule, report = null) {
+  const area = document.getElementById('capsule-area');
+  if (!capsule) {
+    area.innerHTML = `
+      <div class="capsule-band">
+        <div class="capsule-band-title">Capsule</div>
+        <div class="visual-placeholder">当前运行没有 capsule。真实 Abaqus run 完成后会显示 inputs、provenance、artifacts 和 hash。</div>
+      </div>`;
+    return;
+  }
+  const artifacts = capsule.artifacts || report?.artifacts || {};
+  const artifactRows = Object.entries(artifacts).map(([name, meta]) => `
+    <div class="artifact-row">
+      <span class="artifact-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
+      <span class="artifact-size">${formatBytes(meta.bytes || 0)}</span>
+    </div>`).join('');
+
+  const provenance = capsule.provenance || {};
+  const inputs = capsule.inputs || {};
+  area.innerHTML = `
+    <div class="report-grid">
+      <div class="capsule-band">
+        <div class="capsule-band-title">Identity</div>
+        <div class="report-metrics">
+          <div class="report-metric"><div class="report-metric-label">Run ID</div><div class="report-metric-value">${escapeHTML(capsule.run_id || '—')}</div></div>
+          <div class="report-metric"><div class="report-metric-label">Schema</div><div class="report-metric-value">${escapeHTML(capsule.schema_version || '—')}</div></div>
+          <div class="report-metric"><div class="report-metric-label">Status</div><div class="report-metric-value report-pass">${escapeHTML(provenance.status || '—')}</div></div>
+          <div class="report-metric"><div class="report-metric-label">Abaqus</div><div class="report-metric-value">${escapeHTML(provenance.abaqus_release || '—')}</div></div>
+        </div>
+      </div>
+      <div class="capsule-band">
+        <div class="capsule-band-title">Inputs / Provenance</div>
+        <div class="markdown-preview">${escapeHTML(JSON.stringify({ inputs, provenance }, null, 2))}</div>
+      </div>
+    </div>
+    <div class="capsule-band" style="margin-top:14px">
+      <div class="capsule-band-title">Artifacts</div>
+      <div class="artifact-list">${artifactRows || '<div style="color:var(--text3)">暂无 artifacts</div>'}</div>
+    </div>`;
+}
+
+function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let n = bytes;
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  return `${n.toFixed(i ? 1 : 0)} ${units[i]}`;
+}
+
 // ── Render KPIs ──────────────────────────────────────────────────
 function renderKPIs() {
   const area = document.getElementById('kpi-area');
-  document.getElementById('kpi-empty').style.display = 'none';
+  const empty = document.getElementById('kpi-empty');
+  if (empty) empty.style.display = 'none';
 
   const kpis = state.kpis;
   if (!kpis.length) return;
@@ -2148,22 +2628,24 @@ function renderKPIs() {
   let html = '<div class="section-title">提取指标</div><div class="kpi-grid">';
 
   kpis.forEach(kpi => {
-    const relErr = kpi.expected !== 0
+    const hasExpected = kpi.expected !== null && kpi.expected !== undefined;
+    const relErr = hasExpected && kpi.expected !== 0
       ? Math.abs((kpi.value - kpi.expected) / kpi.expected)
       : Math.abs(kpi.value);
-    const pass = relErr <= kpi.rtol;
-    const statusClass = pass ? 'pass' : 'fail';
-    const relPct = (relErr * 100).toFixed(1);
+    const pass = hasExpected ? relErr <= kpi.rtol : true;
+    const statusClass = hasExpected ? (pass ? 'pass' : 'fail') : 'info';
+    const relPct = hasExpected ? (relErr * 100).toFixed(1) : '—';
+    const expectedText = hasExpected ? `${formatNum(kpi.expected)} ${kpi.unit}` : '—';
 
     html += `
       <div class="kpi-card ${statusClass}">
-        <span class="kpi-badge ${statusClass}">${pass ? 'PASS' : 'FAIL'}</span>
+        <span class="kpi-badge ${statusClass}">${hasExpected ? (pass ? 'PASS' : 'FAIL') : 'INFO'}</span>
         <div class="kpi-label">${kpi.name}</div>
         <div class="kpi-value ${statusClass}">
           ${formatNum(kpi.value)}<span class="kpi-unit">${kpi.unit}</span>
         </div>
         <div class="kpi-comparison">
-          期望: <span class="expected">${formatNum(kpi.expected)} ${kpi.unit}</span>
+          期望: <span class="expected">${expectedText}</span>
           &nbsp;·&nbsp;误差: <span class="err">${relPct}%</span>
           &nbsp;·&nbsp;容差: ±${(kpi.rtol*100).toFixed(0)}%
         </div>
@@ -2181,6 +2663,7 @@ function renderKPIs() {
 
   // Summary
   const passCount = kpis.filter(k => {
+    if (k.expected === null || k.expected === undefined) return true;
     const relErr = k.expected !== 0 ? Math.abs((k.value - k.expected) / k.expected) : Math.abs(k.value);
     return relErr <= k.rtol;
   }).length;
@@ -2233,7 +2716,13 @@ function drawKpiSparkline(kpis) {
   // Find max absolute value for scaling
   let maxVal = 0;
   kpis.forEach(k => {
-    maxVal = Math.max(maxVal, Math.abs(k.value), k.expected !== null ? Math.abs(k.expected) : 0);
+    const actual = Number(k.value);
+    const expected = Number(k.expected);
+    maxVal = Math.max(
+      maxVal,
+      Number.isFinite(actual) ? Math.abs(actual) : 0,
+      Number.isFinite(expected) ? Math.abs(expected) : 0
+    );
   });
   if (maxVal === 0) maxVal = 1;
 
@@ -2252,15 +2741,17 @@ function drawKpiSparkline(kpis) {
     const cx = padL + i * groupW + groupW / 2;
 
     // Actual bar
-    const aH = Math.max(2, (Math.abs(kpi.value) / maxVal) * chartH);
+    const actual = Number(kpi.value);
+    const aH = Math.max(2, ((Number.isFinite(actual) ? Math.abs(actual) : 0) / maxVal) * chartH);
     const aX = cx - barW - gap / 2;
     const aY = padT + chartH - aH;
     ctx.fillStyle = '#FF6B2B';
     ctx.fillRect(aX, aY, barW, aH);
 
     // Expected bar
-    if (kpi.expected !== null && kpi.expected !== 0) {
-      const eH = Math.max(2, (Math.abs(kpi.expected) / maxVal) * chartH);
+    const expected = Number(kpi.expected);
+    if (Number.isFinite(expected) && expected !== 0) {
+      const eH = Math.max(2, (Math.abs(expected) / maxVal) * chartH);
       const eX = cx + gap / 2;
       const eY = padT + chartH - eH;
       ctx.fillStyle = '#4D8EFF';

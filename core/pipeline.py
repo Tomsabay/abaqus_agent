@@ -184,6 +184,13 @@ async def _run_pipeline_real(
     run["status"] = result.get("status", "FAILED")
     run["kpis"] = result.get("kpis", {})
     run["regression"] = result.get("regression", {})
+    run["capsule_path"] = result.get("capsule_path")
+    run["result_path"] = str(run.get("capsule_path", "")).replace("capsule.json", "result.json") \
+        if result.get("capsule_path") else None
+    build_stage = result.get("stages", {}).get("build_model", {})
+    run["workdir"] = build_stage.get("workdir")
+    run["artifacts"] = result.get("artifacts", {})
+    run["orchestrator_result"] = result
     run["finished_at"] = time.time()
     run["progress_pct"] = 100 if run["status"] == "COMPLETED" else run.get("progress_pct", 0)
 
@@ -288,6 +295,8 @@ def _run_snapshot(run: dict) -> dict:
         "stages": run.get("stages", {}),
         "kpis": run.get("kpis", {}),
         "regression": run.get("regression", {}),
+        "capsule_path": run.get("capsule_path"),
+        "result_path": run.get("result_path"),
         "elapsed": time.time() - run.get("started_at", time.time()),
     }
 
