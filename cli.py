@@ -122,12 +122,18 @@ def _build_parser() -> argparse.ArgumentParser:
     mem_search.add_argument("--similar-to", default="", help="Run/capsule path used as similarity target")
     mem_search.add_argument("--status", default="", help="Filter by run status")
     mem_search.add_argument("--model-name", default="", help="Filter by model name substring")
+    mem_search.add_argument("--contract", default="", help="Filter by Physics Contract name substring")
+    mem_search.add_argument("--contracts-passed", default="", choices=["", "passed", "failed"], help="Filter by overall Physics Contract result")
     mem_search.add_argument("--diagnosis-id", default="", help="Filter by Solver Doctor pattern id")
     mem_search.add_argument("--kpi", default="", help="Filter by KPI name")
     mem_search.add_argument("--artifact", default="", help="Filter by artifact filename substring")
     mem_search.add_argument("--limit", type=int, default=10, help="Maximum matches to return")
     mem_search.add_argument("--include-artifacts", action="store_true", help="Include full artifact manifests")
-    mem_search.add_argument("--sort-by", default="score", choices=["score", "created_at", "run_id", "model_name", "status"])
+    mem_search.add_argument(
+        "--sort-by",
+        default="score",
+        choices=["score", "created_at", "run_id", "model_name", "status", "kpi_count", "artifact_count"],
+    )
     mem_search.add_argument("--sort-order", default="desc", choices=["asc", "desc"])
     mem_search.add_argument("--min-score", type=float, default=0.0, help="Minimum ranking score to include")
     mem_search.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
@@ -250,6 +256,8 @@ def _cmd_memory_search(args: argparse.Namespace) -> int:
         similar_to=args.similar_to or None,
         status=args.status,
         model_name=args.model_name,
+        contract=args.contract,
+        contracts_passed=args.contracts_passed,
         diagnosis_id=args.diagnosis_id,
         kpi=args.kpi,
         artifact=args.artifact,

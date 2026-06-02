@@ -21,6 +21,8 @@ def _write_case(
     kpis: dict | None = None,
     diagnosis_id: str = "",
     input_hash: str = "",
+    contract_name: str = "tip_down",
+    contracts_passed: bool = True,
 ) -> Path:
     workdir = root / name
     workdir.mkdir(parents=True)
@@ -36,7 +38,10 @@ def _write_case(
         "status": status,
         "spec": spec,
         "kpis": kpis or {"U_tip": -0.002},
-        "contracts": {"passed": True, "results": [{"name": "tip_down", "passed": True}]},
+        "contracts": {
+            "passed": contracts_passed,
+            "results": [{"name": contract_name, "passed": contracts_passed}],
+        },
     }
     (workdir / "result.json").write_text(json.dumps(result), encoding="utf-8")
     capsule = {
@@ -188,6 +193,72 @@ def test_case_memory_sort_and_min_score_controls(tmp_path):
     assert filtered["matches"][0]["run_id"] == "a_case"
     assert filtered["query"]["sort_by"] == "score"
     assert filtered["query"]["min_score"] == 1.2
+
+
+def test_case_memory_contract_filters_and_count_sort(tmp_path):
+    _write_case(
+        tmp_path,
+        "contract_pass",
+        model_name="ContractPass",
+        geometry_type="custom_inp",
+        contract_name="scf_range",
+        contracts_passed=True,
+        kpis={"U_tip": -0.002, "MISES_MAX": 100.0},
+    )
+    failed = _write_case(
+        tmp_path,
+        "contract_fail",
+        model_name="ContractFail",
+        geometry_type="custom_inp",
+        contract_name="energy_balance",
+        contracts_passed=False,
+        kpis={"U_tip": -0.003},
+    )
+    capsule = json.loads((failed / "capsule.json").read_text(encoding="utf-8"))
+    capsule["artifacts"]["mises_contour.png"] = {"path": "mises_contour.png", "sha256": "def", "bytes": 20}
+    (failed / "capsule.json").write_text(json.dumps(capsule), encoding="utf-8")
+    many_artifacts = _write_case(
+        tmp_path,
+        "contract_many",
+        model_name="ContractMany",
+        geometry_type="custom_inp",
+        contract_name="energy_balance",
+        contracts_passed=False,
+    )
+    capsule = json.loads((many_artifacts / "capsule.json").read_text(encoding="utf-8"))
+    capsule["artifacts"] = {
+        f"artifact_{idx}.log": {"path": f"artifact_{idx}.log", "sha256": str(idx), "bytes": idx}
+        for idx in range(10)
+    }
+    (many_artifacts / "capsule.json").write_text(json.dumps(capsule), encoding="utf-8")
+
+    contract_result = search_case_memory(CaseMemoryQuery(
+        roots=(tmp_path,),
+        contract="scf",
+        contracts_passed="passed",
+    ))
+    failed_result = search_case_memory(CaseMemoryQuery(
+        roots=(tmp_path,),
+        contracts_passed="failed",
+        sort_by="artifact_count",
+        sort_order="desc",
+    ))
+    kpi_sorted = search_case_memory(CaseMemoryQuery(
+        roots=(tmp_path,),
+        sort_by="kpi_count",
+        sort_order="desc",
+    ))
+
+    assert contract_result["total_matches"] == 1
+    assert contract_result["matches"][0]["run_id"] == "contract_pass"
+    assert contract_result["query"]["contract"] == "scf"
+    assert contract_result["query"]["contracts_passed"] == "passed"
+    assert "contract:scf" in contract_result["matches"][0]["reasons"]
+    assert failed_result["matches"][0]["run_id"] == "contract_many"
+    assert failed_result["matches"][0]["artifact_count"] == 10
+    assert failed_result["query"]["sort_by"] == "artifact_count"
+    assert kpi_sorted["matches"][0]["run_id"] == "contract_pass"
+    assert kpi_sorted["matches"][0]["kpi_count"] == 2
 
 
 def test_case_memory_loads_spec_from_capsule_when_result_lacks_spec(tmp_path):

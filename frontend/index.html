@@ -1735,6 +1735,18 @@ reports</textarea>
                 <input class="memory-input" id="memory-kpi" placeholder="U_tip">
               </div>
               <div>
+                <div class="input-label">Contract</div>
+                <input class="memory-input" id="memory-contract" placeholder="tip_down / scf_range">
+              </div>
+              <div>
+                <div class="input-label">Contract Result</div>
+                <select class="memory-input" id="memory-contracts-passed">
+                  <option value="">全部</option>
+                  <option value="passed">Passed</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+              <div>
                 <div class="input-label">Artifact</div>
                 <input class="memory-input" id="memory-artifact" placeholder="mises_contour.png">
               </div>
@@ -1754,6 +1766,8 @@ reports</textarea>
                   <option value="run_id">Run ID</option>
                   <option value="model_name">Model</option>
                   <option value="status">Status</option>
+                  <option value="kpi_count">KPI Count</option>
+                  <option value="artifact_count">Artifact Count</option>
                 </select>
               </div>
               <div>
@@ -3356,6 +3370,8 @@ async function searchMemory() {
       query: document.getElementById('memory-query').value.trim(),
       similar_to: document.getElementById('memory-similar').value.trim(),
       status: document.getElementById('memory-status').value,
+      contract: document.getElementById('memory-contract').value.trim(),
+      contracts_passed: document.getElementById('memory-contracts-passed').value,
       diagnosis_id: document.getElementById('memory-diagnosis').value.trim(),
       kpi: document.getElementById('memory-kpi').value.trim(),
       artifact: document.getElementById('memory-artifact').value.trim(),
@@ -3426,7 +3442,7 @@ function renderMemory(result) {
           <div class="memory-score">${formatNum(item.score || 0)}</div>
           <div class="memory-run">
             <div class="memory-run-id">${escapeHTML(item.run_id || '—')}</div>
-            <div class="memory-run-meta">${escapeHTML(item.model_name || '—')} · ${escapeHTML(item.geometry_type || '—')} · ${escapeHTML(item.material_name || '—')} · ${item.artifact_count || 0} artifacts</div>
+            <div class="memory-run-meta">${escapeHTML(item.model_name || '—')} · ${escapeHTML(item.geometry_type || '—')} · ${escapeHTML(item.material_name || '—')} · ${item.kpi_count || 0} KPIs · ${item.contract_count || 0} contracts · ${item.artifact_count || 0} artifacts</div>
           </div>
           <div class="memory-status ${statusClass}">${escapeHTML(item.status || '—')}</div>
         </div>

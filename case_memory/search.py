@@ -25,6 +25,8 @@ class CaseMemoryQuery:
     similar_to: str | Path | None = None
     status: str = ""
     model_name: str = ""
+    contract: str = ""
+    contracts_passed: str = ""
     diagnosis_id: str = ""
     kpi: str = ""
     artifact: str = ""
@@ -69,6 +71,8 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
             "similar_to": str(q.similar_to) if q.similar_to else "",
             "status": q.status,
             "model_name": q.model_name,
+            "contract": q.contract,
+            "contracts_passed": q.contracts_passed,
             "diagnosis_id": q.diagnosis_id,
             "kpi": q.kpi,
             "artifact": q.artifact,
@@ -115,6 +119,7 @@ def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
     if isinstance(query, CaseMemoryQuery):
         return replace(
             query,
+            contracts_passed=_normalize_contracts_passed(query.contracts_passed),
             sort_by=_normalize_sort_by(query.sort_by),
             sort_order=_normalize_sort_order(query.sort_order),
             min_score=float(query.min_score),
@@ -128,6 +133,8 @@ def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
         similar_to=query.get("similar_to") or None,
         status=str(query.get("status", "")),
         model_name=str(query.get("model_name", "")),
+        contract=str(query.get("contract", "")),
+        contracts_passed=_normalize_contracts_passed(str(query.get("contracts_passed", ""))),
         diagnosis_id=str(query.get("diagnosis_id", "")),
         kpi=str(query.get("kpi", "")),
         artifact=str(query.get("artifact", "")),
@@ -147,15 +154,31 @@ def _sort_matches(matches: list[dict], sort_by: str, sort_order: str) -> None:
     if sort_by == "created_at":
         matches.sort(key=lambda item: (item.get("created_at") or "", item.get("score", 0)), reverse=reverse)
         return
+    if sort_by in {"kpi_count", "artifact_count"}:
+        matches.sort(key=lambda item: (int(item.get(sort_by, 0)), item.get("score", 0)), reverse=reverse)
+        return
     matches.sort(key=lambda item: str(item.get(sort_by, "")).lower(), reverse=reverse)
 
 
 def _normalize_sort_by(value: str) -> str:
-    return value if value in {"score", "created_at", "run_id", "model_name", "status"} else "score"
+    return value if value in {
+        "score",
+        "created_at",
+        "run_id",
+        "model_name",
+        "status",
+        "kpi_count",
+        "artifact_count",
+    } else "score"
 
 
 def _normalize_sort_order(value: str) -> str:
     return "asc" if value.lower() == "asc" else "desc"
+
+
+def _normalize_contracts_passed(value: str) -> str:
+    normalized = value.lower()
+    return normalized if normalized in {"passed", "failed"} else ""
 
 
 def _public_entry(entry: dict, include_artifacts: bool) -> dict:
@@ -163,6 +186,8 @@ def _public_entry(entry: dict, include_artifacts: bool) -> dict:
     artifacts = public.pop("artifacts", {}) or {}
     public["artifact_count"] = len(artifacts)
     public["artifact_names"] = sorted(artifacts)[:20]
+    public["kpi_count"] = len(public.get("kpi_names", []))
+    public["contract_count"] = len(public.get("contract_names", []))
     if include_artifacts:
         public["artifacts"] = artifacts
     return public
@@ -246,6 +271,15 @@ def _passes_filters(entry: dict, query: CaseMemoryQuery) -> bool:
         return False
     if query.model_name and query.model_name.lower() not in entry.get("model_name", "").lower():
         return False
+    if query.contract:
+        needle = query.contract.lower()
+        contract_names = [name.lower() for name in entry.get("contract_names", [])]
+        if not any(needle in name for name in contract_names):
+            return False
+    if query.contracts_passed == "passed" and entry.get("contracts_passed") is not True:
+        return False
+    if query.contracts_passed == "failed" and entry.get("contracts_passed") is not False:
+        return False
     if query.diagnosis_id and query.diagnosis_id not in entry.get("diagnosis_ids", []):
         return False
     if query.kpi and query.kpi not in entry.get("kpi_names", []):
@@ -273,6 +307,9 @@ def _score_entry(entry: dict, query: CaseMemoryQuery, target: dict | None) -> tu
     if query.artifact:
         score += 0.75
         reasons.append(f"artifact:{query.artifact}")
+    if query.contract:
+        score += 0.75
+        reasons.append(f"contract:{query.contract}")
 
     if not tokens and not target:
         score += 0.1

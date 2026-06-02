@@ -39,7 +39,7 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | Simulation Diff | Implemented MVP | Compare run/capsule inputs, KPIs, contracts, artifacts, and provenance. |
 | Solver Doctor | Implemented MVP | Diagnose `.sta/.msg/.log/.dat` failures from 30+ known patterns. |
 | MCP QA Tools | Implemented MVP | Expose capsule, contract, diff, and doctor kernels to MCP clients. |
-| Case Memory | Implemented MVP | Search and rank local run/capsule history by metadata, KPIs, contracts, diagnosis IDs, artifact names, similarity signals, sort controls, and minimum score. |
+| Case Memory | Implemented MVP | Search and rank local run/capsule history by metadata, KPIs, contract names/results, diagnosis IDs, artifact names, similarity signals, count-based sort controls, and minimum score. |
 | Report Export | Implemented MVP | Produce Markdown, standalone/printable HTML, and zipped run report bundles from capsules, KPIs, contracts, and visuals across CLI/API/MCP/UI. |
 | Environment Preflight | Implemented MVP | Record OS, Python, Abaqus command, and release-check evidence across CLI/API/MCP/UI before real validation. |
 
@@ -311,6 +311,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Case Memory deterministic local capsule search
 - [x] Case Memory CLI/API/MCP/UI workflow with real capsule-history validation
 - [x] Case Memory artifact, sort order, and minimum score controls across CLI/API/MCP/UI
+- [x] Case Memory contract filters and KPI/artifact count sort controls across CLI/API/MCP/UI
 - [x] Markdown report copy/download actions in the web UI
 - [x] Standalone HTML report export endpoint and web UI download action
 - [x] Browser preview/print mode for downstream PDF handoff

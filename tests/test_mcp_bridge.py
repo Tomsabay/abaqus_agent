@@ -251,6 +251,8 @@ class TestBridgeEndpoints:
             "roots": ["/tmp/runs"],
             "query": "BridgeMemoryModel",
             "artifact": "Job.log",
+            "contract": "tip",
+            "contracts_passed": "passed",
             "sort_by": "run_id",
             "sort_order": "asc",
             "min_score": 0.5,
@@ -262,6 +264,8 @@ class TestBridgeEndpoints:
         tool_name, arguments = mock_bridge.mcp_conn.calls[-1]
         assert tool_name == "case_memory_search_tool"
         assert arguments["artifact"] == "Job.log"
+        assert arguments["contract"] == "tip"
+        assert arguments["contracts_passed"] == "passed"
         assert arguments["sort_by"] == "run_id"
         assert arguments["sort_order"] == "asc"
         assert arguments["min_score"] == 0.5
