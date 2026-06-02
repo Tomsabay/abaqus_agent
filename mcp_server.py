@@ -55,6 +55,7 @@ from core.spec_generator import generate_spec_async
 from doctor import diagnose_logs
 from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
+from validation import render_preflight_markdown, run_environment_preflight
 
 # ── MCP Server ────────────────────────────────────────────────────
 
@@ -174,6 +175,24 @@ async def get_run_status(run_id: str) -> str:
         {**run, "elapsed": time.time() - run["started_at"]},
         default=str, ensure_ascii=False,
     )
+
+
+@mcp.tool(description="Check local OS, Python, and Abaqus command readiness for real validation")
+async def environment_preflight_tool(
+    abaqus_cmd: str = "",
+    timeout_seconds: float = 15.0,
+    check_release: bool = True,
+) -> str:
+    try:
+        result = run_environment_preflight(
+            abaqus_cmd=abaqus_cmd or None,
+            timeout_seconds=timeout_seconds,
+            check_release=check_release,
+        )
+        result["markdown"] = render_preflight_markdown(result)
+        return json.dumps(result, ensure_ascii=False, default=str)
+    except (OSError, ValueError) as e:
+        return json.dumps({"error": str(e)})
 
 
 @mcp.tool(description="Diagnose Abaqus .sta/.msg/.log/.dat files or raw log text with Solver Doctor patterns")

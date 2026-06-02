@@ -20,6 +20,34 @@ def _client():
     return TestClient(server.app, raise_server_exceptions=False), server
 
 
+def test_environment_preflight_endpoint(monkeypatch):
+    client, _server = _client()
+
+    def fake_preflight(**kwargs):
+        assert kwargs["abaqus_cmd"] == "abaqus"
+        assert kwargs["timeout_seconds"] == 2.0
+        assert kwargs["check_release"] is False
+        return {
+            "status": "unknown",
+            "platform": {"system": "Linux"},
+            "abaqus": {"command": "abaqus", "release_check": {"status": "skipped"}},
+            "checks": [],
+        }
+
+    monkeypatch.setattr(server, "run_environment_preflight", fake_preflight)
+
+    res = client.post("/api/validate/env", json={
+        "abaqus_cmd": "abaqus",
+        "timeout_seconds": 2.0,
+        "check_release": False,
+    })
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "unknown"
+    assert "Abaqus Environment Preflight" in data["markdown"]
+
+
 def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     client, server = _client()
     workdir = tmp_path / "run"

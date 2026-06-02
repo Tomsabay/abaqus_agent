@@ -57,6 +57,7 @@ from core.spec_generator import generate_spec_async
 from reporting import render_run_report_html, render_run_report_markdown
 from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
+from validation import render_preflight_markdown, run_environment_preflight
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -123,6 +124,12 @@ class MemorySearchRequest(BaseModel):
     min_score: float = 0.0
 
 
+class EnvironmentPreflightRequest(BaseModel):
+    abaqus_cmd: str = ""
+    timeout_seconds: float = 15.0
+    check_release: bool = True
+
+
 # ── Routes ───────────────────────────────────────────────────────
 
 @app.get("/")
@@ -141,6 +148,23 @@ def health():
         "cases": list_cases(),
         "version": "0.1.0",
     }
+
+
+# ── Validation endpoints ──────────────────────────────────────────
+
+@app.post("/api/validate/env")
+def post_environment_preflight(req: EnvironmentPreflightRequest):
+    """Check local OS, Python, and Abaqus command readiness for real validation."""
+    try:
+        result = run_environment_preflight(
+            abaqus_cmd=req.abaqus_cmd or None,
+            timeout_seconds=req.timeout_seconds,
+            check_release=req.check_release,
+        )
+    except (OSError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    result["markdown"] = render_preflight_markdown(result)
+    return result
 
 
 # ── Spec endpoints ────────────────────────────────────────────────

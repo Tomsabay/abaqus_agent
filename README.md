@@ -41,6 +41,7 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | MCP QA Tools | Implemented MVP | Expose capsule, contract, diff, and doctor kernels to MCP clients. |
 | Case Memory | Implemented MVP | Search and rank local run/capsule history by metadata, KPIs, contracts, diagnosis IDs, artifact names, similarity signals, sort controls, and minimum score. |
 | Report Export | Implemented MVP | Produce Markdown, standalone/printable HTML, and zipped run report bundles from capsules, KPIs, contracts, and visuals. |
+| Environment Preflight | Implemented MVP | Record OS, Python, Abaqus command, and release-check evidence across CLI/API/MCP/UI before real validation. |
 
 See [docs/STRATEGY.md](docs/STRATEGY.md) for the product strategy.
 
@@ -252,7 +253,7 @@ Public specs currently cover:
 Notes:
 
 - `python run_benchmark.py --dry-run` validates specs without Abaqus.
-- `abaqus-agent validate env` records OS, Python, Abaqus command resolution, and `abaqus information=release` evidence before real validation.
+- `abaqus-agent validate env` and the Environment panel record OS, Python, Abaqus command resolution, and `abaqus information=release` evidence before real validation.
 - Full regression requires a local Abaqus installation and license.
 - Current environment evidence is tracked in [docs/VALIDATION_MATRIX.md](docs/VALIDATION_MATRIX.md).
 - Current local validation has been done on Abaqus 2021 / Windows.
@@ -294,7 +295,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Standalone HTML report export endpoint and web UI download action
 - [x] Browser preview/print mode for downstream PDF handoff
 - [x] Report bundle zip endpoint and web UI download action
-- [x] Environment preflight command for Linux/Windows/Abaqus version validation readiness
+- [x] Environment preflight CLI/API/MCP/UI workflow for Linux/Windows/Abaqus version validation readiness
 
 ## Acknowledgments
 
