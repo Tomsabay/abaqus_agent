@@ -45,6 +45,7 @@ from core.pipeline import (
     run_pipeline,
 )
 from core.spec_generator import generate_spec_async
+from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
@@ -87,6 +88,11 @@ class ValidateSpecRequest(BaseModel):
 class StartRunRequest(BaseModel):
     spec_yaml: str
     runner_cfg: dict = {}
+
+class DiffRequest(BaseModel):
+    baseline: str
+    candidate: str
+    rtol: float = 0.05
 
 
 # ── Routes ───────────────────────────────────────────────────────
@@ -201,6 +207,29 @@ def get_run_capsule(run_id: str):
     if not capsule:
         raise HTTPException(status_code=404, detail=f"Run {run_id} has no capsule")
     return capsule
+
+
+@app.get("/api/run/{baseline_run_id}/diff/{candidate_run_id}")
+def get_run_diff(baseline_run_id: str, candidate_run_id: str, rtol: float = 0.05):
+    """Diff two in-memory runs by run id."""
+    if baseline_run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {baseline_run_id} not found")
+    if candidate_run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {candidate_run_id} not found")
+    diff = diff_runs(_run_diff_payload(RUNS[baseline_run_id]), _run_diff_payload(RUNS[candidate_run_id]), default_rtol=rtol)
+    diff["markdown"] = render_run_markdown(diff)
+    return diff
+
+
+@app.post("/api/diff")
+def post_diff(req: DiffRequest):
+    """Diff two local run/capsule/result/KPI paths."""
+    try:
+        diff = diff_runs(req.baseline, req.candidate, default_rtol=req.rtol)
+    except (FileNotFoundError, OSError, json.JSONDecodeError, yaml.YAMLError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    diff["markdown"] = render_run_markdown(diff)
+    return diff
 
 
 @app.get("/api/run/{run_id}/artifact/{artifact_name:path}")
@@ -414,6 +443,22 @@ def _run_workdir(run: dict) -> Path | None:
     if capsule_path:
         return Path(capsule_path).resolve().parent
     return None
+
+
+def _run_diff_payload(run: dict) -> dict:
+    capsule = _load_run_capsule(run) or {}
+    return {
+        "source": run.get("run_id"),
+        "run_id": run.get("run_id"),
+        "status": run.get("status"),
+        "kpis": run.get("kpis", {}),
+        "contracts": run.get("contracts") or capsule.get("contracts", {}),
+        "regression": run.get("regression", {}),
+        "spec": run.get("spec", {}),
+        "inputs": capsule.get("inputs", {}),
+        "provenance": capsule.get("provenance", {}),
+        "artifacts": capsule.get("artifacts", {}),
+    }
 
 
 def _render_run_report_markdown(report: dict) -> str:

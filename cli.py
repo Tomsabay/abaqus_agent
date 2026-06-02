@@ -13,8 +13,7 @@ from capsule.store import init_from_inp
 from contracts import evaluate_contracts
 from doctor import diagnose_logs
 from odb_lens import load_recipe, render_kpi_markdown
-from simdiff.kpi_diff import diff_kpis
-from simdiff.kpi_diff import render_markdown as render_diff_markdown
+from simdiff import diff_runs, render_run_markdown
 
 LOG_SUFFIXES = {".sta", ".msg", ".log", ".dat"}
 
@@ -74,9 +73,9 @@ def _build_parser() -> argparse.ArgumentParser:
     check.add_argument("--out", help="Write Markdown report to this path")
     check.set_defaults(func=_cmd_check)
 
-    diff = sub.add_parser("diff", help="Compare two KPI JSON files")
-    diff.add_argument("baseline", help="Baseline KPI JSON file")
-    diff.add_argument("candidate", help="Candidate KPI JSON file")
+    diff = sub.add_parser("diff", help="Compare two runs, capsules, result JSON files, or KPI JSON files")
+    diff.add_argument("baseline", help="Baseline run dir, capsule/result JSON, or KPI JSON file")
+    diff.add_argument("candidate", help="Candidate run dir, capsule/result JSON, or KPI JSON file")
     diff.add_argument("--rtol", type=float, default=0.05, help="Default relative tolerance")
     diff.add_argument("--json", action="store_true", dest="as_json", help="Print JSON")
     diff.add_argument("--out", help="Write Markdown report to this path")
@@ -151,13 +150,11 @@ def _cmd_check(args: argparse.Namespace) -> int:
 
 
 def _cmd_diff(args: argparse.Namespace) -> int:
-    baseline = _load_kpis(args.baseline)
-    candidate = _load_kpis(args.candidate)
-    result = diff_kpis(baseline, candidate, default_rtol=args.rtol)
+    result = diff_runs(args.baseline, args.candidate, default_rtol=args.rtol)
     if args.as_json:
         output = json.dumps(result, indent=2, ensure_ascii=False)
     else:
-        output = render_diff_markdown(result)
+        output = render_run_markdown(result)
 
     _write_or_print(output, args.out)
     return 0 if result["passed"] else 1

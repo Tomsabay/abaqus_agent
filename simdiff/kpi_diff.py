@@ -21,8 +21,8 @@ def diff_kpis(
             changes.append({"name": name, "status": "REMOVED", "before": baseline[name], "after": None})
             continue
 
-        before = baseline[name]
-        after = candidate[name]
+        before = _raw_value(baseline[name])
+        after = _raw_value(candidate[name])
         try:
             before_f = float(before)
             after_f = float(after)
@@ -66,3 +66,9 @@ def render_markdown(diff: dict) -> str:
             f"{delta} | {rel_s} | {change['status']} |"
         )
     return "\n".join(lines)
+
+
+def _raw_value(value):
+    if isinstance(value, dict) and "value" in value:
+        return value["value"]
+    return value

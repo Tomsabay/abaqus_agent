@@ -101,3 +101,35 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert bad_artifact_res.status_code in (400, 404)
 
     server.RUNS.pop("ui_report_001", None)
+
+
+def test_run_diff_endpoint_compares_two_runs():
+    client, server = _client()
+    server.RUNS["diff_base"] = {
+        "run_id": "diff_base",
+        "status": "COMPLETED",
+        "spec": {"bc_load": {"value": -1.0}},
+        "kpis": {"U_tip": -0.002},
+        "contracts": {"results": [{"name": "tip_down", "status": "PASS"}]},
+        "started_at": time.time(),
+    }
+    server.RUNS["diff_candidate"] = {
+        "run_id": "diff_candidate",
+        "status": "COMPLETED",
+        "spec": {"bc_load": {"value": -1.1}},
+        "kpis": {"U_tip": -0.0023},
+        "contracts": {"results": [{"name": "tip_down", "status": "PASS"}]},
+        "started_at": time.time(),
+    }
+
+    res = client.get("/api/run/diff_base/diff/diff_candidate?rtol=0.05")
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["baseline"]["run_id"] == "diff_base"
+    assert data["candidate"]["run_id"] == "diff_candidate"
+    assert data["sections"]["kpis"]["changes"][0]["status"] == "WARNING"
+    assert "Simulation Diff Report" in data["markdown"]
+
+    server.RUNS.pop("diff_base", None)
+    server.RUNS.pop("diff_candidate", None)
