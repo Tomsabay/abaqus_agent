@@ -160,6 +160,42 @@ def test_simdiff_compares_run_dirs_kpis_contracts_and_specs(tmp_path):
     assert "| kpis |" in markdown
 
 
+def test_simdiff_artifact_diff_includes_hash_bytes_and_reason():
+    result = diff_runs(
+        {
+            "run_id": "base",
+            "artifacts": {
+                "Job.log": {"path": "Job.log", "sha256": "aaa111", "bytes": 100},
+                "old.png": {"path": "old.png", "sha256": "old111", "bytes": 10},
+            },
+        },
+        {
+            "run_id": "candidate",
+            "artifacts": {
+                "Job.log": {"path": "Job.log", "sha256": "bbb222", "bytes": 125},
+                "new.png": {"path": "new.png", "sha256": "new111", "bytes": 20},
+            },
+        },
+    )
+
+    changes = {change["path"]: change for change in result["sections"]["artifacts"]["changes"]}
+    assert result["summary"]["sections"]["artifacts"]["WARNING"] == 1
+    assert result["summary"]["sections"]["artifacts"]["ADDED"] == 1
+    assert result["summary"]["sections"]["artifacts"]["REMOVED"] == 1
+    assert changes["Job.log"]["before_sha256"] == "aaa111"
+    assert changes["Job.log"]["after_sha256"] == "bbb222"
+    assert changes["Job.log"]["before_bytes"] == 100
+    assert changes["Job.log"]["after_bytes"] == 125
+    assert changes["Job.log"]["reason"] == "sha256_changed,bytes_changed"
+    assert changes["new.png"]["status"] == "ADDED"
+    assert changes["old.png"]["status"] == "REMOVED"
+
+    markdown = render_run_markdown(result)
+    assert "## Artifact Diff" in markdown
+    assert "Before SHA" in markdown
+    assert "sha256_changed,bytes_changed" in markdown
+
+
 def test_simdiff_loads_specs_from_result_paths(tmp_path):
     spec_base = tmp_path / "spec_base.yaml"
     spec_candidate = tmp_path / "spec_candidate.yaml"
