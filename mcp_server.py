@@ -53,6 +53,7 @@ from core.pipeline import (
 )
 from core.spec_generator import generate_spec_async
 from doctor import diagnose_logs
+from reporting import build_offline_run_report
 from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
 from validation import render_preflight_markdown, run_environment_preflight
@@ -192,6 +193,16 @@ async def environment_preflight_tool(
         result["markdown"] = render_preflight_markdown(result)
         return json.dumps(result, ensure_ascii=False, default=str)
     except (OSError, ValueError) as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(description="Build a Markdown/HTML report from an offline run directory, capsule.json, or result.json")
+async def offline_report_export_tool(source: str, template: str = "standard") -> str:
+    try:
+        report = build_offline_run_report(source, template=template, embed_images=True)
+        report["offline_source"] = source
+        return json.dumps(report, ensure_ascii=False, default=str)
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError) as e:
         return json.dumps({"error": str(e)})
 
 

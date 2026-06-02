@@ -17,6 +17,7 @@ Endpoints mirror server.py under /mcp prefix:
   POST /mcp/api/diff             → tools/call simulation_diff_tool
   POST /mcp/api/memory/search    → tools/call case_memory_search_tool
   POST /mcp/api/validate/env     → tools/call environment_preflight_tool
+  POST /mcp/api/report/export    → tools/call offline_report_export_tool
   GET  /mcp/api/benchmark        → resources/read benchmark://cases
   POST /mcp/api/benchmark/run    → tools/call run_benchmark_tool
   GET  /mcp/health               → tools/call health_check
@@ -39,7 +40,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 try:
@@ -47,6 +48,8 @@ try:
 except ImportError:  # pragma: no cover - pydantic v1 compatibility
     from pydantic import BaseModel
     ConfigDict = None
+
+from reporting import build_offline_report_bundle, build_offline_run_report
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -275,6 +278,12 @@ class EnvironmentPreflightRequest(BaseModel):
     check_release: bool = True
 
 
+class OfflineReportRequest(BaseModel):
+    source: str
+    template: str = "standard"
+    max_artifact_bytes: int = 25_000_000
+
+
 # ── Bridge endpoints ──────────────────────────────────────────────
 
 @app.get("/")
@@ -391,6 +400,36 @@ async def bridge_environment_preflight(req: EnvironmentPreflightRequest):
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/api/report/export")
+async def bridge_offline_report_export(req: OfflineReportRequest):
+    try:
+        return await mcp_conn.call_tool("offline_report_export_tool", {
+            "source": req.source,
+            "template": req.template,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/api/report/export.zip")
+async def bridge_offline_report_export_bundle(req: OfflineReportRequest):
+    try:
+        report = build_offline_run_report(req.source, template=req.template, embed_images=False)
+        content = build_offline_report_bundle(
+            req.source,
+            template=req.template,
+            max_artifact_bytes=req.max_artifact_bytes,
+        )
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    run_id = report.get("summary", {}).get("run_id") or "offline"
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="abaqus-report-{run_id}.zip"'},
+    )
 
 
 @app.get("/mcp/api/run/{run_id}/stream")

@@ -48,6 +48,53 @@ def test_environment_preflight_endpoint(monkeypatch):
     assert "Abaqus Environment Preflight" in data["markdown"]
 
 
+def test_offline_report_export_endpoints(tmp_path):
+    client, _server = _client()
+    artifact = tmp_path / "Job.log"
+    artifact.write_text("Abaqus JOB Job COMPLETED\n", encoding="utf-8")
+    (tmp_path / "capsule.json").write_text(
+        json.dumps({
+            "run_id": "api_offline_report",
+            "inputs": {"model_name": "ApiOffline"},
+            "provenance": {"status": "COMPLETED", "abaqus_release": "2024"},
+            "artifacts": {"Job.log": {"path": "Job.log", "sha256": "abc", "bytes": artifact.stat().st_size}},
+        }),
+        encoding="utf-8",
+    )
+    (tmp_path / "result.json").write_text(
+        json.dumps({
+            "run_id": "api_offline_report",
+            "status": "COMPLETED",
+            "kpis": {"U_tip": -0.002},
+            "regression": {"comparisons": {"U_tip": {"status": "PASS"}}},
+        }),
+        encoding="utf-8",
+    )
+
+    res = client.post("/api/report/export", json={
+        "source": str(tmp_path),
+        "template": "client_summary",
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["summary"]["run_id"] == "api_offline_report"
+    assert data["summary"]["model_name"] == "ApiOffline"
+    assert data["offline_source"] == str(tmp_path)
+    assert "Simulation QA Summary" in data["markdown"]
+
+    zip_res = client.post("/api/report/export.zip", json={
+        "source": str(tmp_path),
+        "template": "client_summary",
+    })
+    assert zip_res.status_code == 200
+    assert "application/zip" in zip_res.headers["content-type"]
+    assert 'filename="abaqus-report-api_offline_report.zip"' in zip_res.headers["content-disposition"]
+    with zipfile.ZipFile(BytesIO(zip_res.content)) as bundle:
+        names = set(bundle.namelist())
+        assert {"report.md", "report.html", "capsule.json", "result.json", "artifact_manifest.json"} <= names
+        assert "artifacts/Job.log" in names
+
+
 def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     client, server = _client()
     workdir = tmp_path / "run"
