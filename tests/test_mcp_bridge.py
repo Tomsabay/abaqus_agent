@@ -239,11 +239,15 @@ class TestBridgeEndpoints:
         res = client.post("/mcp/api/diff", json={
             "baseline": "/tmp/base",
             "candidate": "/tmp/candidate",
+            "tolerances": {"MISES": 0.3},
         })
         assert res.status_code == 200
         data = res.json()
         assert data["passed"] is False
         assert "Simulation Diff Report" in data["markdown"]
+        tool_name, arguments = mock_bridge.mcp_conn.calls[-1]
+        assert tool_name == "simulation_diff_tool"
+        assert arguments["tolerances_json"] == '{"MISES": 0.3}'
 
     def test_memory_search_endpoint(self, mock_bridge):
         client = self._client(mock_bridge)

@@ -111,6 +111,7 @@ class DiffRequest(BaseModel):
     baseline: str
     candidate: str
     rtol: float = 0.05
+    tolerances: dict = {}
 
 class MemorySearchRequest(BaseModel):
     if ConfigDict:
@@ -392,13 +393,27 @@ def get_run_capsule(run_id: str):
 
 
 @app.get("/api/run/{baseline_run_id}/diff/{candidate_run_id}")
-def get_run_diff(baseline_run_id: str, candidate_run_id: str, rtol: float = 0.05):
+def get_run_diff(
+    baseline_run_id: str,
+    candidate_run_id: str,
+    rtol: float = 0.05,
+    tolerances_json: str = "",
+):
     """Diff two in-memory runs by run id."""
     if baseline_run_id not in RUNS:
         raise HTTPException(status_code=404, detail=f"Run {baseline_run_id} not found")
     if candidate_run_id not in RUNS:
         raise HTTPException(status_code=404, detail=f"Run {candidate_run_id} not found")
-    diff = diff_runs(_run_diff_payload(RUNS[baseline_run_id]), _run_diff_payload(RUNS[candidate_run_id]), default_rtol=rtol)
+    try:
+        tolerances = _parse_tolerances_json(tolerances_json)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    diff = diff_runs(
+        _run_diff_payload(RUNS[baseline_run_id]),
+        _run_diff_payload(RUNS[candidate_run_id]),
+        default_rtol=rtol,
+        tolerances=tolerances,
+    )
     diff["markdown"] = render_run_markdown(diff)
     return diff
 
@@ -407,7 +422,7 @@ def get_run_diff(baseline_run_id: str, candidate_run_id: str, rtol: float = 0.05
 def post_diff(req: DiffRequest):
     """Diff two local run/capsule/result/KPI paths."""
     try:
-        diff = diff_runs(req.baseline, req.candidate, default_rtol=req.rtol)
+        diff = diff_runs(req.baseline, req.candidate, default_rtol=req.rtol, tolerances=req.tolerances)
     except (FileNotFoundError, OSError, json.JSONDecodeError, yaml.YAMLError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     diff["markdown"] = render_run_markdown(diff)
@@ -728,6 +743,15 @@ def _run_diff_payload(run: dict) -> dict:
         "provenance": capsule.get("provenance", {}),
         "artifacts": capsule.get("artifacts", {}),
     }
+
+
+def _parse_tolerances_json(raw: str) -> dict:
+    if not raw:
+        return {}
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise ValueError("tolerances_json must decode to an object")
+    return data
 
 
 def _render_run_report_markdown(report: dict, template: str = "standard") -> str:

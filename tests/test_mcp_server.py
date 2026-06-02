@@ -223,11 +223,11 @@ class TestMCPTools:
         candidate.write_text(json.dumps({"kpis": {"MISES": 125.0}}), encoding="utf-8")
 
         result = asyncio.get_event_loop().run_until_complete(
-            simulation_diff_tool(str(baseline), str(candidate), rtol=0.05)
+            simulation_diff_tool(str(baseline), str(candidate), rtol=0.05, tolerances_json='{"MISES": 0.3}')
         )
         data = json.loads(result)
-        assert data["passed"] is False
-        assert data["summary"]["sections"]["kpis"]["WARNING"] == 1
+        assert data["passed"] is True
+        assert data["summary"]["sections"]["kpis"]["PASS"] == 1
         assert "Simulation Diff Report" in data["markdown"]
         assert "Change Summary" in data["markdown"]
 

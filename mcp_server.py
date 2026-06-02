@@ -239,9 +239,17 @@ async def diagnose_logs_tool(paths_json: str = "[]", text: str = "") -> str:
 
 
 @mcp.tool(description="Compare two Abaqus runs, capsules, result JSON files, or KPI JSON files")
-async def simulation_diff_tool(baseline: str, candidate: str, rtol: float = 0.05) -> str:
+async def simulation_diff_tool(
+    baseline: str,
+    candidate: str,
+    rtol: float = 0.05,
+    tolerances_json: str = "",
+) -> str:
     try:
-        diff = diff_runs(baseline, candidate, default_rtol=rtol)
+        tolerances = json.loads(tolerances_json or "{}")
+        if not isinstance(tolerances, dict):
+            return json.dumps({"error": "tolerances_json must decode to an object"})
+        diff = diff_runs(baseline, candidate, default_rtol=rtol, tolerances=tolerances)
         diff["markdown"] = render_run_markdown(diff)
         return json.dumps(diff, ensure_ascii=False, default=str)
     except (FileNotFoundError, OSError, json.JSONDecodeError, yaml.YAMLError) as e:

@@ -175,6 +175,7 @@ Compare KPI results:
 
 ```bash
 abaqus-agent diff runs/baseline runs/candidate --out diff.md
+abaqus-agent diff runs/baseline runs/candidate --tolerances-json '{"MISES": 0.20}' --out diff.md
 ```
 
 Search local case memory:
@@ -304,6 +305,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] ODB Lens YAML KPI recipe normalization and KPI Markdown reports
 - [x] Simulation Diff CLI/API/UI with real Windows Abaqus validation
 - [x] Simulation Diff structured change summary across Markdown/API/UI
+- [x] Simulation Diff per-KPI tolerance overrides across CLI/API/MCP/UI
 - [x] MCP tools for capsule init, contract check, Solver Doctor, and Simulation Diff
 - [x] ODB Lens direct Abaqus extractor coverage for frame, region, component, invariant, and reducer fields
 - [x] Markdown report templates

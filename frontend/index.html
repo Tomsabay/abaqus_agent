@@ -1649,6 +1649,16 @@ body::after {
       <div class="report-area" id="diff-area">
         <div class="report-band">
           <div class="report-band-title">Run Comparison</div>
+          <div class="memory-field-grid" style="margin-bottom:12px">
+            <div>
+              <div class="input-label">Default rtol</div>
+              <input class="memory-input" id="diff-rtol" type="number" min="0" max="1" step="0.01" value="0.05">
+            </div>
+            <div>
+              <div class="input-label">Per-KPI tolerances JSON</div>
+              <input class="memory-input" id="diff-tolerances" placeholder='{"MISES": 0.2}'>
+            </div>
+          </div>
           <div class="btn-row" style="margin-bottom:12px">
             <button class="btn btn-primary" id="btn-diff-latest">⇄ 对比最近两次运行</button>
           </div>
@@ -3220,21 +3230,49 @@ async function compareLatestRuns() {
   }
   const candidate = state.history[0];
   const baseline = state.history[1];
+  const rtol = getDiffRtol();
+  let tolerances = {};
+  try {
+    tolerances = getDiffTolerances();
+  } catch (err) {
+    toast(err.message, 'error');
+    navigateTo('diff');
+    return;
+  }
   let diff = null;
   if (state.serverOnline && baseline.runId && candidate.runId &&
       !String(baseline.runId).startsWith('sim_') && !String(candidate.runId).startsWith('sim_')) {
     try {
-      const res = await fetch(`${API}/api/run/${baseline.runId}/diff/${candidate.runId}`);
+      const params = new URLSearchParams({ rtol: String(rtol), tolerances_json: JSON.stringify(tolerances) });
+      const res = await fetch(`${API}/api/run/${baseline.runId}/diff/${candidate.runId}?${params.toString()}`);
       if (res.ok) diff = await res.json();
     } catch {}
   }
-  if (!diff) diff = makeLocalDiff(baseline, candidate);
+  if (!diff) diff = makeLocalDiff(baseline, candidate, { rtol, tolerances });
   state.diff = diff;
   renderDiff(diff);
   navigateTo('diff');
 }
 
-function makeLocalDiff(baseline, candidate) {
+function getDiffRtol() {
+  const input = document.getElementById('diff-rtol');
+  const value = Number(input?.value || 0.05);
+  return Number.isFinite(value) && value >= 0 ? value : 0.05;
+}
+
+function getDiffTolerances() {
+  const raw = document.getElementById('diff-tolerances')?.value.trim() || '';
+  if (!raw) return {};
+  const parsed = JSON.parse(raw);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+    throw new Error('Per-KPI tolerances 必须是 JSON object');
+  }
+  return parsed;
+}
+
+function makeLocalDiff(baseline, candidate, options = {}) {
+  const defaultRtol = options.rtol ?? 0.05;
+  const tolerances = options.tolerances || {};
   const baseKpis = Object.fromEntries((baseline.kpis || []).map(k => [k.name, k.value]));
   const candKpis = Object.fromEntries((candidate.kpis || []).map(k => [k.name, k.value]));
   const changes = [];
@@ -3251,13 +3289,15 @@ function makeLocalDiff(baseline, candidate) {
     const after = Number(candKpis[name]);
     const delta = after - before;
     const rel = Math.abs(delta) / Math.max(Math.abs(before), 1e-12);
+    const rtol = Number(tolerances[name] ?? defaultRtol);
     changes.push({
       name,
       before,
       after,
       delta,
       rel_change: rel,
-      status: rel <= 0.05 ? 'PASS' : 'WARNING',
+      rtol,
+      status: rel <= rtol ? 'PASS' : 'WARNING',
     });
   });
   const contractChanges = makeLocalContractDiff(baseline.contracts || {}, candidate.contracts || {});
@@ -3316,6 +3356,7 @@ function renderDiff(diff) {
   const statusClass = diff.passed ? 'report-pass' : 'report-warn';
   const kpiRows = kpiChanges.map(change => {
     const rel = change.rel_change != null ? `${(change.rel_change * 100).toFixed(2)}%` : '—';
+    const rtol = change.rtol != null ? `${(Number(change.rtol) * 100).toFixed(2)}%` : '—';
     const cls = change.status === 'PASS' ? 'report-pass' : 'report-warn';
     return `<tr>
       <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.name)}</td>
@@ -3323,9 +3364,10 @@ function renderDiff(diff) {
       <td>${formatNum(change.after)}</td>
       <td>${formatNum(change.delta)}</td>
       <td>${escapeHTML(rel)}</td>
+      <td>${escapeHTML(rtol)}</td>
       <td class="${cls}">${escapeHTML(change.status)}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="6" style="color:var(--text3)">暂无 KPI 差异</td></tr>';
+  }).join('') || '<tr><td colspan="7" style="color:var(--text3)">暂无 KPI 差异</td></tr>';
   const contractRows = contractChanges.map(change => {
     const cls = change.status === 'PASS' ? 'report-pass' : 'report-warn';
     return `<tr>
@@ -3376,7 +3418,7 @@ function renderDiff(diff) {
     </div>
     <div class="report-band" style="margin-top:14px">
       <div class="report-band-title">KPI Diff</div>
-      <table class="report-table"><thead><tr><th>KPI</th><th>Before</th><th>After</th><th>Delta</th><th>Rel</th><th>Status</th></tr></thead><tbody>${kpiRows}</tbody></table>
+      <table class="report-table"><thead><tr><th>KPI</th><th>Before</th><th>After</th><th>Delta</th><th>Rel</th><th>rtol</th><th>Status</th></tr></thead><tbody>${kpiRows}</tbody></table>
     </div>
     <div class="report-band" style="margin-top:14px">
       <div class="report-band-title">Physics Contract Diff</div>
