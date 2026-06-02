@@ -237,7 +237,8 @@ Notes:
 
 - `python run_benchmark.py --dry-run` validates specs without Abaqus.
 - Full regression requires a local Abaqus installation and license.
-- Historical local validation has been done on Abaqus 2024 / Windows.
+- Current environment evidence is tracked in [docs/VALIDATION_MATRIX.md](docs/VALIDATION_MATRIX.md).
+- Current local validation has been done on Abaqus 2021 / Windows.
 - External contributor validation exists for Abaqus 2026 compatibility.
 
 ## Safety And Deployment
