@@ -19,12 +19,16 @@ with an ErrorCode and a suggested fix.
 from __future__ import annotations
 
 import json
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
 import yaml
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from capsule.store import create_capsule, hash_file, write_capsule
 from doctor import diagnose_logs
@@ -468,7 +472,6 @@ class AbaqusOrchestrator:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import sys
     if len(sys.argv) < 2:
         print("Usage: python agent/orchestrator.py <spec.yaml> [expected.json] [runner.json]")
         sys.exit(1)
