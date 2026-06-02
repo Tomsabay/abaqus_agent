@@ -69,12 +69,16 @@ def test_engineering_delivery_report_template():
     assert "Acceptance Snapshot" in text
     assert "Delivery verdict: `PASS`" in text
     assert "Traceability" in text
+    assert "Evidence Checklist" in text
+    assert "| KPI regression | PASS | PASS: 1 |" in text
+    assert "| Physics contracts | PASS | 1 passed, 0 failed |" in text
     assert "Artifact Inventory" in text
 
     missing_contracts = _report()
     missing_contracts["contracts"] = {}
     review_text = render_run_report_markdown(missing_contracts, template="engineering_delivery")
     assert "Delivery verdict: `REVIEW`" in review_text
+    assert "| Physics contracts | REVIEW | No Physics Contract results reported |" in review_text
 
 
 def test_run_report_html_template_is_standalone_and_escaped():
@@ -87,12 +91,15 @@ def test_run_report_html_template_is_standalone_and_escaped():
     assert "<!doctype html>" in html
     assert "Abaqus Run Report" in html
     assert "KPI / Regression" in html
+    assert "Evidence Checklist" in html
     assert "Physics Contracts" in html
     assert "Beam &lt;bad&gt;" in html
     assert "U_tip" in html
 
     delivery_html = render_run_report_html(report, template="engineering_delivery")
     assert "Engineering Delivery Report" in delivery_html
+    assert "Delivery Verdict" in delivery_html
+    assert "KPI regression" in delivery_html
 
 
 def test_offline_report_export_from_run_directory(tmp_path, monkeypatch):
