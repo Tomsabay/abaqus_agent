@@ -186,6 +186,24 @@ class TestMCPTools:
         assert data["offline_source"] == str(tmp_path)
         assert "Simulation QA Summary" in data["markdown"]
 
+    def test_offline_report_pdf_export_tool(self, monkeypatch):
+        import mcp_server
+        from mcp_server import offline_report_pdf_export_tool
+
+        monkeypatch.setattr(
+            mcp_server,
+            "build_offline_report_pdf",
+            lambda source, template="standard": b"%PDF-1.4\nmcp",
+        )
+
+        result = asyncio.get_event_loop().run_until_complete(
+            offline_report_pdf_export_tool("/tmp/run", template="client_summary")
+        )
+        data = json.loads(result)
+        assert data["format"] == "pdf"
+        assert data["bytes"] == len(b"%PDF-1.4\nmcp")
+        assert data["content_base64"].startswith("JVBERi0xLjQK")
+
     def test_diagnose_logs_tool(self):
         from mcp_server import diagnose_logs_tool
         result = asyncio.get_event_loop().run_until_complete(

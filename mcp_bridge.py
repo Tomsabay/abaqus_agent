@@ -18,6 +18,7 @@ Endpoints mirror server.py under /mcp prefix:
   POST /mcp/api/memory/search    → tools/call case_memory_search_tool
   POST /mcp/api/validate/env     → tools/call environment_preflight_tool
   POST /mcp/api/report/export    → tools/call offline_report_export_tool
+  POST /mcp/api/report/export.pdf → direct offline PDF export
   GET  /mcp/api/benchmark        → resources/read benchmark://cases
   POST /mcp/api/benchmark/run    → tools/call run_benchmark_tool
   GET  /mcp/health               → tools/call health_check
@@ -49,7 +50,11 @@ except ImportError:  # pragma: no cover - pydantic v1 compatibility
     from pydantic import BaseModel
     ConfigDict = None
 
-from reporting import build_offline_report_bundle, build_offline_run_report
+from reporting import (
+    build_offline_report_bundle,
+    build_offline_report_pdf,
+    build_offline_run_report,
+)
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -429,6 +434,23 @@ async def bridge_offline_report_export_bundle(req: OfflineReportRequest):
         content=content,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="abaqus-report-{run_id}.zip"'},
+    )
+
+
+@app.post("/mcp/api/report/export.pdf")
+async def bridge_offline_report_export_pdf(req: OfflineReportRequest):
+    try:
+        content = build_offline_report_pdf(req.source, template=req.template)
+        report = build_offline_run_report(req.source, template=req.template, embed_images=False)
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    run_id = report.get("summary", {}).get("run_id") or "offline"
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="abaqus-report-{run_id}.pdf"'},
     )
 
 

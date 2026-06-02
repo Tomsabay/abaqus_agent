@@ -98,6 +98,16 @@ def build_offline_report_bundle(
     return buffer.getvalue()
 
 
+def build_offline_report_pdf(
+    source: str | Path,
+    *,
+    template: str = "standard",
+) -> bytes:
+    """Build a PDF report from an offline run source."""
+    report = build_offline_run_report(source, template=template, embed_images=True)
+    return render_html_to_pdf(report["html"])
+
+
 def export_offline_run_report(
     source: str | Path,
     out: str | Path,
@@ -106,7 +116,7 @@ def export_offline_run_report(
     template: str = "standard",
     max_artifact_bytes: int = 25_000_000,
 ) -> dict[str, Any]:
-    """Write an offline run report to Markdown, HTML, or zip."""
+    """Write an offline run report to Markdown, HTML, PDF, or zip."""
     out_path = Path(out)
     fmt = _resolve_export_format(export_format, out_path)
     if fmt == "zip":
@@ -117,12 +127,48 @@ def export_offline_run_report(
         )
         out_path.write_bytes(content)
         size = len(content)
+    elif fmt == "pdf":
+        content = build_offline_report_pdf(source, template=template)
+        out_path.write_bytes(content)
+        size = len(content)
     else:
         report = build_offline_run_report(source, template=template, embed_images=(fmt == "html"))
         content = report["markdown"] + "\n" if fmt == "md" else report["html"]
         out_path.write_text(content, encoding="utf-8")
         size = out_path.stat().st_size
     return {"format": fmt, "output_path": str(out_path), "bytes": size}
+
+
+def render_html_to_pdf(html: str) -> bytes:
+    """Render standalone report HTML to PDF using optional Playwright."""
+    try:
+        from playwright.sync_api import Error as PlaywrightError
+        from playwright.sync_api import sync_playwright
+    except ImportError as e:
+        raise RuntimeError(
+            "PDF export requires the optional Playwright dependency. "
+            "Install with `pip install 'abaqus-agent[pdf]'` and run `playwright install chromium`."
+        ) from e
+
+    try:
+        with sync_playwright() as playwright:
+            browser = None
+            browser = playwright.chromium.launch()
+            try:
+                page = browser.new_page()
+                page.set_content(html, wait_until="networkidle")
+                return page.pdf(
+                    format="A4",
+                    print_background=True,
+                    margin={"top": "16mm", "right": "14mm", "bottom": "16mm", "left": "14mm"},
+                )
+            finally:
+                if browser:
+                    browser.close()
+    except PlaywrightError as e:
+        raise RuntimeError(
+            "PDF export failed. Ensure Chromium is installed with `playwright install chromium`."
+        ) from e
 
 
 def load_offline_run(source: str | Path) -> dict[str, Any]:
@@ -221,14 +267,16 @@ def _artifact_zip_name(name: str) -> str:
 def _resolve_export_format(export_format: str, out_path: Path) -> str:
     fmt = export_format.lower()
     if fmt != "auto":
-        if fmt not in {"md", "html", "zip"}:
-            raise ValueError("export_format must be one of auto, md, html, zip")
+        if fmt not in {"md", "html", "pdf", "zip"}:
+            raise ValueError("export_format must be one of auto, md, html, pdf, zip")
         return fmt
     suffix = out_path.suffix.lower()
     if suffix == ".md":
         return "md"
     if suffix == ".html":
         return "html"
+    if suffix == ".pdf":
+        return "pdf"
     if suffix == ".zip":
         return "zip"
-    raise ValueError("Cannot infer report format; use --format md|html|zip")
+    raise ValueError("Cannot infer report format; use --format md|html|pdf|zip")

@@ -31,8 +31,9 @@ dependencies = [
 [project.optional-dependencies]
 mcp = ["mcp>=1.0"]
 llm = ["anthropic>=0.36", "openai>=1.0"]
+pdf = ["playwright>=1.45"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1", "httpx>=0.24"]
-all = ["abaqus-agent[mcp,llm,dev]"]
+all = ["abaqus-agent[mcp,llm,pdf,dev]"]
 
 [project.scripts]
 abaqus-agent = "cli:main"

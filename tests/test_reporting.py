@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import zipfile
 
+import reporting.export as report_export_mod
 from reporting import (
     available_templates,
     build_offline_report_bundle,
@@ -76,7 +77,7 @@ def test_run_report_html_template_is_standalone_and_escaped():
     assert "U_tip" in html
 
 
-def test_offline_report_export_from_run_directory(tmp_path):
+def test_offline_report_export_from_run_directory(tmp_path, monkeypatch):
     artifact = tmp_path / "Job.log"
     artifact.write_text("Abaqus JOB Job COMPLETED\n", encoding="utf-8")
     image = tmp_path / "mises_contour.png"
@@ -121,3 +122,9 @@ def test_offline_report_export_from_run_directory(tmp_path):
     assert result["format"] == "html"
     assert html_out.exists()
     assert "Simulation QA Summary" in html_out.read_text(encoding="utf-8")
+
+    monkeypatch.setattr(report_export_mod, "render_html_to_pdf", lambda html: b"%PDF-1.4\n" + html[:16].encode())
+    pdf_out = tmp_path / "report.pdf"
+    pdf_result = export_offline_run_report(tmp_path, pdf_out, template="client_summary")
+    assert pdf_result["format"] == "pdf"
+    assert pdf_out.read_bytes().startswith(b"%PDF-1.4")

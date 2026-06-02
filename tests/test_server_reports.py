@@ -48,7 +48,7 @@ def test_environment_preflight_endpoint(monkeypatch):
     assert "Abaqus Environment Preflight" in data["markdown"]
 
 
-def test_offline_report_export_endpoints(tmp_path):
+def test_offline_report_export_endpoints(tmp_path, monkeypatch):
     client, _server = _client()
     artifact = tmp_path / "Job.log"
     artifact.write_text("Abaqus JOB Job COMPLETED\n", encoding="utf-8")
@@ -94,8 +94,18 @@ def test_offline_report_export_endpoints(tmp_path):
         assert {"report.md", "report.html", "capsule.json", "result.json", "artifact_manifest.json"} <= names
         assert "artifacts/Job.log" in names
 
+    monkeypatch.setattr(server, "build_offline_report_pdf", lambda *args, **kwargs: b"%PDF-1.4\noffline")
+    pdf_res = client.post("/api/report/export.pdf", json={
+        "source": str(tmp_path),
+        "template": "client_summary",
+    })
+    assert pdf_res.status_code == 200
+    assert "application/pdf" in pdf_res.headers["content-type"]
+    assert 'filename="abaqus-report-api_offline_report.pdf"' in pdf_res.headers["content-disposition"]
+    assert pdf_res.content.startswith(b"%PDF-1.4")
 
-def test_run_report_capsule_and_artifact_endpoints(tmp_path):
+
+def test_run_report_capsule_and_artifact_endpoints(tmp_path, monkeypatch):
     client, server = _client()
     workdir = tmp_path / "run"
     workdir.mkdir()
@@ -193,6 +203,13 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     assert preview_res.status_code == 200
     assert "text/html" in preview_res.headers["content-type"]
     assert 'inline; filename="abaqus-report-ui_report_001.html"' in preview_res.headers["content-disposition"]
+
+    monkeypatch.setattr(server, "render_html_to_pdf", lambda html: b"%PDF-1.4\n" + html[:8].encode())
+    pdf_res = client.get("/api/run/ui_report_001/report.pdf?template=client_summary")
+    assert pdf_res.status_code == 200
+    assert "application/pdf" in pdf_res.headers["content-type"]
+    assert 'filename="abaqus-report-ui_report_001.pdf"' in pdf_res.headers["content-disposition"]
+    assert pdf_res.content.startswith(b"%PDF-1.4")
 
     bundle_res = client.get("/api/run/ui_report_001/report.zip?template=client_summary")
     assert bundle_res.status_code == 200

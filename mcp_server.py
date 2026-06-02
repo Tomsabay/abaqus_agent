@@ -32,6 +32,7 @@ Run:
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import sys
 import time
@@ -53,7 +54,7 @@ from core.pipeline import (
 )
 from core.spec_generator import generate_spec_async
 from doctor import diagnose_logs
-from reporting import build_offline_run_report
+from reporting import build_offline_report_pdf, build_offline_run_report
 from simdiff import diff_runs, render_run_markdown
 from tools.schema_validator import validate_spec
 from validation import render_preflight_markdown, run_environment_preflight
@@ -203,6 +204,21 @@ async def offline_report_export_tool(source: str, template: str = "standard") ->
         report["offline_source"] = source
         return json.dumps(report, ensure_ascii=False, default=str)
     except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError) as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(description="Build a PDF report from an offline run directory, capsule.json, or result.json")
+async def offline_report_pdf_export_tool(source: str, template: str = "standard") -> str:
+    try:
+        content = build_offline_report_pdf(source, template=template)
+        return json.dumps({
+            "source": source,
+            "template": template,
+            "format": "pdf",
+            "bytes": len(content),
+            "content_base64": base64.b64encode(content).decode("ascii"),
+        }, ensure_ascii=False)
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError, RuntimeError) as e:
         return json.dumps({"error": str(e)})
 
 

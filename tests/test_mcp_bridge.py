@@ -325,6 +325,34 @@ class TestBridgeEndpoints:
         assert "application/zip" in res.headers["content-type"]
         assert 'filename="abaqus-report-bridge_zip_report.zip"' in res.headers["content-disposition"]
 
+    def test_offline_report_export_pdf_endpoint(self, mock_bridge, tmp_path, monkeypatch):
+        artifact = tmp_path / "Job.log"
+        artifact.write_text("Abaqus JOB Job COMPLETED\n", encoding="utf-8")
+        (tmp_path / "capsule.json").write_text(
+            json.dumps({
+                "run_id": "bridge_pdf_report",
+                "inputs": {"model_name": "BridgePdf"},
+                "provenance": {"status": "COMPLETED", "abaqus_release": "2024"},
+                "artifacts": {"Job.log": {"path": "Job.log", "sha256": "abc", "bytes": artifact.stat().st_size}},
+            }),
+            encoding="utf-8",
+        )
+        (tmp_path / "result.json").write_text(
+            json.dumps({"run_id": "bridge_pdf_report", "status": "COMPLETED", "kpis": {}}),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(mock_bridge, "build_offline_report_pdf", lambda *args, **kwargs: b"%PDF-1.4\nbridge")
+
+        client = self._client(mock_bridge)
+        res = client.post("/mcp/api/report/export.pdf", json={
+            "source": str(tmp_path),
+            "template": "client_summary",
+        })
+        assert res.status_code == 200
+        assert "application/pdf" in res.headers["content-type"]
+        assert 'filename="abaqus-report-bridge_pdf_report.pdf"' in res.headers["content-disposition"]
+        assert res.content.startswith(b"%PDF-1.4")
+
     def test_get_benchmark(self, mock_bridge):
         client = self._client(mock_bridge)
         res = client.get("/mcp/api/benchmark")
