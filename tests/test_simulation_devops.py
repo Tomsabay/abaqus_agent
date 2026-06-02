@@ -17,6 +17,7 @@ from capsule.store import hash_file, init_from_inp, load_capsule
 from contracts.evaluator import evaluate_contracts
 from doctor.diagnosis import diagnose_logs
 from simdiff.kpi_diff import diff_kpis, render_markdown
+from simdiff.run_diff import diff_runs, render_run_markdown
 
 
 def test_custom_inp_build_copies_input_without_abaqus(tmp_path):
@@ -96,6 +97,89 @@ def test_simdiff_flags_large_kpi_change_and_renders_markdown():
     assert result["passed"] is False
     assert mises["status"] == "WARNING"
     assert "MISES" in render_markdown(result)
+
+
+def test_simdiff_compares_run_dirs_kpis_contracts_and_specs(tmp_path):
+    base = tmp_path / "base"
+    cand = tmp_path / "candidate"
+    base.mkdir()
+    cand.mkdir()
+    (base / "result.json").write_text(
+        json.dumps({
+            "run_id": "base",
+            "status": "COMPLETED",
+            "kpis": {"U_tip": -0.002, "MISES_MAX": 0.6},
+            "contracts": {"results": [{"name": "tip_down", "status": "PASS"}]},
+        }),
+        encoding="utf-8",
+    )
+    (cand / "result.json").write_text(
+        json.dumps({
+            "run_id": "candidate",
+            "status": "COMPLETED",
+            "kpis": {"U_tip": -0.0022, "MISES_MAX": 0.65},
+            "contracts": {"results": [{"name": "tip_down", "status": "PASS"}]},
+        }),
+        encoding="utf-8",
+    )
+    (base / "spec.yaml").write_text(yaml.safe_dump({"bc_load": {"value": -1.0}}), encoding="utf-8")
+    (cand / "spec.yaml").write_text(yaml.safe_dump({"bc_load": {"value": -1.1}}), encoding="utf-8")
+
+    result = diff_runs(base, cand, default_rtol=0.05)
+
+    assert result["passed"] is False
+    assert result["baseline"]["run_id"] == "base"
+    assert any(c["name"] == "U_tip" and c["status"] == "WARNING" for c in result["sections"]["kpis"]["changes"])
+    assert any(c["path"] == "bc_load.value" for c in result["sections"]["spec"]["changes"])
+    assert "Simulation Diff Report" in render_run_markdown(result)
+
+
+def test_simdiff_loads_specs_from_result_paths(tmp_path):
+    spec_base = tmp_path / "spec_base.yaml"
+    spec_candidate = tmp_path / "spec_candidate.yaml"
+    spec_base.write_text(yaml.safe_dump({"bc_load": {"value": -1.0}}), encoding="utf-8")
+    spec_candidate.write_text(yaml.safe_dump({"bc_load": {"value": -1.1}}), encoding="utf-8")
+
+    base = tmp_path / "base_run"
+    cand = tmp_path / "candidate_run"
+    base.mkdir()
+    cand.mkdir()
+    (base / "result.json").write_text(
+        json.dumps({"run_id": "base", "spec_path": str(spec_base), "kpis": {"U_tip": -0.002}}),
+        encoding="utf-8",
+    )
+    (cand / "result.json").write_text(
+        json.dumps({"run_id": "candidate", "spec_path": str(spec_candidate), "kpis": {"U_tip": -0.0022}}),
+        encoding="utf-8",
+    )
+
+    result = diff_runs(base, cand)
+
+    assert any(
+        change["path"] == "bc_load.value" and change["before"] == -1.0 and change["after"] == -1.1
+        for change in result["sections"]["spec"]["changes"]
+    )
+
+
+def test_simdiff_loads_relative_specs_from_capsule_inputs(tmp_path):
+    base = tmp_path / "base_capsule"
+    cand = tmp_path / "candidate_capsule"
+    base.mkdir()
+    cand.mkdir()
+    (base / "spec.yaml").write_text(yaml.safe_dump({"bc_load": {"value": -1.0}}), encoding="utf-8")
+    (cand / "spec.yaml").write_text(yaml.safe_dump({"bc_load": {"value": -1.1}}), encoding="utf-8")
+    (base / "capsule.json").write_text(
+        json.dumps({"run_id": "base", "inputs": {"spec": "spec.yaml"}, "artifacts": {}}),
+        encoding="utf-8",
+    )
+    (cand / "capsule.json").write_text(
+        json.dumps({"run_id": "candidate", "inputs": {"spec": "spec.yaml"}, "artifacts": {}}),
+        encoding="utf-8",
+    )
+
+    result = diff_runs(base, cand)
+
+    assert any(change["path"] == "bc_load.value" for change in result["sections"]["spec"]["changes"])
 
 
 def test_solver_doctor_matches_common_patterns(tmp_path):

@@ -1311,7 +1311,7 @@ body::after {
     </div>
     <div class="nav-item" data-panel="pipeline">
       <span class="nav-icon">▶</span> 运行流水线
-      <span class="nav-badge" id="stage-badge" style="display:none">0/6</span>
+      <span class="nav-badge" id="stage-badge" style="display:none">0/7</span>
     </div>
     <div class="nav-item" data-panel="kpis">
       <span class="nav-icon">◎</span> KPI 结果
@@ -1320,6 +1320,9 @@ body::after {
     <div class="nav-section" style="margin-top:8px">评估</div>
     <div class="nav-item" data-panel="report">
       <span class="nav-icon">▣</span> 运行报告
+    </div>
+    <div class="nav-item" data-panel="diff">
+      <span class="nav-icon">⇄</span> Simulation Diff
     </div>
     <div class="nav-item" data-panel="capsule">
       <span class="nav-icon">◇</span> 实验胶囊
@@ -1506,10 +1509,26 @@ body::after {
       </div>
     </section>
 
+    <!-- ── Panel: Diff ─────────────────────────────────────── -->
+    <section class="panel" id="panel-diff">
+      <div class="panel-header">
+        <div class="panel-title"><span>07</span>Simulation Diff</div>
+      </div>
+      <div class="report-area" id="diff-area">
+        <div class="report-band">
+          <div class="report-band-title">Run Comparison</div>
+          <div class="btn-row" style="margin-bottom:12px">
+            <button class="btn btn-primary" id="btn-diff-latest">⇄ 对比最近两次运行</button>
+          </div>
+          <div class="visual-placeholder">至少完成两次运行后，这里会显示 KPI、Physics Contract、Spec 和 artifact 差异。</div>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Panel: Benchmark ────────────────────────────────── -->
     <section class="panel" id="panel-benchmark">
       <div class="panel-header">
-        <div class="panel-title"><span>07</span>Benchmark 报告</div>
+        <div class="panel-title"><span>08</span>Benchmark 报告</div>
       </div>
       <div class="bench-area">
         <div class="section-title" style="margin-bottom:16px">基准算例 · 4 cases</div>
@@ -1546,12 +1565,15 @@ body::after {
     <!-- ── Panel: History ───────────────────────────────────── -->
     <section class="panel" id="panel-history">
       <div class="panel-header">
-        <div class="panel-title"><span>08</span>运行历史</div>
+        <div class="panel-title"><span>09</span>运行历史</div>
       </div>
       <div class="history-area" id="history-area">
         <div class="history-header">
           <div class="section-title" style="margin-bottom:0">历史记录</div>
-          <button class="btn-history-clear" id="btn-clear-history">清空历史</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn-history-clear" id="btn-history-diff">对比最近两次</button>
+            <button class="btn-history-clear" id="btn-clear-history">清空历史</button>
+          </div>
         </div>
         <div id="history-list">
           <div class="history-empty" id="history-empty">
@@ -1566,7 +1588,7 @@ body::after {
     <!-- ── Panel: Settings ─────────────────────────────────── -->
     <section class="panel" id="panel-settings">
       <div class="panel-header">
-        <div class="panel-title"><span>09</span>设置</div>
+        <div class="panel-title"><span>10</span>设置</div>
       </div>
       <div class="settings-area">
 
@@ -1721,6 +1743,7 @@ const state = {
   stageResults: {},
   kpis: [],
   contracts: {},
+  diff: null,
   report: null,
   capsule: null,
   serverOnline: false,
@@ -2255,6 +2278,7 @@ async function _applyRunUpdate(data, stageBadge) {
         status: 'COMPLETED',
         model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
         kpis: state.kpis,
+        contracts: state.contracts,
         elapsed: Math.round(data.elapsed || 0),
         ts: Date.now(),
       });
@@ -2361,6 +2385,7 @@ async function _simulatedRun(specYaml, stageBadge) {
       status: 'COMPLETED (sim)',
       model: specYaml.match(/model_name:\s*(\S+)/)?.[1] || '—',
       kpis: state.kpis,
+      contracts: state.contracts,
       elapsed: STAGES.reduce((a, s) => a + s.duration[0], 0),
       ts: Date.now(),
     });
@@ -2636,6 +2661,147 @@ function renderCapsule(capsule, report = null) {
       <div class="capsule-band-title">Artifacts</div>
       <div class="artifact-list">${artifactRows || '<div style="color:var(--text3)">暂无 artifacts</div>'}</div>
     </div>`;
+}
+
+// ── Simulation Diff ──────────────────────────────────────────────
+async function compareLatestRuns() {
+  if (state.history.length < 2) {
+    toast('至少需要两次运行记录才能 diff', 'info');
+    navigateTo('diff');
+    return;
+  }
+  const candidate = state.history[0];
+  const baseline = state.history[1];
+  let diff = null;
+  if (state.serverOnline && baseline.runId && candidate.runId &&
+      !String(baseline.runId).startsWith('sim_') && !String(candidate.runId).startsWith('sim_')) {
+    try {
+      const res = await fetch(`${API}/api/run/${baseline.runId}/diff/${candidate.runId}`);
+      if (res.ok) diff = await res.json();
+    } catch {}
+  }
+  if (!diff) diff = makeLocalDiff(baseline, candidate);
+  state.diff = diff;
+  renderDiff(diff);
+  navigateTo('diff');
+}
+
+function makeLocalDiff(baseline, candidate) {
+  const baseKpis = Object.fromEntries((baseline.kpis || []).map(k => [k.name, k.value]));
+  const candKpis = Object.fromEntries((candidate.kpis || []).map(k => [k.name, k.value]));
+  const changes = [];
+  [...new Set([...Object.keys(baseKpis), ...Object.keys(candKpis)])].sort().forEach(name => {
+    if (!(name in baseKpis)) {
+      changes.push({ name, before: null, after: candKpis[name], status: 'ADDED' });
+      return;
+    }
+    if (!(name in candKpis)) {
+      changes.push({ name, before: baseKpis[name], after: null, status: 'REMOVED' });
+      return;
+    }
+    const before = Number(baseKpis[name]);
+    const after = Number(candKpis[name]);
+    const delta = after - before;
+    const rel = Math.abs(delta) / Math.max(Math.abs(before), 1e-12);
+    changes.push({
+      name,
+      before,
+      after,
+      delta,
+      rel_change: rel,
+      status: rel <= 0.05 ? 'PASS' : 'WARNING',
+    });
+  });
+  const contractChanges = makeLocalContractDiff(baseline.contracts || {}, candidate.contracts || {});
+  return {
+    passed: changes.every(c => c.status === 'PASS') && contractChanges.every(c => c.status === 'PASS'),
+    baseline: { run_id: baseline.runId, status: baseline.status },
+    candidate: { run_id: candidate.runId, status: candidate.status },
+    sections: {
+      kpis: { changes },
+      contracts: { changes: contractChanges },
+      spec: { changes: [] },
+      artifacts: { changes: [] },
+      provenance: { changes: [] },
+    },
+  };
+}
+
+function makeLocalContractDiff(baseline, candidate) {
+  const base = Object.fromEntries(((baseline.results || [])).map(c => [c.name, c.status || (c.passed ? 'PASS' : 'FAIL')]));
+  const cand = Object.fromEntries(((candidate.results || [])).map(c => [c.name, c.status || (c.passed ? 'PASS' : 'FAIL')]));
+  return [...new Set([...Object.keys(base), ...Object.keys(cand)])].sort().map(name => {
+    if (!(name in base)) return { name, before: null, after: cand[name], status: 'ADDED' };
+    if (!(name in cand)) return { name, before: base[name], after: null, status: 'REMOVED' };
+    return { name, before: base[name], after: cand[name], status: base[name] === cand[name] ? 'PASS' : 'WARNING' };
+  });
+}
+
+function renderDiff(diff) {
+  const area = document.getElementById('diff-area');
+  const kpiChanges = diff.sections?.kpis?.changes || diff.changes || [];
+  const contractChanges = diff.sections?.contracts?.changes || [];
+  const specChanges = diff.sections?.spec?.changes || [];
+  const artifactChanges = diff.sections?.artifacts?.changes || [];
+  const statusClass = diff.passed ? 'report-pass' : 'report-warn';
+  const kpiRows = kpiChanges.map(change => {
+    const rel = change.rel_change != null ? `${(change.rel_change * 100).toFixed(2)}%` : '—';
+    const cls = change.status === 'PASS' ? 'report-pass' : 'report-warn';
+    return `<tr>
+      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.name)}</td>
+      <td>${formatNum(change.before)}</td>
+      <td>${formatNum(change.after)}</td>
+      <td>${formatNum(change.delta)}</td>
+      <td>${escapeHTML(rel)}</td>
+      <td class="${cls}">${escapeHTML(change.status)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--text3)">暂无 KPI 差异</td></tr>';
+  const contractRows = contractChanges.map(change => {
+    const cls = change.status === 'PASS' ? 'report-pass' : 'report-warn';
+    return `<tr>
+      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.name)}</td>
+      <td>${escapeHTML(change.before || '—')}</td>
+      <td>${escapeHTML(change.after || '—')}</td>
+      <td class="${cls}">${escapeHTML(change.status)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 Contract 差异</td></tr>';
+  const specRows = [...specChanges, ...artifactChanges].slice(0, 20).map(change => `
+    <tr>
+      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.path || '—')}</td>
+      <td>${escapeHTML(String(change.before ?? '—'))}</td>
+      <td>${escapeHTML(String(change.after ?? '—'))}</td>
+      <td class="report-warn">${escapeHTML(change.status || 'WARNING')}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 Spec / Artifact 差异</td></tr>';
+
+  area.innerHTML = `
+    <div class="report-grid">
+      <div class="report-band">
+        <div class="report-band-title">Diff Summary</div>
+        <div class="report-metrics">
+          <div class="report-metric"><div class="report-metric-label">Baseline</div><div class="report-metric-value">${escapeHTML(diff.baseline?.run_id || '—')}</div></div>
+          <div class="report-metric"><div class="report-metric-label">Candidate</div><div class="report-metric-value">${escapeHTML(diff.candidate?.run_id || '—')}</div></div>
+          <div class="report-metric"><div class="report-metric-label">Overall</div><div class="report-metric-value ${statusClass}">${diff.passed ? 'PASS' : 'WARNING'}</div></div>
+          <div class="report-metric"><div class="report-metric-label">KPI Changes</div><div class="report-metric-value">${kpiChanges.length}</div></div>
+        </div>
+      </div>
+      <div class="report-band">
+        <div class="report-band-title">Actions</div>
+        <button class="btn btn-primary" id="btn-diff-latest-inline">⇄ 对比最近两次运行</button>
+      </div>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">KPI Diff</div>
+      <table class="report-table"><thead><tr><th>KPI</th><th>Before</th><th>After</th><th>Delta</th><th>Rel</th><th>Status</th></tr></thead><tbody>${kpiRows}</tbody></table>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Physics Contract Diff</div>
+      <table class="report-table"><thead><tr><th>Name</th><th>Before</th><th>After</th><th>Status</th></tr></thead><tbody>${contractRows}</tbody></table>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Spec / Artifact Diff</div>
+      <table class="report-table"><thead><tr><th>Field</th><th>Before</th><th>After</th><th>Status</th></tr></thead><tbody>${specRows}</tbody></table>
+    </div>`;
+  document.getElementById('btn-diff-latest-inline').onclick = compareLatestRuns;
 }
 
 function escapeHTML(value) {
@@ -3022,6 +3188,9 @@ document.getElementById('btn-clear-history').addEventListener('click', () => {
   renderHistory();
   toast('历史记录已清空', 'info');
 });
+
+document.getElementById('btn-history-diff').addEventListener('click', compareLatestRuns);
+document.getElementById('btn-diff-latest').addEventListener('click', compareLatestRuns);
 
 // ── Settings panel logic ──────────────────────────────────────────
 function initSettingsPanel() {
