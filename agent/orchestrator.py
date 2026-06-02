@@ -32,7 +32,8 @@ if __package__ in (None, ""):
 
 from capsule.store import create_capsule, hash_file, write_capsule
 from doctor import diagnose_logs
-from odb_lens import normalize_recipe
+from odb_lens import normalize_plots, normalize_recipe
+from post.export_odb_images import export_odb_images
 from post.extract_kpis import extract_kpis
 from runner.build_model import build_model
 from runner.monitor_job import JobStatus, monitor_job
@@ -139,6 +140,7 @@ class AbaqusOrchestrator:
 
                 odb_path = build_result["workdir"] / f"{self.spec['meta']['model_name']}.odb"
                 kpi_result = self._stage_extract(odb_path)
+                self._stage_export_visuals(odb_path)
 
                 if self.expected:
                     self._stage_compare(kpi_result.get("kpis", {}))
@@ -343,6 +345,7 @@ class AbaqusOrchestrator:
     def _stage_extract(self, odb_path: Path) -> dict:
         self.on_progress("extract_kpis", {})
         kpi_spec = normalize_recipe(self.spec.get("outputs", {}).get("kpis", []))
+        self.result["odb_lens_recipe"] = kpi_spec
         result = extract_kpis(odb_path, kpi_spec, self.workdir)
         self.result["stages"]["extract_kpis"] = result
         self.result["kpis"] = result.get("kpis", {})
@@ -350,6 +353,19 @@ class AbaqusOrchestrator:
             self.on_progress("extract_kpis", {"warnings": result["errors"]})
         else:
             self.on_progress("extract_kpis", {"kpis": self.result["kpis"]})
+        return result
+
+    def _stage_export_visuals(self, odb_path: Path) -> dict:
+        self.on_progress("export_odb_images", {})
+        kpi_spec = self.result.get("odb_lens_recipe") or normalize_recipe(self.spec.get("outputs", {}).get("kpis", []))
+        plot_spec = normalize_plots(self.spec, kpi_spec)
+        result = export_odb_images(odb_path, plot_spec, self.workdir)
+        self.result["stages"]["export_odb_images"] = result
+        self.result["visuals"] = result.get("images", [])
+        if result.get("errors"):
+            self.on_progress("export_odb_images", {"warnings": result["errors"]})
+        else:
+            self.on_progress("export_odb_images", {"images": result.get("images", [])})
         return result
 
     def _stage_compare(self, actual_kpis: dict):
