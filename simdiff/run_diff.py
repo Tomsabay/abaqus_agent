@@ -142,7 +142,6 @@ def render_run_markdown(diff: dict) -> str:
     for section_name, title in [
         ("spec", "Spec Diff"),
         ("inputs", "Capsule Input Diff"),
-        ("artifacts", "Artifact Diff"),
         ("provenance", "Provenance Diff"),
     ]:
         changes = diff.get("sections", {}).get(section_name, {}).get("changes", [])
@@ -153,6 +152,21 @@ def render_run_markdown(diff: dict) -> str:
             lines.append(
                 f"| {change['path']} | {_fmt(change.get('before'))} | "
                 f"{_fmt(change.get('after'))} | {change['status']} |"
+            )
+    artifact_changes = diff.get("sections", {}).get("artifacts", {}).get("changes", [])
+    if artifact_changes:
+        lines += [
+            "",
+            "## Artifact Diff",
+            "",
+            "| Artifact | Before SHA | After SHA | Before Bytes | After Bytes | Reason | Status |",
+            "|----------|------------|-----------|--------------|-------------|--------|--------|",
+        ]
+        for change in artifact_changes:
+            lines.append(
+                f"| {change['path']} | {_fmt(change.get('before_sha256'))} | "
+                f"{_fmt(change.get('after_sha256'))} | {_fmt(change.get('before_bytes'))} | "
+                f"{_fmt(change.get('after_bytes'))} | {_fmt(change.get('reason'))} | {change['status']} |"
             )
     return "\n".join(lines)
 
@@ -242,9 +256,52 @@ def _diff_contracts(baseline: dict, candidate: dict) -> dict:
 
 
 def _diff_artifacts(baseline: dict, candidate: dict) -> dict:
-    base = {name: meta.get("sha256") for name, meta in baseline.items()}
-    cand = {name: meta.get("sha256") for name, meta in candidate.items()}
-    return _diff_mapping("artifact", base, cand)
+    changes = []
+    for name in sorted(set(baseline) | set(candidate)):
+        base_meta = _artifact_meta(baseline.get(name))
+        cand_meta = _artifact_meta(candidate.get(name))
+        if name not in baseline:
+            changes.append(_artifact_change(name, None, cand_meta, "ADDED", "added"))
+        elif name not in candidate:
+            changes.append(_artifact_change(name, base_meta, None, "REMOVED", "removed"))
+        else:
+            changed_fields = [
+                field for field in ("sha256", "bytes") if base_meta.get(field) != cand_meta.get(field)
+            ]
+            if changed_fields:
+                reason = ",".join(f"{field}_changed" for field in changed_fields)
+                changes.append(_artifact_change(name, base_meta, cand_meta, "WARNING", reason))
+    return {"passed": not changes, "changes": changes}
+
+
+def _artifact_meta(value) -> dict:
+    if isinstance(value, dict):
+        return {
+            "path": value.get("path"),
+            "sha256": value.get("sha256"),
+            "bytes": value.get("bytes"),
+        }
+    return {"path": None, "sha256": value, "bytes": None}
+
+
+def _artifact_change(path: str, before: dict | None, after: dict | None, status: str, reason: str) -> dict:
+    before = before or {}
+    after = after or {}
+    before_sha = before.get("sha256")
+    after_sha = after.get("sha256")
+    return {
+        "path": path,
+        "before": before_sha if before_sha is not None else before.get("bytes"),
+        "after": after_sha if after_sha is not None else after.get("bytes"),
+        "before_sha256": before_sha,
+        "after_sha256": after_sha,
+        "before_bytes": before.get("bytes"),
+        "after_bytes": after.get("bytes"),
+        "before_path": before.get("path"),
+        "after_path": after.get("path"),
+        "reason": reason,
+        "status": status,
+    }
 
 
 def _diff_spec(baseline: dict, candidate: dict) -> dict:

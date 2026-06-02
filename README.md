@@ -307,6 +307,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Simulation Diff structured change summary across Markdown/API/UI
 - [x] Simulation Diff per-KPI tolerance overrides across CLI/API/MCP/UI
 - [x] Simulation Diff Markdown download endpoint and UI action
+- [x] Simulation Diff structured artifact evidence rows with hash/size/reason across Markdown/API/UI
 - [x] MCP tools for capsule init, contract check, Solver Doctor, and Simulation Diff
 - [x] ODB Lens direct Abaqus extractor coverage for frame, region, component, invariant, and reducer fields
 - [x] Markdown report templates

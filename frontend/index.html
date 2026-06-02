@@ -3377,13 +3377,25 @@ function renderDiff(diff) {
       <td class="${cls}">${escapeHTML(change.status)}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 Contract 差异</td></tr>';
-  const specRows = [...specChanges, ...artifactChanges].slice(0, 20).map(change => `
+  const specRows = specChanges.slice(0, 20).map(change => `
     <tr>
       <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.path || '—')}</td>
       <td>${escapeHTML(String(change.before ?? '—'))}</td>
       <td>${escapeHTML(String(change.after ?? '—'))}</td>
       <td class="report-warn">${escapeHTML(change.status || 'WARNING')}</td>
-    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 Spec / Artifact 差异</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 Spec 差异</td></tr>';
+  const artifactRows = artifactChanges.slice(0, 20).map(change => {
+    const cls = change.status === 'PASS' ? 'report-pass' : 'report-warn';
+    return `<tr>
+      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.path || '—')}</td>
+      <td>${escapeHTML(shortHash(change.before_sha256 ?? change.before))}</td>
+      <td>${escapeHTML(shortHash(change.after_sha256 ?? change.after))}</td>
+      <td>${escapeHTML(formatOptionalBytes(change.before_bytes))}</td>
+      <td>${escapeHTML(formatOptionalBytes(change.after_bytes))}</td>
+      <td>${escapeHTML(change.reason || 'changed')}</td>
+      <td class="${cls}">${escapeHTML(change.status || 'WARNING')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--text3)">暂无 Artifact 差异</td></tr>';
   const summaryRows = Object.entries(summary.sections || {}).map(([name, counts]) => `
     <tr>
       <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(name)}</td>
@@ -3426,8 +3438,12 @@ function renderDiff(diff) {
       <table class="report-table"><thead><tr><th>Name</th><th>Before</th><th>After</th><th>Status</th></tr></thead><tbody>${contractRows}</tbody></table>
     </div>
     <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Spec / Artifact Diff</div>
+      <div class="report-band-title">Spec Diff</div>
       <table class="report-table"><thead><tr><th>Field</th><th>Before</th><th>After</th><th>Status</th></tr></thead><tbody>${specRows}</tbody></table>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Artifact Diff</div>
+      <table class="report-table"><thead><tr><th>Artifact</th><th>Before SHA</th><th>After SHA</th><th>Before Size</th><th>After Size</th><th>Reason</th><th>Status</th></tr></thead><tbody>${artifactRows}</tbody></table>
     </div>`;
   document.getElementById('btn-diff-latest-inline').onclick = compareLatestRuns;
   document.getElementById('btn-download-diff-md').onclick = downloadDiffMarkdown;
@@ -3456,6 +3472,19 @@ function diffMarkdown(diff) {
     const rtol = change.rtol != null ? `${(Number(change.rtol) * 100).toFixed(2)}%` : '-';
     lines.push(`| ${change.name} | ${change.before ?? '-'} | ${change.after ?? '-'} | ${change.delta ?? '-'} | ${rel} | ${rtol} | ${change.status} |`);
   });
+  const artifacts = diff.sections?.artifacts?.changes || [];
+  if (artifacts.length) {
+    lines.push(
+      '',
+      '## Artifact Diff',
+      '',
+      '| Artifact | Before SHA | After SHA | Before Bytes | After Bytes | Reason | Status |',
+      '|----------|------------|-----------|--------------|-------------|--------|--------|',
+    );
+    artifacts.forEach(change => {
+      lines.push(`| ${change.path || '-'} | ${change.before_sha256 ?? change.before ?? '-'} | ${change.after_sha256 ?? change.after ?? '-'} | ${change.before_bytes ?? '-'} | ${change.after_bytes ?? '-'} | ${change.reason || 'changed'} | ${change.status || 'WARNING'} |`);
+    });
+  }
   return lines.join('\n');
 }
 
@@ -3699,6 +3728,16 @@ function formatBytes(bytes) {
     i++;
   }
   return `${n.toFixed(i ? 1 : 0)} ${units[i]}`;
+}
+
+function formatOptionalBytes(bytes) {
+  return bytes == null ? '—' : formatBytes(bytes);
+}
+
+function shortHash(value) {
+  const text = String(value ?? '');
+  if (!text || text === 'null') return '—';
+  return text.length > 12 ? `${text.slice(0, 12)}…` : text;
 }
 
 // ── Render KPIs ──────────────────────────────────────────────────
