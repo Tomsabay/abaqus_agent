@@ -123,6 +123,9 @@ class MemorySearchRequest(BaseModel):
     similar_to: str = ""
     status: str = ""
     model_name: str = ""
+    geometry_type: str = ""
+    solver: str = ""
+    material_name: str = ""
     contract: str = ""
     contracts_passed: str = ""
     diagnosis_id: str = ""
@@ -467,6 +470,9 @@ def post_memory_search(req: MemorySearchRequest):
             similar_to=req.similar_to or None,
             status=req.status,
             model_name=req.model_name,
+            geometry_type=req.geometry_type,
+            solver=req.solver,
+            material_name=req.material_name,
             contract=req.contract,
             contracts_passed=req.contracts_passed,
             diagnosis_id=req.diagnosis_id,

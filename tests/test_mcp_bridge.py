@@ -255,6 +255,9 @@ class TestBridgeEndpoints:
             "roots": ["/tmp/runs"],
             "query": "BridgeMemoryModel",
             "match_mode": "all",
+            "geometry_type": "custom",
+            "solver": "standard",
+            "material_name": "Steel",
             "artifact": "Job.log",
             "contract": "tip",
             "contracts_passed": "passed",
@@ -269,6 +272,9 @@ class TestBridgeEndpoints:
         tool_name, arguments = mock_bridge.mcp_conn.calls[-1]
         assert tool_name == "case_memory_search_tool"
         assert arguments["match_mode"] == "all"
+        assert arguments["geometry_type"] == "custom"
+        assert arguments["solver"] == "standard"
+        assert arguments["material_name"] == "Steel"
         assert arguments["artifact"] == "Job.log"
         assert arguments["contract"] == "tip"
         assert arguments["contracts_passed"] == "passed"

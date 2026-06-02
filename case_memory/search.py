@@ -26,6 +26,9 @@ class CaseMemoryQuery:
     similar_to: str | Path | None = None
     status: str = ""
     model_name: str = ""
+    geometry_type: str = ""
+    solver: str = ""
+    material_name: str = ""
     contract: str = ""
     contracts_passed: str = ""
     diagnosis_id: str = ""
@@ -75,6 +78,9 @@ def search_case_memory(query: CaseMemoryQuery | dict) -> dict:
             "similar_to": str(q.similar_to) if q.similar_to else "",
             "status": q.status,
             "model_name": q.model_name,
+            "geometry_type": q.geometry_type,
+            "solver": q.solver,
+            "material_name": q.material_name,
             "contract": q.contract,
             "contracts_passed": q.contracts_passed,
             "diagnosis_id": q.diagnosis_id,
@@ -139,6 +145,9 @@ def _normalize_query(query: CaseMemoryQuery | dict) -> CaseMemoryQuery:
         similar_to=query.get("similar_to") or None,
         status=str(query.get("status", "")),
         model_name=str(query.get("model_name", "")),
+        geometry_type=str(query.get("geometry_type", "")),
+        solver=str(query.get("solver", "")),
+        material_name=str(query.get("material_name", "")),
         contract=str(query.get("contract", "")),
         contracts_passed=_normalize_contracts_passed(str(query.get("contracts_passed", ""))),
         diagnosis_id=str(query.get("diagnosis_id", "")),
@@ -307,6 +316,12 @@ def _passes_filters(entry: dict, query: CaseMemoryQuery) -> bool:
     if query.status and entry.get("status", "").lower() != query.status.lower():
         return False
     if query.model_name and query.model_name.lower() not in entry.get("model_name", "").lower():
+        return False
+    if query.geometry_type and query.geometry_type.lower() not in entry.get("geometry_type", "").lower():
+        return False
+    if query.solver and entry.get("solver", "").lower() != query.solver.lower():
+        return False
+    if query.material_name and query.material_name.lower() not in entry.get("material_name", "").lower():
         return False
     if query.contract:
         needle = query.contract.lower()

@@ -120,6 +120,33 @@ def test_validate_record_cli_appends_matrix(tmp_path, capsys):
     assert "| 2026-06-02 | Windows | Abaqus 2021 | cantilever | PASS | status=COMPLETED |" in matrix.read_text(encoding="utf-8")
 
 
+def test_memory_search_cli_passes_facet_filters(monkeypatch, capsys):
+    def fake_search(query):
+        assert query.geometry_type == "custom"
+        assert query.solver == "standard"
+        assert query.material_name == "Steel"
+        return {
+            "total_indexed": 1,
+            "total_matches": 0,
+            "facets": {},
+            "query": {},
+            "matches": [],
+        }
+
+    monkeypatch.setattr(cli, "search_case_memory", fake_search)
+
+    rc = cli.main([
+        "memory", "search", "runs",
+        "--geometry-type", "custom",
+        "--solver", "standard",
+        "--material-name", "Steel",
+        "--json",
+    ])
+
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out)["total_indexed"] == 1
+
+
 def test_report_export_cli_writes_json(monkeypatch, tmp_path, capsys):
     out = tmp_path / "report.md"
 

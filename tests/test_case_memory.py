@@ -290,6 +290,47 @@ def test_case_memory_result_facets_summarize_matches(tmp_path):
     assert result["facets"]["contracts_passed"] == {"passed": 2, "failed": 1}
 
 
+def test_case_memory_filters_by_facet_fields(tmp_path):
+    _write_case(
+        tmp_path,
+        "steel_standard",
+        model_name="FacetFilterA",
+        geometry_type="custom_inp",
+        material_name="Steel",
+    )
+    _write_case(
+        tmp_path,
+        "aluminum_standard",
+        model_name="FacetFilterB",
+        geometry_type="custom_inp",
+        material_name="Aluminum",
+    )
+    explicit = _write_case(
+        tmp_path,
+        "steel_explicit",
+        model_name="FacetFilterC",
+        geometry_type="block",
+        material_name="Steel",
+    )
+    result_data = json.loads((explicit / "result.json").read_text(encoding="utf-8"))
+    result_data["spec"]["analysis"]["solver"] = "explicit"
+    (explicit / "result.json").write_text(json.dumps(result_data), encoding="utf-8")
+
+    result = search_case_memory(CaseMemoryQuery(
+        roots=(tmp_path,),
+        query="FacetFilter",
+        geometry_type="custom",
+        solver="standard",
+        material_name="Aluminum",
+    ))
+
+    assert result["total_matches"] == 1
+    assert result["matches"][0]["run_id"] == "aluminum_standard"
+    assert result["query"]["geometry_type"] == "custom"
+    assert result["query"]["solver"] == "standard"
+    assert result["query"]["material_name"] == "Aluminum"
+
+
 def test_case_memory_loads_spec_from_capsule_when_result_lacks_spec(tmp_path):
     workdir = _write_case(tmp_path, "capsule_only", model_name="LensModel", geometry_type="beam")
     result = json.loads((workdir / "result.json").read_text(encoding="utf-8"))
