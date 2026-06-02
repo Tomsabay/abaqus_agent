@@ -58,9 +58,9 @@ def test_capsule_init_from_inp_records_hash_and_manifest(tmp_path):
 
 
 def test_physics_contracts_evaluate_range_direction_error_and_order():
-    kpis = {"U_tip": -0.002, "SCF": 3.1, "freq_1": 210, "freq_2": 416}
+    kpis = {"U_tip": {"value": -0.002, "unit": "mm"}, "SCF": 3.1, "freq_1": 210, "freq_2": 416}
     contracts = [
-        {"name": "deflects_down", "type": "direction", "kpi": "U_tip", "direction": "negative"},
+        {"name": "deflects_down", "check": "operator", "kpi": "U_tip", "operator": "<", "value": 0.0},
         {"name": "scf_range", "type": "range", "kpi": "SCF", "min": 2.5, "max": 3.5},
         {"name": "tip_baseline", "type": "relative_error", "kpi": "U_tip", "expected": -0.0021, "rtol": 0.1},
         {"name": "freq_order", "type": "order", "kpis": ["freq_1", "freq_2"]},
@@ -70,6 +70,19 @@ def test_physics_contracts_evaluate_range_direction_error_and_order():
 
     assert result["passed"] is True
     assert all(item["passed"] for item in result["results"])
+    assert result["results"][0]["status"] == "PASS"
+    assert result["results"][0]["actual"] == -0.002
+
+
+def test_physics_contracts_warning_failure_is_non_blocking():
+    result = evaluate_contracts(
+        [{"name": "wide_mises", "check": "range", "kpi": "MISES_MAX", "max": 0.5, "severity": "warning"}],
+        {"MISES_MAX": 0.65},
+    )
+
+    assert result["passed"] is True
+    assert result["results"][0]["passed"] is False
+    assert result["results"][0]["status"] == "WARNING"
 
 
 def test_simdiff_flags_large_kpi_change_and_renders_markdown():

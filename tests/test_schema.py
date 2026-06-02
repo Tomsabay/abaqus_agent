@@ -81,6 +81,33 @@ class TestSchemaValidation:
         valid, errors = validate_spec(spec)
         assert valid, f"Unexpected errors: {errors}"
 
+    def test_inline_physics_contracts_valid(self):
+        spec = {
+            "meta": {"abaqus_release": "2024", "model_name": "ContractModel"},
+            "geometry": {"type": "cantilever_block", "L": 100, "W": 10, "H": 10},
+            "material": {"name": "Steel", "E": 210000, "nu": 0.3},
+            "analysis": {"solver": "standard", "step_type": "Static"},
+            "bc_load": {
+                "fixed_face": "x=0",
+                "load_face": "x=L",
+                "load_type": "pressure",
+                "value": -1.0,
+            },
+            "outputs": {"kpis": [{"name": "U_tip", "type": "nodal_displacement"}]},
+            "contracts": [
+                {
+                    "name": "tip_down",
+                    "check": "operator",
+                    "kpi": "U_tip",
+                    "operator": "<",
+                    "value": 0.0,
+                    "severity": "error",
+                }
+            ],
+        }
+        valid, errors = validate_spec(spec)
+        assert valid, f"Inline physics contracts should be valid: {errors}"
+
     def test_abaqus_2026_release_valid(self):
         """Abaqus 2026 should be accepted by the schema."""
         spec = {

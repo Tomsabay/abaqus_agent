@@ -15,6 +15,7 @@ from typing import Awaitable, Callable
 
 import yaml
 
+from contracts import evaluate_contracts
 from core.helpers import CASES_DIR, check_abaqus
 from tools.schema_validator import validate_spec
 
@@ -27,6 +28,7 @@ STAGES = [
     ("submit_job",    "提交 Abaqus 作业",            1.2, 2.5),
     ("monitor_job",   "轮询 .sta 状态",              0.8, 1.5),
     ("extract_kpis",  "从 ODB 提取 KPI",             0.6, 1.2),
+    ("physics_contracts", "评估 Physics Contracts",  0.2, 0.5),
 ]
 
 STAGE_LOGS = {
@@ -59,6 +61,10 @@ STAGE_LOGS = {
         ("info", "→ abaqus python extract_kpis.py -- {model}.odb"),
         ("ok",   "ODB opened successfully"),
         ("ok",   "KPI_RESULT_WRITTEN: /runs/{run_id}/_kpi_result.json"),
+    ],
+    "physics_contracts": [
+        ("info", "→ evaluate contracts.yaml against extracted KPIs"),
+        ("ok",   "PHYSICS_CONTRACTS: PASS"),
     ],
 }
 
@@ -98,7 +104,7 @@ async def _run_pipeline_real(
     # Map orchestrator stages to pipeline stage IDs
     _STAGE_ORDER = [
         "validate_spec", "build_model", "syntaxcheck",
-        "submit_job", "monitor_job", "extract_kpis",
+        "submit_job", "monitor_job", "extract_kpis", "physics_contracts",
     ]
 
     def _on_progress(stage: str, data: dict):
@@ -122,7 +128,8 @@ async def _run_pipeline_real(
                         logs.append({"level": "ok", "text": f"  {kname} = {kval}"})
                 elif key == "passed":
                     level = "ok" if val else "error"
-                    logs.append({"level": level, "text": f"regression: {'PASS' if val else 'FAIL'}"})
+                    label = "physics contracts" if stage == "physics_contracts" else "regression"
+                    logs.append({"level": level, "text": f"{label}: {'PASS' if val else 'FAIL'}"})
                 elif key not in ("attempt", "max", "index", "total"):
                     logs.append({"level": "info", "text": f"{key}: {val}"})
 
@@ -136,7 +143,7 @@ async def _run_pipeline_real(
         elif stage == "autorepair":
             pass  # keep current progress
         elif stage == "compare_kpis":
-            run["progress_pct"] = 100
+            run["progress_pct"] = round(6 / len(_STAGE_ORDER) * 100)
 
         # Update stage status
         existing = run["stages"].get(stage, {"status": "running", "desc": desc, "logs": []})
@@ -184,6 +191,7 @@ async def _run_pipeline_real(
     run["status"] = result.get("status", "FAILED")
     run["kpis"] = result.get("kpis", {})
     run["regression"] = result.get("regression", {})
+    run["contracts"] = result.get("contracts", {})
     run["capsule_path"] = result.get("capsule_path")
     run["result_path"] = str(run.get("capsule_path", "")).replace("capsule.json", "result.json") \
         if result.get("capsule_path") else None
@@ -278,6 +286,7 @@ async def run_pipeline(
 
     run["kpis"] = mock_kpis(spec)
     run["regression"] = compare_kpis(run["kpis"], run_id)
+    run["contracts"] = evaluate_contracts(_spec_contracts(spec), run["kpis"])
     run["progress_pct"] = 100
     run["status"] = "COMPLETED"
     run["finished_at"] = time.time()
@@ -295,6 +304,7 @@ def _run_snapshot(run: dict) -> dict:
         "stages": run.get("stages", {}),
         "kpis": run.get("kpis", {}),
         "regression": run.get("regression", {}),
+        "contracts": run.get("contracts", {}),
         "capsule_path": run.get("capsule_path"),
         "result_path": run.get("result_path"),
         "elapsed": time.time() - run.get("started_at", time.time()),
@@ -337,6 +347,7 @@ async def run_benchmark_async(
                 "status": cr["status"],
                 "kpis": cr.get("kpis", {}),
                 "regression": cr.get("regression", {}),
+                "contracts": cr.get("contracts", {}),
             }
 
     run["progress_pct"] = 100
@@ -375,3 +386,10 @@ def compare_kpis(actual: dict, run_id: str) -> dict:
             "status": "INFO",
         }
     return {"passed": True, "comparisons": comparisons}
+
+
+def _spec_contracts(spec: dict) -> list[dict]:
+    raw = spec.get("contracts") or spec.get("physics_contracts") or []
+    if isinstance(raw, dict):
+        raw = raw.get("contracts", [])
+    return list(raw or [])
