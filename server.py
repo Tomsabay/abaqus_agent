@@ -56,7 +56,9 @@ from core.pipeline import (
 from core.spec_generator import generate_spec_async
 from reporting import (
     build_offline_report_bundle,
+    build_offline_report_pdf,
     build_offline_run_report,
+    render_html_to_pdf,
     render_run_report_html,
     render_run_report_markdown,
 )
@@ -212,6 +214,24 @@ def post_offline_report_export_bundle(req: OfflineReportRequest):
     )
 
 
+@app.post("/api/report/export.pdf")
+def post_offline_report_export_pdf(req: OfflineReportRequest):
+    """Download an offline report as PDF using the optional Playwright renderer."""
+    try:
+        content = build_offline_report_pdf(req.source, template=req.template)
+        report = build_offline_run_report(req.source, template=req.template, embed_images=False)
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    run_id = report.get("summary", {}).get("run_id") or "offline"
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="abaqus-report-{run_id}.pdf"'},
+    )
+
+
 # ── Spec endpoints ────────────────────────────────────────────────
 
 @app.post("/api/spec/generate")
@@ -321,6 +341,24 @@ def get_run_report_html(run_id: str, template: str = "standard", download: bool 
         content=report.get("html", ""),
         media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
+    )
+
+
+@app.get("/api/run/{run_id}/report.pdf")
+def get_run_report_pdf(run_id: str, template: str = "standard"):
+    """Download a run report as PDF using the optional Playwright renderer."""
+    if run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    report = _build_run_report(RUNS[run_id], template=template, embed_images=True)
+    try:
+        content = render_html_to_pdf(report.get("html", ""))
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    filename = f"abaqus-report-{run_id}.pdf"
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

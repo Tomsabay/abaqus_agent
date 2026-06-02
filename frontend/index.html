@@ -2881,6 +2881,7 @@ function renderReport(report) {
         <button class="btn btn-secondary" id="btn-copy-report-md">复制 Markdown</button>
         <button class="btn btn-secondary" id="btn-download-report-md">下载 .md</button>
         <button class="btn btn-secondary" id="btn-download-report-html">下载 .html</button>
+        <button class="btn btn-secondary" id="btn-download-report-pdf">下载 .pdf</button>
         <button class="btn btn-secondary" id="btn-preview-report-html">预览/打印</button>
         <button class="btn btn-secondary" id="btn-download-report-bundle">下载 bundle</button>
       </div>
@@ -2889,6 +2890,7 @@ function renderReport(report) {
   document.getElementById('btn-copy-report-md').onclick = copyReportMarkdown;
   document.getElementById('btn-download-report-md').onclick = downloadReportMarkdown;
   document.getElementById('btn-download-report-html').onclick = downloadReportHTML;
+  document.getElementById('btn-download-report-pdf').onclick = downloadReportPDF;
   document.getElementById('btn-preview-report-html').onclick = previewReportHTML;
   document.getElementById('btn-download-report-bundle').onclick = downloadReportBundle;
 }
@@ -3029,6 +3031,47 @@ function downloadReportHTML() {
   a.remove();
   URL.revokeObjectURL(url);
   toast('报告 HTML 已下载', 'ok');
+}
+
+async function downloadReportPDF() {
+  if (!state.report) {
+    toast('当前没有可下载的报告 PDF', 'info');
+    return;
+  }
+  const runId = state.report?.summary?.run_id || state.runId || '';
+  const status = state.report?.summary?.status || '';
+  const offlineSource = state.report?.offline_source || '';
+  const template = state.report?.template || 'standard';
+  try {
+    let res;
+    if (offlineSource) {
+      res = await fetch(`${API}/api/report/export.pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: offlineSource, template }),
+      });
+    } else {
+      if (!state.serverOnline || !runId || status === 'COMPLETED (sim)') {
+        toast('PDF 需要真实 Abaqus run 或离线 evidence source', 'info');
+        return;
+      }
+      res = await fetch(`${API}/api/run/${encodeURIComponent(runId)}/report.pdf?template=${encodeURIComponent(template)}`);
+    }
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `abaqus-report-${runId || 'offline'}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast('报告 PDF 已下载', 'ok');
+  } catch (err) {
+    console.error(err);
+    toast('PDF 导出失败，请确认已安装 Playwright Chromium', 'error');
+  }
 }
 
 async function downloadReportBundle() {

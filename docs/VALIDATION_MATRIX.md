@@ -23,6 +23,7 @@ or unit-test coverage.
 | 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | Environment preflight command | PASS | `python cli.py validate env --json` returned `status=ready`, resolved `C:\SIMULIA\Commands\abaqus.BAT`, ran `abaqus information=release` with return code `0`, and detected release `2021` |
 | 2026-06-02 | Windows 11 23H2 `DESKTOP-PH97BKO`, Tailscale SSH | Abaqus 2021 | Offline report export CLI from real `plate_hole` capsule | PASS | `python cli.py report export cases\plate_hole\runs\95712d55bf05f243 --template client_summary --out ...\offline_report.html --json` wrote `42,799` byte HTML; zip export wrote `1,893,638` bytes with `32` entries, included `report.md`, `report.html`, `capsule.json`, `result.json`, `artifact_manifest.json`, `artifacts/mises_contour.png`, and `artifacts/u_magnitude.png`; HTML contained `Simulation QA Summary`, `PlateWithHole`, and embedded image data |
 | 2026-06-02 | macOS local dev, Python 3.12 venv, browser UI | Not installed | Offline report export API/UI smoke | PASS | `/api/report/export` loaded a synthetic run directory into the Report panel; UI rendered `ui_offline_report`, model `UiOffline`, KPI `U_tip=-0.002`, and client-summary Markdown without starting a new analysis run |
+| 2026-06-02 | macOS local dev, Python 3.12 venv, headless Chrome UI | Not installed | Optional PDF export API/UI smoke | PASS | `/api/report/export.pdf` returned `501` with explicit `abaqus-agent[pdf]` / `playwright install chromium` guidance when Playwright was absent; headless Chrome loaded synthetic offline report `ui_pdf_report`, rendered model `UiPdf`, and showed the `下载 .pdf` action without layout overflow |
 | 2026-05-06 | External contributor validation | Abaqus 2026 | Cantilever GUI / Windows compatibility | PASS | GLY2024 contribution and case study, see `docs/CASE_STUDY_GLY2024.md` |
 
 ## Public Case Coverage
@@ -44,4 +45,4 @@ full Abaqus 2021 execution on Windows:
 - Windows + Abaqus 2021: repeat full public-case validation after major changes to build, submit, ODB extraction, or visualization.
 - Windows + Abaqus 2026: repeat cantilever and one ODB Lens recipe with contributor environment if available.
 - Linux + Abaqus: syntaxcheck and custom `.inp` capsule path.
-- Report templates: export-to-PDF or downstream document rendering once a PDF path is implemented.
+- Report templates: validate optional Playwright PDF export on a machine with Chromium installed, then polish downstream document templates.

@@ -93,6 +93,30 @@ def test_report_export_cli_writes_json(monkeypatch, tmp_path, capsys):
     assert data["bytes"] == 123
 
 
+def test_report_export_cli_accepts_pdf_format(monkeypatch, tmp_path, capsys):
+    out = tmp_path / "report.pdf"
+
+    def fake_export(source, out_path, **kwargs):
+        assert source == "runs/demo"
+        assert out_path == str(out)
+        assert kwargs["export_format"] == "pdf"
+        return {"format": "pdf", "output_path": str(out), "bytes": 456}
+
+    monkeypatch.setattr(cli, "export_offline_run_report", fake_export)
+
+    rc = cli.main([
+        "report", "export", "runs/demo",
+        "--out", str(out),
+        "--format", "pdf",
+        "--json",
+    ])
+
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert data["format"] == "pdf"
+    assert data["bytes"] == 456
+
+
 def test_doctor_cli_directory_mode(tmp_path, capsys):
     (tmp_path / "job.msg").write_text("Too many attempts made for this increment\n", encoding="utf-8")
 

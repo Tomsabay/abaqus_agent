@@ -81,7 +81,15 @@ Export an offline report from a run directory, `capsule.json`, or `result.json`:
 
 ```bash
 abaqus-agent report export runs/my_run --template client_summary --out report.html
+abaqus-agent report export runs/my_run --template client_summary --out report.pdf
 abaqus-agent report export runs/my_run --out report.zip
+```
+
+PDF export is optional and renders the standalone HTML report through Playwright:
+
+```bash
+pip install "abaqus-agent[pdf]"
+playwright install chromium
 ```
 
 The web UI's Report panel can also load the same offline source path and render the report without starting a new analysis run.
@@ -263,7 +271,7 @@ Notes:
 
 - `python run_benchmark.py --dry-run` validates specs without Abaqus.
 - `abaqus-agent validate env` and the Environment panel record OS, Python, Abaqus command resolution, and `abaqus information=release` evidence before real validation.
-- `abaqus-agent report export`, `/api/report/export`, MCP bridge, and the Report panel produce Markdown, standalone HTML, or zipped report bundles from offline run evidence.
+- `abaqus-agent report export`, `/api/report/export`, MCP bridge, and the Report panel produce Markdown, standalone HTML, optional PDF, or zipped report bundles from offline run evidence.
 - Full regression requires a local Abaqus installation and license.
 - Current environment evidence is tracked in [docs/VALIDATION_MATRIX.md](docs/VALIDATION_MATRIX.md).
 - Current local validation has been done on Abaqus 2021 / Windows.
@@ -304,6 +312,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 - [x] Markdown report copy/download actions in the web UI
 - [x] Standalone HTML report export endpoint and web UI download action
 - [x] Browser preview/print mode for downstream PDF handoff
+- [x] Optional PDF report export across CLI/API/MCP bridge/UI via Playwright
 - [x] Report bundle zip endpoint and web UI download action
 - [x] Environment preflight CLI/API/MCP/UI workflow for Linux/Windows/Abaqus version validation readiness
 - [x] Offline report export CLI/API/MCP/UI workflow for run directories, capsules, and result JSON files
