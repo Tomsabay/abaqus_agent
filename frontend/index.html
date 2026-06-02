@@ -619,7 +619,8 @@ html, body {
 
 /* ── Report and capsule panels ───────────────────────────────────── */
 .report-area,
-.capsule-area {
+.capsule-area,
+.memory-area {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
@@ -772,6 +773,9 @@ html, body {
 @media (max-width: 980px) {
   .report-grid { grid-template-columns: 1fr; }
   .report-metrics { grid-template-columns: 1fr; }
+  .memory-controls,
+  .memory-field-grid,
+  .memory-card-head { grid-template-columns: 1fr; }
 }
 
 /* ── Benchmark table ─────────────────────────────────────────────── */
@@ -1174,6 +1178,106 @@ body::after {
   font-size: 11px;
 }
 
+.memory-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.memory-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.memory-input {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.memory-input:focus { border-color: var(--accent); }
+
+.memory-result-card {
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.memory-card-head {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.memory-score {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.memory-run {
+  min-width: 0;
+}
+
+.memory-run-id {
+  font-family: var(--mono);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.memory-run-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.memory-status {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--green);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 3px 7px;
+}
+
+.memory-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.memory-chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.memory-path {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+}
+
 .history-card {
   background: var(--bg3);
   border: 1px solid var(--border);
@@ -1332,6 +1436,9 @@ body::after {
     </div>
 
     <div class="nav-section" style="margin-top:8px">工具</div>
+    <div class="nav-item" data-panel="memory">
+      <span class="nav-icon">⌕</span> Case Memory
+    </div>
     <div class="nav-item" data-panel="history">
       <span class="nav-icon">◷</span> 运行历史
       <span class="nav-badge" id="history-badge" style="display:none">0</span>
@@ -1562,10 +1669,72 @@ body::after {
       </div>
     </section>
 
-    <!-- ── Panel: History ───────────────────────────────────── -->
+    <!-- ── Panel: Case Memory ───────────────────────────────── -->
+    <section class="panel" id="panel-memory">
+      <div class="panel-header">
+        <div class="panel-title"><span>09</span>Case Memory</div>
+      </div>
+      <div class="memory-area" id="memory-area">
+        <div class="memory-controls">
+          <div class="report-band">
+            <div class="report-band-title">Search Roots</div>
+            <div class="input-label">每行一个 run/capsule/result/父目录路径</div>
+            <textarea class="memory-input" id="memory-roots" rows="7">runs
+reports</textarea>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn-secondary" id="btn-memory-current">使用当前 run</button>
+            </div>
+          </div>
+          <div class="report-band">
+            <div class="report-band-title">Filters</div>
+            <div class="memory-field-grid">
+              <div>
+                <div class="input-label">文本查询</div>
+                <input class="memory-input" id="memory-query" placeholder="too_many_attempts / Cantilever / U_tip">
+              </div>
+              <div>
+                <div class="input-label">相似目标</div>
+                <input class="memory-input" id="memory-similar" placeholder="runs/candidate 或 capsule.json">
+              </div>
+              <div>
+                <div class="input-label">状态</div>
+                <select class="memory-input" id="memory-status">
+                  <option value="">全部</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="FAILED">FAILED</option>
+                  <option value="ABORTED">ABORTED</option>
+                </select>
+              </div>
+              <div>
+                <div class="input-label">KPI</div>
+                <input class="memory-input" id="memory-kpi" placeholder="U_tip">
+              </div>
+              <div>
+                <div class="input-label">Diagnosis ID</div>
+                <input class="memory-input" id="memory-diagnosis" placeholder="missing_node_set">
+              </div>
+              <div>
+                <div class="input-label">Limit</div>
+                <input class="memory-input" id="memory-limit" type="number" min="1" max="50" value="10">
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn-primary" id="btn-memory-search">⌕ 搜索案例</button>
+            </div>
+          </div>
+        </div>
+        <div id="memory-results">
+          <div class="empty-state">
+            <div class="empty-icon">⌕</div>
+            <div class="empty-label">搜索本地 capsule 历史，找相似模型、失败模式和 KPI 证据</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" id="panel-history">
       <div class="panel-header">
-        <div class="panel-title"><span>09</span>运行历史</div>
+        <div class="panel-title"><span>10</span>运行历史</div>
       </div>
       <div class="history-area" id="history-area">
         <div class="history-header">
@@ -1588,7 +1757,7 @@ body::after {
     <!-- ── Panel: Settings ─────────────────────────────────── -->
     <section class="panel" id="panel-settings">
       <div class="panel-header">
-        <div class="panel-title"><span>10</span>设置</div>
+        <div class="panel-title"><span>11</span>设置</div>
       </div>
       <div class="settings-area">
 
@@ -1744,6 +1913,7 @@ const state = {
   kpis: [],
   contracts: {},
   diff: null,
+  memory: null,
   report: null,
   capsule: null,
   serverOnline: false,
@@ -2804,6 +2974,117 @@ function renderDiff(diff) {
   document.getElementById('btn-diff-latest-inline').onclick = compareLatestRuns;
 }
 
+function memoryRoots() {
+  return document.getElementById('memory-roots').value
+    .split(/[\n,]+/)
+    .map(v => v.trim())
+    .filter(Boolean);
+}
+
+async function searchMemory() {
+  const roots = memoryRoots();
+  if (!roots.length) {
+    toast('请输入至少一个搜索路径', 'error');
+    return;
+  }
+  const btn = document.getElementById('btn-memory-search');
+  btn.disabled = true;
+  btn.textContent = '⌕ 搜索中...';
+  try {
+    const payload = {
+      roots,
+      query: document.getElementById('memory-query').value.trim(),
+      similar_to: document.getElementById('memory-similar').value.trim(),
+      status: document.getElementById('memory-status').value,
+      diagnosis_id: document.getElementById('memory-diagnosis').value.trim(),
+      kpi: document.getElementById('memory-kpi').value.trim(),
+      limit: parseInt(document.getElementById('memory-limit').value || '10', 10),
+    };
+    const res = await fetch(`${API}/api/memory/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const result = await res.json();
+    state.memory = result;
+    renderMemory(result);
+    toast(`找到 ${result.total_matches || 0} 个案例`, 'ok');
+  } catch (err) {
+    console.error(err);
+    toast('Case Memory 搜索失败', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⌕ 搜索案例';
+  }
+}
+
+function fillMemoryFromCurrentRun() {
+  const summary = state.report?.summary || {};
+  const capsulePath = summary.capsule_path || state.capsule?.capsule_path || '';
+  const workdir = summary.workdir || '';
+  const target = capsulePath || workdir;
+  if (!target) {
+    toast('当前没有可用的真实 run/capsule 路径', 'info');
+    return;
+  }
+  document.getElementById('memory-similar').value = target;
+  if (workdir) {
+    const roots = new Set(memoryRoots());
+    roots.add(workdir);
+    document.getElementById('memory-roots').value = Array.from(roots).join('\n');
+  }
+  navigateTo('memory');
+}
+
+function renderMemory(result) {
+  const area = document.getElementById('memory-results');
+  const matches = result.matches || [];
+  const query = result.query || {};
+  if (!matches.length) {
+    area.innerHTML = `
+      <div class="report-band">
+        <div class="report-band-title">Results</div>
+        <div class="visual-placeholder">没有匹配案例。可以放宽 status / KPI / diagnosis 过滤，或换一个 capsule 根目录。</div>
+      </div>`;
+    return;
+  }
+
+  const rows = matches.map(item => {
+    const kpiChips = (item.kpi_names || []).slice(0, 6)
+      .map(k => `<span class="memory-chip">${escapeHTML(k)}</span>`).join('');
+    const reasonChips = (item.reasons || []).slice(0, 6)
+      .map(r => `<span class="memory-chip">${escapeHTML(r)}</span>`).join('');
+    const statusClass = item.status === 'FAILED' ? 'report-fail' : 'report-pass';
+    return `
+      <div class="memory-result-card">
+        <div class="memory-card-head">
+          <div class="memory-score">${formatNum(item.score || 0)}</div>
+          <div class="memory-run">
+            <div class="memory-run-id">${escapeHTML(item.run_id || '—')}</div>
+            <div class="memory-run-meta">${escapeHTML(item.model_name || '—')} · ${escapeHTML(item.geometry_type || '—')} · ${escapeHTML(item.material_name || '—')}</div>
+          </div>
+          <div class="memory-status ${statusClass}">${escapeHTML(item.status || '—')}</div>
+        </div>
+        ${kpiChips ? `<div class="memory-chip-row">${kpiChips}</div>` : ''}
+        ${reasonChips ? `<div class="memory-chip-row">${reasonChips}</div>` : ''}
+        <div class="memory-path">${escapeHTML(item.workdir || item.capsule_path || '')}</div>
+      </div>`;
+  }).join('');
+
+  area.innerHTML = `
+    <div class="report-band" style="margin-bottom:14px">
+      <div class="report-band-title">Search Summary</div>
+      <div class="report-metrics">
+        <div class="report-metric"><div class="report-metric-label">Indexed</div><div class="report-metric-value">${result.total_indexed || 0}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Matches</div><div class="report-metric-value">${result.total_matches || 0}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Query</div><div class="report-metric-value">${escapeHTML(query.query || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Target</div><div class="report-metric-value">${escapeHTML(query.similar_to || '—')}</div></div>
+      </div>
+    </div>
+    ${rows}`;
+}
+
 function escapeHTML(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -3191,6 +3472,8 @@ document.getElementById('btn-clear-history').addEventListener('click', () => {
 
 document.getElementById('btn-history-diff').addEventListener('click', compareLatestRuns);
 document.getElementById('btn-diff-latest').addEventListener('click', compareLatestRuns);
+document.getElementById('btn-memory-search').addEventListener('click', searchMemory);
+document.getElementById('btn-memory-current').addEventListener('click', fillMemoryFromCurrentRun);
 
 // ── Settings panel logic ──────────────────────────────────────────
 function initSettingsPanel() {
