@@ -16,6 +16,7 @@ Endpoints mirror server.py under /mcp prefix:
   POST /mcp/api/doctor           → tools/call diagnose_logs_tool
   POST /mcp/api/diff             → tools/call simulation_diff_tool
   POST /mcp/api/memory/search    → tools/call case_memory_search_tool
+  POST /mcp/api/validate/env     → tools/call environment_preflight_tool
   GET  /mcp/api/benchmark        → resources/read benchmark://cases
   POST /mcp/api/benchmark/run    → tools/call run_benchmark_tool
   GET  /mcp/health               → tools/call health_check
@@ -268,6 +269,12 @@ class MemorySearchRequest(BaseModel):
     min_score: float = 0.0
 
 
+class EnvironmentPreflightRequest(BaseModel):
+    abaqus_cmd: str = ""
+    timeout_seconds: float = 15.0
+    check_release: bool = True
+
+
 # ── Bridge endpoints ──────────────────────────────────────────────
 
 @app.get("/")
@@ -369,6 +376,18 @@ async def bridge_memory_search(req: MemorySearchRequest):
             "sort_by": req.sort_by,
             "sort_order": req.sort_order,
             "min_score": req.min_score,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/api/validate/env")
+async def bridge_environment_preflight(req: EnvironmentPreflightRequest):
+    try:
+        return await mcp_conn.call_tool("environment_preflight_tool", {
+            "abaqus_cmd": req.abaqus_cmd,
+            "timeout_seconds": req.timeout_seconds,
+            "check_release": req.check_release,
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

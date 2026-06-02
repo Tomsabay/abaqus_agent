@@ -129,6 +129,34 @@ class TestMCPTools:
         assert data["run_id"] == run_id
         assert "status" in data
 
+    def test_environment_preflight_tool(self, monkeypatch):
+        import mcp_server
+        from mcp_server import environment_preflight_tool
+
+        def fake_preflight(**kwargs):
+            assert kwargs["abaqus_cmd"] == "abaqus"
+            assert kwargs["timeout_seconds"] == 3.0
+            assert kwargs["check_release"] is False
+            return {
+                "status": "unknown",
+                "platform": {"system": "Linux"},
+                "abaqus": {"command": "abaqus", "release_check": {"status": "skipped"}},
+                "checks": [],
+            }
+
+        monkeypatch.setattr(mcp_server, "run_environment_preflight", fake_preflight)
+
+        result = asyncio.get_event_loop().run_until_complete(
+            environment_preflight_tool(
+                abaqus_cmd="abaqus",
+                timeout_seconds=3.0,
+                check_release=False,
+            )
+        )
+        data = json.loads(result)
+        assert data["status"] == "unknown"
+        assert "Abaqus Environment Preflight" in data["markdown"]
+
     def test_diagnose_logs_tool(self):
         from mcp_server import diagnose_logs_tool
         result = asyncio.get_event_loop().run_until_complete(

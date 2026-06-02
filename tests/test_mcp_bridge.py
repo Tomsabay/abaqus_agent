@@ -90,6 +90,15 @@ class MockMCPConnection:
                 "matches": [{"run_id": "bridge_memory", "model_name": "BridgeMemoryModel"}],
                 "markdown": "# Case Memory Search",
             }
+        elif tool_name == "environment_preflight_tool":
+            return {
+                "status": "ready",
+                "abaqus": {
+                    "resolved_path": "C:\\SIMULIA\\Commands\\abaqus.BAT",
+                    "release_check": {"status": "pass", "version": "2021"},
+                },
+                "markdown": "# Abaqus Environment Preflight",
+            }
         elif tool_name == "run_benchmark_tool":
             return {
                 "run_id": "bench_mock01",
@@ -249,6 +258,23 @@ class TestBridgeEndpoints:
         assert arguments["sort_by"] == "run_id"
         assert arguments["sort_order"] == "asc"
         assert arguments["min_score"] == 0.5
+
+    def test_environment_preflight_endpoint(self, mock_bridge):
+        client = self._client(mock_bridge)
+        res = client.post("/mcp/api/validate/env", json={
+            "abaqus_cmd": "abaqus",
+            "timeout_seconds": 2.0,
+            "check_release": False,
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["status"] == "ready"
+        assert "Abaqus Environment Preflight" in data["markdown"]
+        tool_name, arguments = mock_bridge.mcp_conn.calls[-1]
+        assert tool_name == "environment_preflight_tool"
+        assert arguments["abaqus_cmd"] == "abaqus"
+        assert arguments["timeout_seconds"] == 2.0
+        assert arguments["check_release"] is False
 
     def test_get_benchmark(self, mock_bridge):
         client = self._client(mock_bridge)

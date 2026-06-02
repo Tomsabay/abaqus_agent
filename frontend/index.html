@@ -1439,6 +1439,9 @@ body::after {
     <div class="nav-item" data-panel="memory">
       <span class="nav-icon">⌕</span> Case Memory
     </div>
+    <div class="nav-item" data-panel="environment">
+      <span class="nav-icon">⌁</span> Environment
+    </div>
     <div class="nav-item" data-panel="history">
       <span class="nav-icon">◷</span> 运行历史
       <span class="nav-badge" id="history-badge" style="display:none">0</span>
@@ -1757,9 +1760,46 @@ reports</textarea>
       </div>
     </section>
 
+    <!-- ── Panel: Environment ───────────────────────────────── -->
+    <section class="panel" id="panel-environment">
+      <div class="panel-header">
+        <div class="panel-title"><span>10</span>Environment Preflight</div>
+      </div>
+      <div class="memory-area">
+        <div class="memory-controls">
+          <div class="report-band">
+            <div class="report-band-title">Abaqus Command</div>
+            <div class="memory-field-grid">
+              <div>
+                <div class="input-label">Command</div>
+                <input class="memory-input" id="preflight-abaqus-cmd" placeholder="abaqus 或 C:\SIMULIA\Commands\abaqus.BAT">
+              </div>
+              <div>
+                <div class="input-label">Timeout</div>
+                <input class="memory-input" id="preflight-timeout" type="number" min="1" max="120" step="1" value="15">
+              </div>
+            </div>
+            <label class="input-label" style="display:flex;align-items:center;gap:8px;margin-top:12px">
+              <input type="checkbox" id="preflight-check-release" checked>
+              Run release check
+            </label>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn-primary" id="btn-run-preflight">⌁ 运行预检</button>
+            </div>
+          </div>
+          <div id="preflight-results">
+            <div class="empty-state">
+              <div class="empty-icon">⌁</div>
+              <div class="empty-label">记录 OS、Python、Abaqus 命令和 release 证据</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" id="panel-history">
       <div class="panel-header">
-        <div class="panel-title"><span>10</span>运行历史</div>
+        <div class="panel-title"><span>11</span>运行历史</div>
       </div>
       <div class="history-area" id="history-area">
         <div class="history-header">
@@ -1782,7 +1822,7 @@ reports</textarea>
     <!-- ── Panel: Settings ─────────────────────────────────── -->
     <section class="panel" id="panel-settings">
       <div class="panel-header">
-        <div class="panel-title"><span>11</span>设置</div>
+        <div class="panel-title"><span>12</span>设置</div>
       </div>
       <div class="settings-area">
 
@@ -1939,6 +1979,7 @@ const state = {
   contracts: {},
   diff: null,
   memory: null,
+  preflight: null,
   report: null,
   capsule: null,
   serverOnline: false,
@@ -3272,6 +3313,85 @@ function renderMemory(result) {
     ${rows}`;
 }
 
+async function runEnvironmentPreflight() {
+  const btn = document.getElementById('btn-run-preflight');
+  btn.disabled = true;
+  btn.textContent = '⌁ 预检中...';
+  try {
+    const payload = {
+      abaqus_cmd: document.getElementById('preflight-abaqus-cmd').value.trim(),
+      timeout_seconds: parseFloat(document.getElementById('preflight-timeout').value || '15'),
+      check_release: document.getElementById('preflight-check-release').checked,
+    };
+    const res = await fetch(`${API}/api/validate/env`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const result = await res.json();
+    state.preflight = result;
+    renderEnvironmentPreflight(result);
+    toast(`Environment: ${result.status || 'unknown'}`, result.status === 'ready' ? 'ok' : 'info');
+  } catch (err) {
+    console.error(err);
+    toast('环境预检失败', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⌁ 运行预检';
+  }
+}
+
+function renderEnvironmentPreflight(result) {
+  const area = document.getElementById('preflight-results');
+  const platform = result.platform || {};
+  const abaqus = result.abaqus || {};
+  const release = abaqus.release_check || {};
+  const statusClass = result.status === 'ready' ? 'report-pass'
+    : result.status === 'missing_abaqus' || result.status === 'release_check_failed'
+      ? 'report-fail'
+      : 'report-warn';
+  const checks = (result.checks || []).map(check => {
+    const checkClass = check.status === 'pass' ? 'report-pass'
+      : check.status === 'fail' ? 'report-fail' : 'report-warn';
+    return `
+      <tr>
+        <td>${escapeHTML(check.name || '')}</td>
+        <td><span class="${checkClass}">${escapeHTML(check.status || '')}</span></td>
+        <td>${escapeHTML(check.detail || '')}</td>
+      </tr>`;
+  }).join('');
+  area.innerHTML = `
+    <div class="report-band">
+      <div class="report-band-title">Preflight Summary</div>
+      <div class="report-metrics">
+        <div class="report-metric"><div class="report-metric-label">Status</div><div class="report-metric-value ${statusClass}">${escapeHTML(result.status || 'unknown')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">OS</div><div class="report-metric-value">${escapeHTML(`${platform.system || ''} ${platform.release || ''}`.trim() || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Python</div><div class="report-metric-value">${escapeHTML(platform.python_version || '—')}</div></div>
+        <div class="report-metric"><div class="report-metric-label">Abaqus</div><div class="report-metric-value">${escapeHTML(release.version || '—')}</div></div>
+      </div>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Command Evidence</div>
+      <table class="report-table">
+        <tbody>
+          <tr><th>Requested</th><td>${escapeHTML(abaqus.command || 'abaqus')}</td></tr>
+          <tr><th>Resolved</th><td>${escapeHTML(abaqus.resolved_path || 'not found')}</td></tr>
+          <tr><th>Release Status</th><td>${escapeHTML(release.status || 'unknown')}</td></tr>
+          <tr><th>Return Code</th><td>${release.returncode ?? '—'}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Checks</div>
+      <table class="report-table"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>${checks || '<tr><td colspan="3">—</td></tr>'}</tbody></table>
+    </div>
+    <div class="report-band" style="margin-top:14px">
+      <div class="report-band-title">Markdown Evidence</div>
+      <div class="markdown-preview">${escapeHTML(result.markdown || '')}</div>
+    </div>`;
+}
+
 function escapeHTML(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -3661,6 +3781,7 @@ document.getElementById('btn-history-diff').addEventListener('click', compareLat
 document.getElementById('btn-diff-latest').addEventListener('click', compareLatestRuns);
 document.getElementById('btn-memory-search').addEventListener('click', searchMemory);
 document.getElementById('btn-memory-current').addEventListener('click', fillMemoryFromCurrentRun);
+document.getElementById('btn-run-preflight').addEventListener('click', runEnvironmentPreflight);
 
 // ── Settings panel logic ──────────────────────────────────────────
 function initSettingsPanel() {
