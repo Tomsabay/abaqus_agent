@@ -24,6 +24,8 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     workdir.mkdir()
     artifact = workdir / "Job.log"
     artifact.write_text("Abaqus JOB Job COMPLETED\n", encoding="utf-8")
+    image = workdir / "mises_contour.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
     capsule = {
         "schema_version": "0.2.0-dev",
         "run_id": "ui_report_001",
@@ -34,6 +36,11 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
                 "path": "Job.log",
                 "sha256": "abc",
                 "bytes": artifact.stat().st_size,
+            },
+            "mises_contour.png": {
+                "path": "mises_contour.png",
+                "sha256": "def",
+                "bytes": image.stat().st_size,
             }
         },
         "provenance": {
@@ -63,6 +70,7 @@ def test_run_report_capsule_and_artifact_endpoints(tmp_path):
     report = report_res.json()
     assert report["summary"]["run_id"] == "ui_report_001"
     assert report["artifacts"]["Job.log"]["bytes"] > 0
+    assert report["image_artifacts"] == ["mises_contour.png"]
     assert "Abaqus Run Report" in report["markdown"]
 
     capsule_res = client.get("/api/run/ui_report_001/capsule")

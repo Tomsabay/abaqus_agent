@@ -7,7 +7,7 @@ import json
 import yaml
 
 import cli
-from odb_lens import load_recipe, normalize_recipe, render_kpi_markdown
+from odb_lens import load_recipe, normalize_plots, normalize_recipe, render_kpi_markdown
 
 
 def test_normalize_outputs_kpis_legacy_shape():
@@ -56,6 +56,46 @@ def test_normalize_history_recipe():
 
     assert recipe[0]["type"] == "history_output_max"
     assert recipe[0]["variable"] == "ALLPD"
+
+
+def test_normalize_plots_infers_mises_and_displacement():
+    kpis = normalize_recipe([
+        {"name": "MISES_MAX", "field": "S", "invariant": "MISES"},
+        {"name": "U_tip", "type": "nodal_displacement", "component": "U2"},
+    ])
+
+    plots = normalize_plots({}, kpis)
+
+    assert plots == [
+        {
+            "name": "mises_contour",
+            "field_variable": "S",
+            "invariant": "MISES",
+            "deformed": False,
+            "frame": "last",
+        },
+        {
+            "name": "u_magnitude",
+            "field_variable": "U",
+            "invariant": "MAGNITUDE",
+            "deformed": True,
+            "frame": "last",
+        },
+    ]
+
+
+def test_normalize_plots_accepts_explicit_outputs_shape():
+    plots = normalize_plots({
+        "outputs": {
+            "plots": [
+                {"name": "u1 contour", "field": "U", "component": "U1", "deformed": True}
+            ]
+        }
+    })
+
+    assert plots[0]["name"] == "u1_contour"
+    assert plots[0]["field_variable"] == "U"
+    assert plots[0]["component"] == "U1"
 
 
 def test_normalize_rejects_duplicate_names():

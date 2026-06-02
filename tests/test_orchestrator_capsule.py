@@ -61,6 +61,45 @@ def test_orchestrator_writes_capsule_on_success(tmp_path):
     assert "CapsuleModel.inp" in capsule["artifacts"]
 
 
+def test_orchestrator_collects_exported_odb_images(tmp_path, monkeypatch):
+    workdir = tmp_path / "run"
+    spec_path = _write_spec(tmp_path)
+    orch = AbaqusOrchestrator(spec_path=spec_path, workdir=workdir)
+
+    def fake_build():
+        workdir.mkdir(parents=True, exist_ok=True)
+        inp = workdir / "CapsuleModel.inp"
+        inp.write_text("*Heading\nmodel\n", encoding="utf-8")
+        odb = workdir / "CapsuleModel.odb"
+        odb.write_text("fake odb marker\n", encoding="utf-8")
+        orch.workdir = workdir
+        orch._build_result = {"workdir": workdir, "inp_path": inp, "run_id": "visual123"}
+        return orch._build_result
+
+    def fake_export(_odb_path, plot_spec, export_workdir):
+        image = Path(export_workdir) / "u_magnitude.png"
+        image.write_bytes(b"\x89PNG\r\n\x1a\n")
+        return {
+            "images": [{"name": "u_magnitude", "path": image.name, "bytes": image.stat().st_size}],
+            "errors": [],
+            "plot_spec": plot_spec,
+        }
+
+    monkeypatch.setattr("agent.orchestrator.export_odb_images", fake_export)
+    orch._stage_build = fake_build
+    orch._stage_syntaxcheck = lambda _inp, _workdir: None
+    orch._stage_submit = lambda _inp, _workdir: {"job_name": "CapsuleModel", "workdir": str(workdir), "status": "completed"}
+    orch._stage_monitor = lambda _submit: None
+    orch._stage_extract = lambda _odb: {"kpis": {"U_tip": -0.002}, "errors": []}
+
+    result = orch.run()
+
+    capsule = json.loads((workdir / "capsule.json").read_text(encoding="utf-8"))
+    assert result["status"] == "COMPLETED"
+    assert result["visuals"][0]["path"] == "u_magnitude.png"
+    assert "u_magnitude.png" in capsule["artifacts"]
+
+
 def test_orchestrator_writes_capsule_and_diagnosis_on_failure(tmp_path):
     workdir = tmp_path / "run"
     spec_path = _write_spec(tmp_path)

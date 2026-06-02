@@ -21,6 +21,7 @@ SUPPORTED_TYPES = {
     "reaction_force_max",
 }
 SUPPORTED_REDUCERS = {"abs_max", "last", "max", "min"}
+SUPPORTED_PLOT_FIELDS = {"S", "U", "PEEQ", "RF"}
 
 
 def load_recipe(path: str | Path) -> list[dict]:
@@ -41,6 +42,16 @@ def normalize_recipe(data: dict | list | None) -> list[dict]:
     if not valid:
         raise ValueError("; ".join(errors))
     return normalized
+
+
+def normalize_plots(data: dict | list | None, kpis: list[dict] | None = None) -> list[dict]:
+    """Normalize ODB plot specs, inferring useful default plots from KPI recipes."""
+    raw_plots = _extract_plot_list(data)
+    if raw_plots:
+        plots = [_normalize_plot(plot) for plot in raw_plots]
+    else:
+        plots = _infer_plots_from_kpis(kpis or normalize_recipe(data))
+    return _dedupe_plots(plots)
 
 
 def validate_recipe(kpis: list[dict]) -> tuple[bool, list[str]]:
@@ -107,6 +118,19 @@ def _extract_kpi_list(data: dict | list | None) -> list[dict]:
     raise ValueError("recipe must be a KPI list or contain kpis/outputs.kpis/odb_lens.kpis")
 
 
+def _extract_plot_list(data: dict | list | None) -> list[dict]:
+    if isinstance(data, dict):
+        if isinstance(data.get("plots"), list):
+            return data["plots"]
+        outputs = data.get("outputs")
+        if isinstance(outputs, dict) and isinstance(outputs.get("plots"), list):
+            return outputs["plots"]
+        lens = data.get("odb_lens")
+        if isinstance(lens, dict) and isinstance(lens.get("plots"), list):
+            return lens["plots"]
+    return []
+
+
 def _normalize_kpi(kpi: dict) -> dict:
     if not isinstance(kpi, dict):
         raise ValueError("each KPI recipe entry must be an object")
@@ -129,6 +153,74 @@ def _normalize_kpi(kpi: dict) -> dict:
         normalized["invariant"] = str(invariant).upper()
 
     return normalized
+
+
+def _normalize_plot(plot: dict) -> dict:
+    if not isinstance(plot, dict):
+        raise ValueError("each plot recipe entry must be an object")
+
+    normalized = dict(plot)
+    field = str(normalized.get("field") or normalized.get("field_variable") or "S").upper()
+    if field not in SUPPORTED_PLOT_FIELDS:
+        raise ValueError(f"plot field is unsupported: {field}")
+    normalized["field_variable"] = field
+
+    invariant = normalized.get("invariant")
+    component = normalized.get("component")
+    if invariant:
+        normalized["invariant"] = str(invariant).upper()
+    elif field == "S":
+        normalized["invariant"] = "MISES"
+    elif field == "U" and not component:
+        normalized["invariant"] = "MAGNITUDE"
+
+    if component:
+        normalized["component"] = str(component).upper()
+
+    normalized["name"] = _safe_plot_name(normalized.get("name") or _default_plot_name(normalized))
+    normalized["deformed"] = bool(normalized.get("deformed", field == "U"))
+    normalized["frame"] = normalized.get("frame", "last")
+    return normalized
+
+
+def _infer_plots_from_kpis(kpis: list[dict]) -> list[dict]:
+    plots = []
+    for kpi in kpis:
+        name = str(kpi.get("name", "")).upper()
+        field = str(kpi.get("field_variable") or kpi.get("field") or "").upper()
+        component = str(kpi.get("component", "")).upper()
+        kind = str(kpi.get("type", ""))
+
+        if "MISES" in name or field == "S" or kind in {"field_max", "field_min"} and component.startswith("S"):
+            plots.append({"name": "mises_contour", "field_variable": "S", "invariant": "MISES"})
+        if field == "U" or component.startswith("U") or kind == "nodal_displacement":
+            plots.append({"name": "u_magnitude", "field_variable": "U", "invariant": "MAGNITUDE", "deformed": True})
+        if field == "PEEQ" or "PEEQ" in name:
+            plots.append({"name": "peeq_contour", "field_variable": "PEEQ"})
+    return [_normalize_plot(plot) for plot in plots]
+
+
+def _dedupe_plots(plots: list[dict]) -> list[dict]:
+    deduped = []
+    seen = set()
+    for plot in plots:
+        name = plot["name"]
+        if name in seen:
+            continue
+        seen.add(name)
+        deduped.append(plot)
+    return deduped
+
+
+def _default_plot_name(plot: dict) -> str:
+    field = str(plot.get("field_variable") or plot.get("field") or "field").lower()
+    invariant = str(plot.get("invariant") or plot.get("component") or "contour").lower()
+    return f"{field}_{invariant}"
+
+
+def _safe_plot_name(value: object) -> str:
+    raw = str(value).strip() or "odb_plot"
+    return "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in raw)
 
 
 def _infer_type(kpi: dict) -> str:
