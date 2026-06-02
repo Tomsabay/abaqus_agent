@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agent.orchestrator import AbaqusOrchestrator
 from tools.errors import AbaqusAgentError, ErrorCode
+
+REPO_ROOT = Path(__file__).parent.parent
 
 
 def _write_spec(tmp_path: Path) -> Path:
@@ -89,3 +92,17 @@ def test_orchestrator_writes_capsule_and_diagnosis_on_failure(tmp_path):
     assert capsule["provenance"]["status"] == "FAILED"
     assert capsule["diagnosis"]["matched"] is True
     assert capsule["diagnosis"]["matches"][0]["id"] == "too_many_attempts"
+
+
+def test_orchestrator_script_entrypoint_imports_top_level_packages():
+    proc = subprocess.run(
+        [sys.executable, "agent/orchestrator.py"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert proc.returncode == 1
+    assert "Usage: python agent/orchestrator.py" in proc.stdout
+    assert "ModuleNotFoundError" not in proc.stderr
