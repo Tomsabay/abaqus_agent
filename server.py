@@ -115,6 +115,7 @@ class MemorySearchRequest(BaseModel):
     model_name: str = ""
     diagnosis_id: str = ""
     kpi: str = ""
+    artifact: str = ""
     limit: int = 10
     include_artifacts: bool = False
     sort_by: str = "score"
@@ -314,6 +315,7 @@ def post_memory_search(req: MemorySearchRequest):
             model_name=req.model_name,
             diagnosis_id=req.diagnosis_id,
             kpi=req.kpi,
+            artifact=req.artifact,
             limit=req.limit,
             include_artifacts=req.include_artifacts,
             sort_by=req.sort_by,

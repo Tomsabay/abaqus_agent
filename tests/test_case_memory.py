@@ -151,6 +151,21 @@ def test_case_memory_omits_artifacts_by_default_and_can_include_them(tmp_path):
     assert "artifacts" in verbose["matches"][0]
 
 
+def test_case_memory_filters_by_artifact_name(tmp_path):
+    _write_case(tmp_path, "with_log", model_name="LogModel", geometry_type="custom_inp")
+    no_log = _write_case(tmp_path, "no_log", model_name="NoLogModel", geometry_type="custom_inp")
+    capsule = json.loads((no_log / "capsule.json").read_text(encoding="utf-8"))
+    capsule["artifacts"] = {"u_magnitude.png": {"path": "u_magnitude.png", "sha256": "def", "bytes": 20}}
+    (no_log / "capsule.json").write_text(json.dumps(capsule), encoding="utf-8")
+
+    result = search_case_memory(CaseMemoryQuery(roots=(tmp_path,), artifact="u_magnitude"))
+
+    assert result["total_matches"] == 1
+    assert result["matches"][0]["run_id"] == "no_log"
+    assert result["query"]["artifact"] == "u_magnitude"
+    assert "artifact:u_magnitude" in result["matches"][0]["reasons"]
+
+
 def test_case_memory_sort_and_min_score_controls(tmp_path):
     _write_case(tmp_path, "b_case", model_name="BeamB", geometry_type="custom_inp")
     _write_case(tmp_path, "a_case", model_name="BeamA", geometry_type="custom_inp")

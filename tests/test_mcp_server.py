@@ -187,7 +187,7 @@ class TestMCPTools:
                 "run_id": "mcp_memory",
                 "created_at": "2026-06-02T10:00:00",
                 "inputs": {"model_name": "McpMemoryModel"},
-                "artifacts": {},
+                "artifacts": {"Job.log": {"path": "Job.log", "sha256": "abc", "bytes": 10}},
                 "provenance": {"status": "COMPLETED"},
             }),
             encoding="utf-8",
@@ -197,6 +197,7 @@ class TestMCPTools:
             case_memory_search_tool(
                 json.dumps([str(tmp_path)]),
                 query="McpMemoryModel",
+                artifact="Job.log",
                 sort_by="run_id",
                 sort_order="asc",
                 min_score=0.5,
@@ -205,6 +206,7 @@ class TestMCPTools:
 
         data = json.loads(result)
         assert data["matches"][0]["run_id"] == "mcp_memory"
+        assert data["query"]["artifact"] == "Job.log"
         assert data["query"]["sort_by"] == "run_id"
         assert data["query"]["sort_order"] == "asc"
         assert data["query"]["min_score"] == 0.5

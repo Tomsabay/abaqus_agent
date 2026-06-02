@@ -92,6 +92,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mem_search.add_argument("--model-name", default="", help="Filter by model name substring")
     mem_search.add_argument("--diagnosis-id", default="", help="Filter by Solver Doctor pattern id")
     mem_search.add_argument("--kpi", default="", help="Filter by KPI name")
+    mem_search.add_argument("--artifact", default="", help="Filter by artifact filename substring")
     mem_search.add_argument("--limit", type=int, default=10, help="Maximum matches to return")
     mem_search.add_argument("--include-artifacts", action="store_true", help="Include full artifact manifests")
     mem_search.add_argument("--sort-by", default="score", choices=["score", "created_at", "run_id", "model_name", "status"])
@@ -189,6 +190,7 @@ def _cmd_memory_search(args: argparse.Namespace) -> int:
         model_name=args.model_name,
         diagnosis_id=args.diagnosis_id,
         kpi=args.kpi,
+        artifact=args.artifact,
         limit=args.limit,
         include_artifacts=args.include_artifacts,
         sort_by=args.sort_by,
