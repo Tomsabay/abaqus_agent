@@ -121,6 +121,8 @@ class MemorySearchRequest(BaseModel):
     similar_to: str = ""
     status: str = ""
     model_name: str = ""
+    contract: str = ""
+    contracts_passed: str = ""
     diagnosis_id: str = ""
     kpi: str = ""
     artifact: str = ""
@@ -420,6 +422,8 @@ def post_memory_search(req: MemorySearchRequest):
             similar_to=req.similar_to or None,
             status=req.status,
             model_name=req.model_name,
+            contract=req.contract,
+            contracts_passed=req.contracts_passed,
             diagnosis_id=req.diagnosis_id,
             kpi=req.kpi,
             artifact=req.artifact,
