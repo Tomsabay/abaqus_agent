@@ -99,3 +99,63 @@ patterns:
     severity: error
     regex: "(abaqus|abaqus\\.bat).*(not found|is not recognized|No such file)"
     suggestion: "Resolve Abaqus through tools/abaqus_cmd.py and verify PATH on Windows."
+  - id: maximum_increments_exceeded
+    category: convergence
+    severity: error
+    regex: "maximum number of increments.*(exceeded|reached)"
+    suggestion: "Increase the allowed increments only after checking convergence controls, contact, and material nonlinearity."
+  - id: too_many_cutbacks
+    category: convergence
+    severity: error
+    regex: "too many cutbacks|cutbacks.*exceeded"
+    suggestion: "Reduce the initial increment, improve contact stabilization, or simplify the nonlinear step."
+  - id: rigid_body_motion
+    category: model_setup
+    severity: error
+    regex: "rigid body motion|part.*not constrained|unconstrained.*degree"
+    suggestion: "Add sufficient boundary conditions or connector/constraint definitions to remove free rigid body modes."
+  - id: missing_node_set
+    category: model_setup
+    severity: error
+    regex: "node set .* (has not been defined|is not defined|does not exist)"
+    suggestion: "Verify node set names, include files, assembly instance prefixes, and generated mesh labels."
+  - id: missing_element_set
+    category: model_setup
+    severity: error
+    regex: "element set .* (has not been defined|is not defined|does not exist)"
+    suggestion: "Verify element set names, section assignments, and whether the mesh was generated before set creation."
+  - id: missing_surface
+    category: contact
+    severity: error
+    regex: "surface .* (has not been defined|is not defined|does not exist)"
+    suggestion: "Check surface creation, assembly instance names, and contact/load region references."
+  - id: include_file_missing
+    category: environment
+    severity: error
+    regex: "include file.*(not found|cannot be opened)|\\*include.*(not found|cannot be opened)"
+    suggestion: "Resolve include paths relative to the job work directory and copy all dependent input files into the capsule."
+  - id: lock_file_exists
+    category: environment
+    severity: warning
+    regex: "lock file.*(exists|detected)|\\.lck"
+    suggestion: "Confirm no Abaqus job is still running, then remove stale .lck files before rerunning."
+  - id: scratch_directory_unavailable
+    category: environment
+    severity: error
+    regex: "scratch (directory|folder).*(not found|cannot|unavailable)|cannot create.*scratch"
+    suggestion: "Set a writable scratch directory with enough disk space and avoid restricted or synced folders."
+  - id: output_variable_invalid
+    category: output
+    severity: error
+    regex: "output variable.*(not available|not valid|unknown)|unknown output request"
+    suggestion: "Check field/history output variables against the selected analysis procedure and element type."
+  - id: odb_no_frames
+    category: odb
+    severity: error
+    regex: "odb.*(contains no frames|no frames)|no step data.*odb"
+    suggestion: "Confirm the solver finished at least one increment and that KPI extraction is using the correct step/frame."
+  - id: python_script_error
+    category: scripting
+    severity: error
+    regex: "Traceback \\(most recent call last\\)|SyntaxError|IndentationError|NameError"
+    suggestion: "Inspect the generated noGUI script, Abaqus Python version compatibility, and template variable expansion."

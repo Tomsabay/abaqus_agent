@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from capsule.schema import validate_capsule
 from capsule.store import hash_file, init_from_inp, load_capsule
 from contracts.evaluator import evaluate_contracts
-from doctor.diagnosis import diagnose_logs
+from doctor.diagnosis import diagnose_logs, load_patterns
 from simdiff.kpi_diff import diff_kpis, render_markdown
 from simdiff.run_diff import diff_runs, render_run_markdown
 
@@ -196,6 +196,34 @@ def test_solver_doctor_matches_common_patterns(tmp_path):
     assert result["matched"] is True
     assert "too_many_attempts" in ids
     assert "license_unavailable" in ids
+
+
+def test_solver_doctor_pattern_library_covers_mvp_threshold():
+    patterns = load_patterns()
+
+    assert len(patterns) >= 30
+    assert len({pattern["id"] for pattern in patterns}) == len(patterns)
+    assert {"id", "category", "regex", "suggestion"} <= set(patterns[0])
+
+
+def test_solver_doctor_matches_expanded_abaqus_patterns():
+    result = diagnose_logs(
+        text=(
+            "THE MAXIMUM NUMBER OF INCREMENTS HAS BEEN EXCEEDED\n"
+            "Node set FIXED_NODES has not been defined\n"
+            "Abaqus Error: The lock file Job-1.lck exists\n"
+            "Traceback (most recent call last):\n"
+            "NameError: name 'mdbx' is not defined\n"
+        )
+    )
+    ids = {match["id"] for match in result["matches"]}
+
+    assert {
+        "maximum_increments_exceeded",
+        "missing_node_set",
+        "lock_file_exists",
+        "python_script_error",
+    } <= ids
 
 
 def test_capsule_json_is_machine_readable(tmp_path):

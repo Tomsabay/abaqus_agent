@@ -45,6 +45,19 @@ def test_doctor_cli_directory_mode(tmp_path, capsys):
     assert "too_many_attempts" in out
 
 
+def test_doctor_cli_writes_expanded_pattern_report(tmp_path):
+    msg = tmp_path / "job.msg"
+    report = tmp_path / "doctor.md"
+    msg.write_text("Node set FIXED_NODES has not been defined\n", encoding="utf-8")
+
+    rc = cli.main(["doctor", str(msg), "--out", str(report)])
+
+    text = report.read_text(encoding="utf-8")
+    assert rc == 0
+    assert "Solver Doctor Report" in text
+    assert "missing_node_set" in text
+
+
 def test_doctor_cli_missing_path_returns_2(tmp_path, capsys):
     rc = cli.main(["doctor", str(tmp_path / "missing.msg")])
 
