@@ -1,0 +1,1 @@
+[{"name": "U_tip", "type": "nodal_displacement", "location": "tip_center", "component": "U2"}, {"name": "MISES_MAX", "type": "field_max", "location": "whole_model"}]

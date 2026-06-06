@@ -617,167 +617,6 @@ html, body {
 .kpi-badge.fail { background: rgba(255,69,96,0.15); color: var(--red); }
 .kpi-badge.info { background: rgba(77,142,255,0.15); color: var(--blue); }
 
-/* ── Report and capsule panels ───────────────────────────────────── */
-.report-area,
-.capsule-area,
-.memory-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.report-grid {
-  display: grid;
-  grid-template-columns: minmax(240px, 0.85fr) minmax(360px, 1.35fr);
-  gap: 14px;
-}
-
-.report-band,
-.capsule-band {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg3);
-  padding: 14px;
-  min-width: 0;
-}
-
-.report-band-title,
-.capsule-band-title {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text3);
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.report-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.report-metric {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px;
-  min-height: 66px;
-}
-
-.report-metric-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--text3);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.report-metric-value {
-  font-family: var(--mono);
-  font-size: 16px;
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
-
-.report-pass { color: var(--green); }
-.report-fail { color: var(--red); }
-.report-warn { color: var(--yellow); }
-
-.report-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.report-table th {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--text3);
-  text-align: left;
-  padding: 8px;
-  border-bottom: 1px solid var(--border2);
-  text-transform: uppercase;
-}
-
-.report-table td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-
-.artifact-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 8px;
-}
-
-.artifact-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 9px 10px;
-  min-width: 0;
-}
-
-.artifact-name {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.artifact-size {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--text3);
-  flex: 0 0 auto;
-}
-
-.markdown-preview {
-  white-space: pre-wrap;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text2);
-  line-height: 1.7;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-  overflow-x: auto;
-}
-
-.visual-placeholder {
-  display: grid;
-  place-items: center;
-  min-height: 180px;
-  background:
-    linear-gradient(135deg, rgba(77,142,255,0.08), transparent 40%),
-    linear-gradient(315deg, rgba(255,107,43,0.08), transparent 45%),
-    var(--bg2);
-  border: 1px dashed var(--border2);
-  border-radius: 8px;
-  color: var(--text3);
-  font-family: var(--mono);
-  font-size: 11px;
-  text-align: center;
-  padding: 18px;
-}
-
-@media (max-width: 980px) {
-  .report-grid { grid-template-columns: 1fr; }
-  .report-metrics { grid-template-columns: 1fr; }
-  .memory-controls,
-  .memory-field-grid,
-  .memory-card-head { grid-template-columns: 1fr; }
-}
-
 /* ── Benchmark table ─────────────────────────────────────────────── */
 .bench-area {
   flex: 1;
@@ -863,6 +702,386 @@ html, body {
 .reg-pass { color: var(--green); font-family: var(--mono); font-size: 11px; }
 .reg-fail { color: var(--red);   font-family: var(--mono); font-size: 11px; }
 .reg-na   { color: var(--text3); font-family: var(--mono); font-size: 11px; }
+
+/* ── Offline Evidence panel ─────────────────────────────────────── */
+.evidence-area {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1.1fr);
+  gap: 16px;
+}
+
+.evidence-column {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.evidence-box {
+  min-width: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.evidence-box-head {
+  padding: 9px 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.evidence-box-body {
+  padding: 12px;
+}
+
+.evidence-textarea {
+  width: 100%;
+  min-height: 92px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 10px;
+  color: #A8D8A8;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+}
+
+.evidence-textarea:focus,
+.evidence-input:focus {
+  border-color: var(--accent);
+}
+
+.evidence-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  outline: none;
+}
+
+.evidence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.evidence-status {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+
+.evidence-verdict {
+  display: grid;
+  grid-template-columns: 120px repeat(3, 1fr);
+  gap: 10px;
+}
+
+.evidence-stat {
+  min-height: 72px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.evidence-stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  text-transform: uppercase;
+}
+
+.evidence-stat-value {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text2);
+}
+
+.evidence-stat.pass .evidence-stat-value { color: var(--green); }
+.evidence-stat.fail .evidence-stat-value { color: var(--red); }
+.evidence-stat.warn .evidence-stat-value { color: var(--yellow); }
+
+.evidence-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  word-break: break-all;
+}
+
+.evidence-paths span {
+  color: var(--text2);
+}
+
+.artifact-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.artifact-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--accent);
+  background: var(--bg);
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.artifact-link:hover {
+  border-color: var(--accent);
+  background: rgba(0, 217, 255, 0.08);
+}
+
+.evidence-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evidence-recent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.85fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.evidence-recent-main {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidence-recent-meta {
+  margin-top: 4px;
+  color: var(--text3);
+}
+
+.evidence-recent-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.case-memory-pick {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text2);
+  background: var(--bg3);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.case-memory-pick:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.evidence-report {
+  flex: 1;
+  min-height: 0;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 12px;
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.6;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 980px) {
+  .evidence-area {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .evidence-verdict {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .evidence-recent-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .evidence-recent-links {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  html, body {
+    overflow: hidden;
+  }
+
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 42px auto minmax(0, 1fr);
+  }
+
+  .topbar {
+    min-width: 0;
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .topbar-info,
+  .topbar > span[style*="border2"] {
+    display: none;
+  }
+
+  .sidebar {
+    grid-row: 2;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar .nav-section,
+  .sidebar > div[style*="flex:1"],
+  .sidebar > div[style*="border-top"] {
+    display: none;
+  }
+
+  .nav-item {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+
+  .nav-item.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--accent);
+  }
+
+  .main {
+    grid-row: 3;
+    min-width: 0;
+  }
+
+  .panel-header,
+  .prompt-area,
+  .spec-container,
+  .pipeline-area,
+  .bench-area,
+  .kpi-area,
+  .evidence-area,
+  .settings-area {
+    padding: 12px;
+  }
+
+  .prompt-area > div > div[style*="display:flex"],
+  .btn-row,
+  .settings-field-row {
+    flex-wrap: wrap;
+  }
+
+  .prompt-area select,
+  .btn-row .btn,
+  .settings-field-row .btn,
+  .settings-field-row .settings-input {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .evidence-area {
+    gap: 12px;
+  }
+
+  .evidence-actions {
+    align-items: stretch;
+  }
+
+  .evidence-actions .btn {
+    flex: 1 1 150px;
+  }
+
+  .evidence-status {
+    flex: 1 0 100%;
+    margin-left: 0;
+  }
+
+  .artifact-link,
+  .case-memory-pick {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .evidence-verdict {
+    grid-template-columns: 1fr;
+  }
+
+  .evidence-box-head {
+    flex-wrap: wrap;
+  }
+}
 
 /* ── Toast ───────────────────────────────────────────────────────── */
 .toast-wrap {
@@ -1178,106 +1397,6 @@ body::after {
   font-size: 11px;
 }
 
-.memory-controls {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.1fr);
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.memory-field-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.memory-input {
-  width: 100%;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 11px;
-  padding: 8px 10px;
-  outline: none;
-}
-
-.memory-input:focus { border-color: var(--accent); }
-
-.memory-result-card {
-  border: 1px solid var(--border);
-  background: var(--bg3);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
-}
-
-.memory-card-head {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.memory-score {
-  font-family: var(--mono);
-  font-size: 18px;
-  color: var(--accent);
-}
-
-.memory-run {
-  min-width: 0;
-}
-
-.memory-run-id {
-  font-family: var(--mono);
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
-
-.memory-run-meta {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  margin-top: 2px;
-}
-
-.memory-status {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--green);
-  border: 1px solid var(--border2);
-  border-radius: 4px;
-  padding: 3px 7px;
-}
-
-.memory-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.memory-chip {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text2);
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 6px;
-}
-
-.memory-path {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  overflow-wrap: anywhere;
-  margin-top: 8px;
-}
-
 .history-card {
   background: var(--bg3);
   border: 1px solid var(--border);
@@ -1415,33 +1534,24 @@ body::after {
     </div>
     <div class="nav-item" data-panel="pipeline">
       <span class="nav-icon">▶</span> 运行流水线
-      <span class="nav-badge" id="stage-badge" style="display:none">0/7</span>
+      <span class="nav-badge" id="stage-badge" style="display:none">0/6</span>
     </div>
     <div class="nav-item" data-panel="kpis">
       <span class="nav-icon">◎</span> KPI 结果
     </div>
 
     <div class="nav-section" style="margin-top:8px">评估</div>
-    <div class="nav-item" data-panel="report">
-      <span class="nav-icon">▣</span> 运行报告
-    </div>
-    <div class="nav-item" data-panel="diff">
-      <span class="nav-icon">⇄</span> Simulation Diff
-    </div>
-    <div class="nav-item" data-panel="capsule">
-      <span class="nav-icon">◇</span> 实验胶囊
-    </div>
     <div class="nav-item" data-panel="benchmark">
       <span class="nav-icon">≡</span> Benchmark
     </div>
+    <div class="nav-item" data-panel="evidence">
+      <span class="nav-icon">◇</span> Evidence
+    </div>
+    <div class="nav-item" data-panel="doctor">
+      <span class="nav-icon">!</span> Solver Doctor
+    </div>
 
     <div class="nav-section" style="margin-top:8px">工具</div>
-    <div class="nav-item" data-panel="memory">
-      <span class="nav-icon">⌕</span> Case Memory
-    </div>
-    <div class="nav-item" data-panel="environment">
-      <span class="nav-icon">⌁</span> Environment
-    </div>
     <div class="nav-item" data-panel="history">
       <span class="nav-icon">◷</span> 运行历史
       <span class="nav-badge" id="history-badge" style="display:none">0</span>
@@ -1455,7 +1565,7 @@ body::after {
     <div style="padding:12px 14px;border-top:1px solid var(--border)">
       <div style="font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.8">
         <div>CASES: 4</div>
-        <div>TESTS: 39 ✓</div>
+        <div>LOCAL SMOKE ✓</div>
         <div style="color:var(--accent)">NO LICENSE REQ</div>
       </div>
     </div>
@@ -1593,84 +1703,10 @@ body::after {
       </div>
     </section>
 
-    <!-- ── Panel: Report ───────────────────────────────────── -->
-    <section class="panel" id="panel-report">
-      <div class="panel-header">
-        <div class="panel-title"><span>05</span>运行报告</div>
-      </div>
-      <div class="report-area" style="padding-bottom:0">
-        <div class="report-band">
-          <div class="report-band-title">Offline Source</div>
-          <div class="memory-field-grid">
-            <div>
-              <div class="input-label">Run directory / capsule.json / result.json</div>
-              <input class="memory-input" id="offline-report-source" placeholder="cases/plate_hole/runs/95712d55bf05f243">
-            </div>
-            <div>
-              <div class="input-label">Template</div>
-              <select class="memory-input" id="offline-report-template">
-                <option value="standard">standard</option>
-                <option value="client_summary">client_summary</option>
-                <option value="engineering_delivery">engineering_delivery</option>
-              </select>
-            </div>
-          </div>
-          <div class="btn-row" style="margin-top:12px">
-            <button class="btn btn-primary" id="btn-load-offline-report">▣ 加载离线报告</button>
-          </div>
-        </div>
-      </div>
-      <div class="report-area" id="report-area">
-        <div class="empty-state" id="report-empty">
-          <div class="empty-icon">▣</div>
-          <div class="empty-label">运行完成后生成报告视图</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Panel: Capsule ──────────────────────────────────── -->
-    <section class="panel" id="panel-capsule">
-      <div class="panel-header">
-        <div class="panel-title"><span>06</span>实验胶囊</div>
-      </div>
-      <div class="capsule-area" id="capsule-area">
-        <div class="empty-state" id="capsule-empty">
-          <div class="empty-icon">◇</div>
-          <div class="empty-label">真实 Abaqus 运行后显示 artifacts / provenance</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Panel: Diff ─────────────────────────────────────── -->
-    <section class="panel" id="panel-diff">
-      <div class="panel-header">
-        <div class="panel-title"><span>07</span>Simulation Diff</div>
-      </div>
-      <div class="report-area" id="diff-area">
-        <div class="report-band">
-          <div class="report-band-title">Run Comparison</div>
-          <div class="memory-field-grid" style="margin-bottom:12px">
-            <div>
-              <div class="input-label">Default rtol</div>
-              <input class="memory-input" id="diff-rtol" type="number" min="0" max="1" step="0.01" value="0.05">
-            </div>
-            <div>
-              <div class="input-label">Per-KPI tolerances JSON</div>
-              <input class="memory-input" id="diff-tolerances" placeholder='{"MISES": 0.2}'>
-            </div>
-          </div>
-          <div class="btn-row" style="margin-bottom:12px">
-            <button class="btn btn-primary" id="btn-diff-latest">⇄ 对比最近两次运行</button>
-          </div>
-          <div class="visual-placeholder">至少完成两次运行后，这里会显示 KPI、Physics Contract、Spec 和 artifact 差异。</div>
-        </div>
-      </div>
-    </section>
-
     <!-- ── Panel: Benchmark ────────────────────────────────── -->
     <section class="panel" id="panel-benchmark">
       <div class="panel-header">
-        <div class="panel-title"><span>08</span>Benchmark 报告</div>
+        <div class="panel-title"><span>05</span>Benchmark 报告</div>
       </div>
       <div class="bench-area">
         <div class="section-title" style="margin-bottom:16px">基准算例 · 4 cases</div>
@@ -1695,200 +1731,419 @@ body::after {
         <div style="margin-top:20px">
           <div class="section-title">说明</div>
           <div style="font-size:11px;color:var(--text3);line-height:1.8;font-family:var(--mono)">
-            <div>· syntaxcheck 不消耗 license token（官方文档确认）</div>
-            <div>· 所有 case 支持幂等重跑：run_id = sha256(spec)</div>
-            <div>· 单元测试 39 个，无需 Abaqus 即可运行</div>
+            <div>· syntaxcheck 是求解前检查；license 行为需在真实 Abaqus 环境验证</div>
+            <div>· spec 运行使用确定性 run_id；benchmark dry-run 创建独立记录</div>
+            <div>· 本地 smoke / pytest 可在无 Abaqus 环境运行</div>
             <div>· 完整流程需要 Abaqus 2023+ 授权</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ── Panel: Case Memory ───────────────────────────────── -->
-    <section class="panel" id="panel-memory">
+    <!-- ── Panel: Evidence ─────────────────────────────────── -->
+    <section class="panel" id="panel-evidence">
       <div class="panel-header">
-        <div class="panel-title"><span>09</span>Case Memory</div>
+        <div class="panel-title"><span>06</span>Offline Evidence</div>
       </div>
-      <div class="memory-area" id="memory-area">
-        <div class="memory-controls">
-          <div class="report-band">
-            <div class="report-band-title">Search Roots</div>
-            <div class="input-label">每行一个 run/capsule/result/父目录路径</div>
-            <textarea class="memory-input" id="memory-roots" rows="7">runs
-reports</textarea>
-            <div class="btn-row" style="margin-top:12px">
-              <button class="btn btn-secondary" id="btn-memory-current">使用当前 run</button>
+      <div class="evidence-area">
+        <div class="evidence-column">
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Run</span>
+              <span>no Abaqus call</span>
+            </div>
+            <div class="evidence-box-body" style="display:flex;flex-direction:column;gap:10px">
+              <select class="evidence-input" id="evidence-case">
+                <option value="cantilever">cantilever</option>
+                <option value="plate_hole">plate_hole</option>
+                <option value="modal">modal</option>
+                <option value="explicit_impact">explicit_impact</option>
+                <option value="custom_inp_deck">custom_inp_deck</option>
+              </select>
+              <input class="evidence-input" id="evidence-run-id" value="cantilever-ui-offline">
+              <input class="evidence-input" id="evidence-input-path" value="cases/cantilever/spec.yaml">
+              <div class="evidence-actions">
+                <button class="btn btn-secondary" id="btn-evidence-example">载入示例</button>
+                <button class="btn btn-primary btn-run-glow" id="btn-evidence-run">▶ 运行 Evidence</button>
+                <button class="btn btn-secondary" id="btn-evidence-gallery">生成 Demo Gallery</button>
+                <button class="btn btn-secondary" id="btn-evidence-demo-pack">生成 Demo Pack</button>
+                <button class="btn btn-secondary" id="btn-evidence-cli-smoke">运行 CLI Smoke</button>
+                <span class="evidence-status" id="evidence-status">READY</span>
+              </div>
             </div>
           </div>
-          <div class="report-band">
-            <div class="report-band-title">Filters</div>
-            <div class="memory-field-grid">
-              <div>
-                <div class="input-label">文本查询</div>
-                <input class="memory-input" id="memory-query" placeholder="too_many_attempts / Cantilever / U_tip">
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Baseline KPIs</span>
+              <span>JSON</span>
+            </div>
+            <div class="evidence-box-body">
+              <textarea class="evidence-textarea" id="evidence-baseline" spellcheck="false"></textarea>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Candidate KPIs</span>
+              <span>JSON</span>
+            </div>
+            <div class="evidence-box-body">
+              <textarea class="evidence-textarea" id="evidence-candidate" spellcheck="false"></textarea>
+            </div>
+          </div>
+
+          <div class="evidence-box" style="flex:1;min-height:0">
+            <div class="evidence-box-head">
+              <span>Contracts</span>
+              <span>JSON</span>
+            </div>
+            <div class="evidence-box-body" style="height:100%">
+              <textarea class="evidence-textarea" id="evidence-contracts" spellcheck="false" style="height:100%;min-height:150px"></textarea>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Simulation Diff</span>
+              <span>standalone</span>
+            </div>
+            <div class="evidence-box-body" style="display:flex;flex-direction:column;gap:10px">
+              <input class="evidence-input" id="simdiff-id" value="cantilever-ui-simdiff">
+              <textarea class="evidence-textarea" id="simdiff-tolerances" spellcheck="false" style="min-height:110px"></textarea>
+              <div class="evidence-actions">
+                <button class="btn btn-primary btn-run-glow" id="btn-simdiff-run">运行 Simulation Diff</button>
+                <span class="evidence-status" id="simdiff-status">READY</span>
               </div>
-              <div>
-                <div class="input-label">匹配模式</div>
-                <select class="memory-input" id="memory-match-mode">
-                  <option value="any">任意词</option>
-                  <option value="all">全部词</option>
+            </div>
+          </div>
+        </div>
+
+        <div class="evidence-column">
+          <div class="evidence-verdict">
+            <div class="evidence-stat" id="evidence-stat-overall">
+              <div class="evidence-stat-label">Overall</div>
+              <div class="evidence-stat-value" id="evidence-overall">—</div>
+            </div>
+            <div class="evidence-stat" id="evidence-stat-contract">
+              <div class="evidence-stat-label">Contracts</div>
+              <div class="evidence-stat-value" id="evidence-contract-summary">—</div>
+            </div>
+            <div class="evidence-stat" id="evidence-stat-diff">
+              <div class="evidence-stat-label">Diff</div>
+              <div class="evidence-stat-value" id="evidence-diff-summary">—</div>
+            </div>
+            <div class="evidence-stat" id="evidence-stat-capsule">
+              <div class="evidence-stat-label">Capsule</div>
+              <div class="evidence-stat-value" id="evidence-capsule-summary">—</div>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Artifacts</span>
+              <span>links</span>
+            </div>
+            <div class="evidence-box-body">
+              <div class="evidence-paths" id="evidence-paths">
+                <div>evidence: <span>—</span></div>
+                <div>report: <span>—</span></div>
+                <div>capsule: <span>—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Recent Evidence</span>
+              <span id="evidence-recent-count">0</span>
+            </div>
+            <div class="evidence-box-body">
+              <div class="evidence-recent" id="evidence-recent">
+                <div class="evidence-recent-row">
+                  <div class="evidence-recent-main">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Evidence Vault</span>
+              <span id="evidence-vault-count">0</span>
+            </div>
+            <div class="evidence-box-body">
+              <div class="evidence-actions" style="margin-bottom:8px">
+                <input class="evidence-input" id="evidence-vault-query" placeholder="search vault" style="max-width:180px">
+                <select class="evidence-select" id="evidence-vault-kind" aria-label="Evidence Vault kind">
+                  <option value="">All kinds</option>
+                  <option value="local-cli-smoke">local-cli-smoke</option>
+                  <option value="local-demo-pack">local-demo-pack</option>
+                  <option value="offline-evidence">offline-evidence</option>
+                  <option value="demo-gallery">demo-gallery</option>
+                  <option value="solver-doctor">solver-doctor</option>
+                  <option value="simulation-diff">simulation-diff</option>
+                  <option value="case-memory-diff">case-memory-diff</option>
                 </select>
-              </div>
-              <div>
-                <div class="input-label">相似目标</div>
-                <input class="memory-input" id="memory-similar" placeholder="runs/candidate 或 capsule.json">
-              </div>
-              <div>
-                <div class="input-label">状态</div>
-                <select class="memory-input" id="memory-status">
-                  <option value="">全部</option>
-                  <option value="COMPLETED">COMPLETED</option>
+                <select class="evidence-select" id="evidence-vault-status" aria-label="Evidence Vault status">
+                  <option value="">All status</option>
+                  <option value="PASS">PASS</option>
+                  <option value="FAIL">FAIL</option>
                   <option value="FAILED">FAILED</option>
-                  <option value="ABORTED">ABORTED</option>
+                  <option value="UNKNOWN">UNKNOWN</option>
                 </select>
+                <button class="btn btn-secondary" id="btn-evidence-vault-refresh">刷新 Vault</button>
               </div>
-              <div>
-                <div class="input-label">Geometry</div>
-                <input class="memory-input" id="memory-geometry-type" placeholder="custom_inp / modal">
+              <div class="evidence-recent" id="evidence-vault">
+                <div class="evidence-recent-row">
+                  <div class="evidence-recent-main">—</div>
+                </div>
               </div>
-              <div>
-                <div class="input-label">Solver</div>
-                <select class="memory-input" id="memory-solver">
-                  <option value="">全部</option>
-                  <option value="standard">standard</option>
-                  <option value="explicit">explicit</option>
-                </select>
-              </div>
-              <div>
-                <div class="input-label">Material</div>
-                <input class="memory-input" id="memory-material-name" placeholder="Steel">
-              </div>
-              <div>
-                <div class="input-label">KPI</div>
-                <input class="memory-input" id="memory-kpi" placeholder="U_tip">
-              </div>
-              <div>
-                <div class="input-label">Contract</div>
-                <input class="memory-input" id="memory-contract" placeholder="tip_down / scf_range">
-              </div>
-              <div>
-                <div class="input-label">Contract Result</div>
-                <select class="memory-input" id="memory-contracts-passed">
-                  <option value="">全部</option>
-                  <option value="passed">Passed</option>
-                  <option value="failed">Failed</option>
-                </select>
-              </div>
-              <div>
-                <div class="input-label">Artifact</div>
-                <input class="memory-input" id="memory-artifact" placeholder="mises_contour.png">
-              </div>
-              <div>
-                <div class="input-label">Diagnosis ID</div>
-                <input class="memory-input" id="memory-diagnosis" placeholder="missing_node_set">
-              </div>
-              <div>
-                <div class="input-label">Limit</div>
-                <input class="memory-input" id="memory-limit" type="number" min="1" max="50" value="10">
-              </div>
-              <div>
-                <div class="input-label">Sort By</div>
-                <select class="memory-input" id="memory-sort-by">
-                  <option value="score">Score</option>
-                  <option value="created_at">Created At</option>
-                  <option value="run_id">Run ID</option>
-                  <option value="model_name">Model</option>
-                  <option value="status">Status</option>
-                  <option value="kpi_count">KPI Count</option>
-                  <option value="artifact_count">Artifact Count</option>
-                </select>
-              </div>
-              <div>
-                <div class="input-label">Order</div>
-                <select class="memory-input" id="memory-sort-order">
-                  <option value="desc">Desc</option>
-                  <option value="asc">Asc</option>
-                </select>
-              </div>
-              <div>
-                <div class="input-label">Min Score</div>
-                <input class="memory-input" id="memory-min-score" type="number" min="0" step="0.1" value="0">
-              </div>
-            </div>
-            <div class="btn-row" style="margin-top:12px">
-              <button class="btn btn-primary" id="btn-memory-search">⌕ 搜索案例</button>
+              <pre class="evidence-report" id="evidence-vault-detail" style="margin-top:10px; max-height:220px">—</pre>
             </div>
           </div>
-        </div>
-        <div id="memory-results">
-          <div class="empty-state">
-            <div class="empty-icon">⌕</div>
-            <div class="empty-label">搜索本地 capsule 历史，找相似模型、失败模式和 KPI 证据</div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Case Memory</span>
+              <span id="case-memory-count">0</span>
+            </div>
+            <div class="evidence-box-body">
+              <div class="evidence-actions" style="margin-bottom:8px">
+                <input class="evidence-input" id="case-memory-query" placeholder="search vault memory" style="flex:1;min-width:0">
+                <select class="evidence-input" id="case-memory-kind" style="flex:0 1 150px;min-width:0">
+                  <option value="">all kinds</option>
+                  <option value="local-cli-smoke">local-cli-smoke</option>
+                  <option value="local-demo-pack">local-demo-pack</option>
+                  <option value="offline-evidence">offline-evidence</option>
+                  <option value="demo-gallery">demo-gallery</option>
+                  <option value="solver-doctor">solver-doctor</option>
+                  <option value="simulation-diff">simulation-diff</option>
+                  <option value="case-memory-diff">case-memory-diff</option>
+                </select>
+                <select class="evidence-input" id="case-memory-status" style="flex:0 1 110px;min-width:0">
+                  <option value="">all status</option>
+                  <option value="PASS">PASS</option>
+                  <option value="FAIL">FAIL</option>
+                  <option value="FAILED">FAILED</option>
+                  <option value="UNKNOWN">UNKNOWN</option>
+                </select>
+                <button class="btn btn-secondary" id="btn-case-memory-search">搜索</button>
+              </div>
+              <div class="evidence-actions" style="margin-bottom:8px">
+                <input class="evidence-input" id="case-memory-diff-baseline" placeholder="baseline vault id" style="flex:1 1 130px;min-width:0">
+                <input class="evidence-input" id="case-memory-diff-candidate" placeholder="candidate vault id" style="flex:1 1 130px;min-width:0">
+                <button class="btn btn-secondary" id="btn-case-memory-diff">Diff</button>
+                <span class="evidence-status" id="case-memory-diff-status">READY</span>
+              </div>
+              <div class="evidence-actions" style="margin-bottom:8px">
+                <input class="evidence-input" id="case-memory-diff-baseline-file" list="case-memory-diff-baseline-files" placeholder="baseline filename (optional)" style="flex:1 1 160px;min-width:0">
+                <datalist id="case-memory-diff-baseline-files"></datalist>
+                <input class="evidence-input" id="case-memory-diff-candidate-file" list="case-memory-diff-candidate-files" placeholder="candidate filename (optional)" style="flex:1 1 160px;min-width:0">
+                <datalist id="case-memory-diff-candidate-files"></datalist>
+              </div>
+              <div class="evidence-recent" id="case-memory">
+                <div class="evidence-recent-row">
+                  <div class="evidence-recent-main">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>KPI Recipes</span>
+              <span id="kpi-recipe-count">0</span>
+            </div>
+            <div class="evidence-box-body">
+              <div class="evidence-actions" style="margin-bottom:8px">
+                <select class="evidence-input" id="kpi-recipe-case" style="flex:1 1 120px;min-width:0">
+                  <option value="">all cases</option>
+                  <option value="cantilever">cantilever</option>
+                  <option value="plate_hole">plate_hole</option>
+                  <option value="modal">modal</option>
+                  <option value="explicit_impact">explicit_impact</option>
+                </select>
+                <select class="evidence-input" id="kpi-recipe-type" style="flex:1 1 170px;min-width:0">
+                  <option value="">all types</option>
+                  <option value="nodal_displacement">nodal_displacement</option>
+                  <option value="field_max">field_max</option>
+                  <option value="field_min">field_min</option>
+                  <option value="reaction_force_max">reaction_force_max</option>
+                  <option value="eigenfrequency">eigenfrequency</option>
+                  <option value="derived_stress_concentration">derived_stress_concentration</option>
+                </select>
+                <button class="btn btn-secondary" id="btn-kpi-recipes-refresh">刷新 Recipes</button>
+              </div>
+              <div class="evidence-recent" id="kpi-recipes">
+                <div class="evidence-recent-row">
+                  <div class="evidence-recent-main">—</div>
+                </div>
+              </div>
+              <pre class="evidence-report" id="kpi-recipe-detail" style="margin-top:8px;max-height:180px">—</pre>
+            </div>
+          </div>
+
+          <div class="evidence-box" style="flex:1;min-height:0;display:flex;flex-direction:column">
+            <div class="evidence-box-head">
+              <span>Report Markdown</span>
+              <span id="evidence-report-size">0 chars</span>
+            </div>
+            <pre class="evidence-report" id="evidence-report">运行后显示 evidence.md 内容</pre>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ── Panel: Environment ───────────────────────────────── -->
-    <section class="panel" id="panel-environment">
+    <!-- ── Panel: Solver Doctor ────────────────────────────── -->
+    <section class="panel" id="panel-doctor">
       <div class="panel-header">
-        <div class="panel-title"><span>10</span>Environment Preflight</div>
+        <div class="panel-title"><span>07</span>Solver Doctor</div>
       </div>
-      <div class="memory-area">
-        <div class="memory-controls">
-          <div class="report-band">
-            <div class="report-band-title">Abaqus Command</div>
-            <div class="memory-field-grid">
-              <div>
-                <div class="input-label">Command</div>
-                <input class="memory-input" id="preflight-abaqus-cmd" placeholder="abaqus 或 C:\SIMULIA\Commands\abaqus.BAT">
-              </div>
-              <div>
-                <div class="input-label">Timeout</div>
-                <input class="memory-input" id="preflight-timeout" type="number" min="1" max="120" step="1" value="15">
-              </div>
-              <div>
-                <div class="input-label">Expected Release</div>
-                <input class="memory-input" id="preflight-expected-release" placeholder="2021 / 2026">
-              </div>
-              <div>
-                <div class="input-label">Workdir</div>
-                <input class="memory-input" id="preflight-workdir" placeholder="/tmp/abaqus-runs 或 D:\abaqus_runs">
-              </div>
-              <div>
-                <div class="input-label">Runner JSON</div>
-                <input class="memory-input" id="preflight-runner-json" placeholder='{"cpus":4,"mp_mode":"threads"}'>
-              </div>
+      <div class="evidence-area">
+        <div class="evidence-column">
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Diagnose</span>
+              <span>log text</span>
             </div>
-            <label class="input-label" style="display:flex;align-items:center;gap:8px;margin-top:12px">
-              <input type="checkbox" id="preflight-check-release" checked>
-              Run release check
-            </label>
-            <div class="btn-row" style="margin-top:12px">
-              <button class="btn btn-primary" id="btn-run-preflight">⌁ 运行预检</button>
+            <div class="evidence-box-body" style="display:flex;flex-direction:column;gap:10px">
+              <input class="evidence-input" id="doctor-job-name" value="Job-1">
+              <div class="evidence-actions">
+                <button class="btn btn-secondary" id="btn-doctor-sample">载入示例</button>
+                <button class="btn btn-primary btn-run-glow" id="btn-doctor-run">诊断日志</button>
+                <span class="evidence-status" id="doctor-status">READY</span>
+              </div>
             </div>
           </div>
-          <div id="preflight-results">
-            <div class="empty-state">
-              <div class="empty-icon">⌁</div>
-              <div class="empty-label">记录 OS、Python、Abaqus 命令和 release 证据</div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>MSG</span>
+              <span>.msg</span>
             </div>
+            <div class="evidence-box-body">
+              <textarea class="evidence-textarea" id="doctor-msg" spellcheck="false"></textarea>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>DAT</span>
+              <span>.dat</span>
+            </div>
+            <div class="evidence-box-body">
+              <textarea class="evidence-textarea" id="doctor-dat" spellcheck="false"></textarea>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>STA / LOG</span>
+              <span>.sta + .log</span>
+            </div>
+            <div class="evidence-box-body" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <textarea class="evidence-textarea" id="doctor-sta" spellcheck="false"></textarea>
+              <textarea class="evidence-textarea" id="doctor-log" spellcheck="false"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="evidence-column">
+          <div class="evidence-verdict">
+            <div class="evidence-stat" id="doctor-stat-status">
+              <div class="evidence-stat-label">Status</div>
+              <div class="evidence-stat-value" id="doctor-result-status">—</div>
+            </div>
+            <div class="evidence-stat" id="doctor-stat-category">
+              <div class="evidence-stat-label">Category</div>
+              <div class="evidence-stat-value" id="doctor-result-category">—</div>
+            </div>
+            <div class="evidence-stat" id="doctor-stat-findings">
+              <div class="evidence-stat-label">Findings</div>
+              <div class="evidence-stat-value" id="doctor-result-findings">—</div>
+            </div>
+            <div class="evidence-stat" id="doctor-stat-env">
+              <div class="evidence-stat-label">Real Env</div>
+              <div class="evidence-stat-value" id="doctor-result-env">—</div>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Pattern Gallery</span>
+              <span id="doctor-pattern-count">0</span>
+            </div>
+            <div class="evidence-box-body">
+              <div class="evidence-actions" style="margin-bottom:8px">
+                <select class="evidence-input" id="doctor-pattern-category" style="flex:1 1 150px;min-width:0">
+                  <option value="">all categories</option>
+                  <option value="BOUNDARY">BOUNDARY</option>
+                  <option value="CONTACT">CONTACT</option>
+                  <option value="CONVERGENCE">CONVERGENCE</option>
+                  <option value="ELEMENT_DISTORTION">ELEMENT_DISTORTION</option>
+                  <option value="LICENSE">LICENSE</option>
+                  <option value="MATERIAL">MATERIAL</option>
+                  <option value="MEMORY">MEMORY</option>
+                  <option value="MESH">MESH</option>
+                  <option value="NUMERICAL">NUMERICAL</option>
+                  <option value="ODB">ODB</option>
+                  <option value="OUTPUT">OUTPUT</option>
+                  <option value="PATH">PATH</option>
+                  <option value="RIGID_BODY_MOTION">RIGID_BODY_MOTION</option>
+                  <option value="SYNTAX">SYNTAX</option>
+                  <option value="UNKNOWN">UNKNOWN</option>
+                </select>
+                <select class="evidence-input" id="doctor-pattern-severity" style="flex:0 1 120px;min-width:0">
+                  <option value="">all severity</option>
+                  <option value="ERROR">ERROR</option>
+                  <option value="WARNING">WARNING</option>
+                </select>
+                <button class="btn btn-secondary" id="btn-doctor-patterns-refresh">刷新 Patterns</button>
+              </div>
+              <div class="evidence-recent" id="doctor-patterns">
+                <div class="evidence-recent-row">
+                  <div class="evidence-recent-main">—</div>
+                </div>
+              </div>
+              <pre class="evidence-report" id="doctor-pattern-detail" style="margin-top:8px;max-height:180px">—</pre>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span>Findings</span>
+              <span>evidence</span>
+            </div>
+            <div class="evidence-box-body">
+              <div class="evidence-recent" id="doctor-findings">
+                <div class="evidence-recent-row">
+                  <div class="evidence-recent-main">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="evidence-box" style="flex:1;min-height:0;display:flex;flex-direction:column">
+            <div class="evidence-box-head">
+              <span>Doctor Markdown</span>
+              <span id="doctor-report-size">0 chars</span>
+            </div>
+            <pre class="evidence-report" id="doctor-report">运行后显示 Solver Doctor report</pre>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- ── Panel: History ───────────────────────────────────── -->
     <section class="panel" id="panel-history">
       <div class="panel-header">
-        <div class="panel-title"><span>11</span>运行历史</div>
+        <div class="panel-title"><span>08</span>运行历史</div>
       </div>
       <div class="history-area" id="history-area">
         <div class="history-header">
           <div class="section-title" style="margin-bottom:0">历史记录</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-history-clear" id="btn-history-diff">对比最近两次</button>
-            <button class="btn-history-clear" id="btn-clear-history">清空历史</button>
-          </div>
+          <button class="btn-history-clear" id="btn-clear-history">清空历史</button>
         </div>
         <div id="history-list">
           <div class="history-empty" id="history-empty">
@@ -1903,7 +2158,7 @@ reports</textarea>
     <!-- ── Panel: Settings ─────────────────────────────────── -->
     <section class="panel" id="panel-settings">
       <div class="panel-header">
-        <div class="panel-title"><span>12</span>设置</div>
+        <div class="panel-title"><span>09</span>设置</div>
       </div>
       <div class="settings-area">
 
@@ -2039,9 +2294,12 @@ const cfg = loadSettings();
 
 // ── API base ──────────────────────────────────────────────────────
 const _host = window.location.hostname || 'localhost';
-const _defaultAPI = _host === '127.0.0.1' || _host === 'localhost'
-  ? `http://${_host}:8000`
+const _pageOrigin = window.location.protocol === 'http:' || window.location.protocol === 'https:'
+  ? window.location.origin
   : '';
+const _defaultAPI = _pageOrigin || (_host === '127.0.0.1' || _host === 'localhost'
+  ? `http://${_host}:8000`
+  : '');
 const _defaultMCPAPI = _host === '127.0.0.1' || _host === 'localhost'
   ? `http://${_host}:8001/mcp`
   : '';
@@ -2056,19 +2314,71 @@ const state = {
   pipelineRunning: false,
   currentStage: -1,
   stageResults: {},
-  kpis: [],
-  contracts: {},
-  diff: null,
-  memory: null,
-  preflight: null,
-  report: null,
-  capsule: null,
+  kpis: {},
   serverOnline: false,
   es: null,  // EventSource
-  pollTimer: null,
-  terminalRunId: null,
   history: JSON.parse(localStorage.getItem('abaqus_agent_history') || '[]'),
 };
+let caseMemoryFilenameSuggestions = {};
+
+let OFFLINE_EVIDENCE_EXAMPLES = {
+  cantilever: {
+    baseline_kpis: { U_tip: -0.00195, MISES_MAX: 0.58 },
+    candidate_kpis: { U_tip: -0.002, MISES_MAX: 0.6 },
+    input_path: 'cases/cantilever/spec.yaml',
+    contracts: [
+      { name: 'tip deflects downward', type: 'direction', kpi: 'U_tip', op: '<', value: 0 },
+      { name: 'tip deflection near reference', type: 'relative_error', kpi: 'U_tip', reference: -0.002, rtol: 0.1, atol: 0.000001 },
+      { name: 'max stress plausible range', type: 'range', kpi: 'MISES_MAX', min: 0, max: 1 },
+      { name: 'max stress near reference', type: 'relative_error', kpi: 'MISES_MAX', reference: 0.6, rtol: 0.2, atol: 0.01 },
+    ],
+  },
+  plate_hole: {
+    baseline_kpis: { MISES_HOLE_EDGE: 300.0, U_X_MAX: 0.048 },
+    candidate_kpis: { MISES_HOLE_EDGE: 300.0, U_X_MAX: 0.048 },
+    input_path: 'cases/plate_hole/spec.yaml',
+    contracts: [
+      { name: 'hole stress concentration plausible range', type: 'range', kpi: 'MISES_HOLE_EDGE', min: 250, max: 350 },
+      { name: 'x displacement positive under tension', type: 'direction', kpi: 'U_X_MAX', op: '>', value: 0 },
+      { name: 'x displacement near reference', type: 'relative_error', kpi: 'U_X_MAX', reference: 0.048, rtol: 0.1, atol: 0.005 },
+    ],
+  },
+  modal: {
+    baseline_kpis: { freq_1: 0.0, freq_2: 1000.0 },
+    candidate_kpis: { freq_1: 0.0, freq_2: 1000.0 },
+    input_path: 'cases/modal/spec.yaml',
+    contracts: [
+      { name: 'rigid body mode near zero', type: 'relative_error', kpi: 'freq_1', reference: 0, atol: 1 },
+      { name: 'first flexible mode positive', type: 'direction', kpi: 'freq_2', op: '>', value: 0 },
+      { name: 'modal frequencies ordered', type: 'order', kpis: ['freq_1', 'freq_2'], direction: 'increasing' },
+    ],
+  },
+  explicit_impact: {
+    baseline_kpis: { RF_Z_MAX: 1000.0, U_Z_MIN: -2.0 },
+    candidate_kpis: { RF_Z_MAX: 1000.0, U_Z_MIN: -2.0 },
+    input_path: 'cases/explicit_impact/spec.yaml',
+    contracts: [
+      { name: 'impact reaction force positive', type: 'direction', kpi: 'RF_Z_MAX', op: '>', value: 0 },
+      { name: 'z displacement downward', type: 'direction', kpi: 'U_Z_MIN', op: '<', value: 0 },
+      { name: 'z displacement near reference', type: 'relative_error', kpi: 'U_Z_MIN', reference: -2.0, rtol: 0.05, atol: 0.1 },
+    ],
+  },
+  custom_inp_deck: {
+    baseline_kpis: { U_tip: -0.00195, MISES_MAX: 0.58 },
+    candidate_kpis: { U_tip: -0.002, MISES_MAX: 0.58 },
+    input_path: 'examples/inp/custom_cantilever.inp',
+    contracts: [
+      { name: 'custom deck tip deflects downward', type: 'direction', kpi: 'U_tip', op: '<', value: 0 },
+      { name: 'custom deck tip near reference', type: 'relative_error', kpi: 'U_tip', reference: -0.002, rtol: 0.1, atol: 0.000001 },
+      { name: 'custom deck stress plausible', type: 'range', kpi: 'MISES_MAX', min: 0, max: 1 },
+    ],
+  },
+};
+let doctorPatternDetails = {};
+
+function prettyJson(value) {
+  return JSON.stringify(value, null, 2);
+}
 
 // ── Navigation ───────────────────────────────────────────────────
 document.querySelectorAll('.nav-item').forEach(item => {
@@ -2398,18 +2708,16 @@ document.getElementById('btn-goto-run').addEventListener('click', () => {
 const STAGES = [
   { id: 'validate_spec',  label: 'validate_spec',  desc: '校验 Problem Spec 格式与字段', duration: [300,600] },
   { id: 'build_model',    label: 'build_model',     desc: '生成 CAE noGUI 脚本 → .inp', duration: [800,1600] },
-  { id: 'syntaxcheck',    label: 'syntaxcheck',     desc: '语法检查（不消耗 license）',  duration: [400,800] },
+  { id: 'syntaxcheck',    label: 'syntaxcheck',     desc: '语法检查（求解前检查）',      duration: [400,800] },
   { id: 'submit_job',     label: 'submit_job',      desc: '提交 Abaqus analysis 作业',   duration: [1000,2000] },
   { id: 'monitor_job',    label: 'monitor_job',     desc: '轮询 .sta 作业状态',          duration: [600,1200] },
   { id: 'extract_kpis',   label: 'extract_kpis',    desc: '从 ODB 提取 KPI 指标',        duration: [500,1000] },
-  { id: 'physics_contracts', label: 'physics_contracts', desc: '评估 Physics Contracts', duration: [200,500] },
 ];
 
 // ── Render pipeline stages ───────────────────────────────────────
 function renderPipeline() {
   const container = document.getElementById('pipeline-stages');
-  const empty = document.getElementById('pipeline-empty');
-  if (empty) empty.style.display = 'none';
+  document.getElementById('pipeline-empty').style.display = 'none';
 
   // Include dynamic stages from real Abaqus (e.g., autorepair, compare_kpis)
   const allStages = [...STAGES, ...(state._dynamicStages || [])];
@@ -2451,9 +2759,7 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
 
   state.pipelineRunning = true;
   state.stageResults = {};
-  state.kpis = [];
-  state.contracts = {};
-  state.terminalRunId = null;
+  state.kpis = {};
   document.getElementById('btn-start-run').disabled = true;
   document.getElementById('btn-abort-run').disabled = false;
   renderPipeline();
@@ -2477,7 +2783,6 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
       }
       const { run_id } = await res.json();
       state.runId = run_id;
-      _startRunPolling(run_id, stageBadge);
 
       // Subscribe to SSE
       if (state.es) state.es.close();
@@ -2490,28 +2795,15 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
         _resetRunBtn();
       };
 
-      es.onmessage = async (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          if (data.event === 'done') {
-            es.close();
-            await _refreshFinalRun(run_id, stageBadge);
-            return;
-          }
-          await _applyRunUpdate(data, stageBadge);
-        } catch (err) {
-          console.error('Run stream update failed', err);
-          es.close();
-          toast('运行状态更新失败', 'error');
-          _resetRunBtn();
-        }
+      es.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.event === 'done') { es.close(); return; }
+        _applyRunUpdate(data, stageBadge);
       };
 
       es.onerror = () => {
         es.close();
-        if (!state.pollTimer) {
-          _resetRunBtn();
-        }
+        _resetRunBtn();
       };
 
     } catch (err) {
@@ -2527,32 +2819,7 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
   }
 });
 
-async function _refreshFinalRun(runId, stageBadge) {
-  const reportRunId = state.report?.summary?.run_id;
-  if (!state.pipelineRunning && reportRunId === runId) return;
-  try {
-    const res = await fetch(`${API}/api/run/${runId}`);
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    await _applyRunUpdate(data, stageBadge);
-  } catch {
-    if (state.pipelineRunning) {
-      await loadRunReport(runId, { status: 'COMPLETED' });
-      _resetRunBtn();
-    }
-  }
-}
-
-async function _applyRunUpdate(data, stageBadge) {
-  const isTerminal = ['COMPLETED', 'FAILED', 'ABORTED'].includes(data.status);
-  if (isTerminal && !state.pipelineRunning && state.report?.summary?.run_id === data.run_id) {
-    return;
-  }
-  if (isTerminal) {
-    if (state.terminalRunId === data.run_id) return;
-    state.terminalRunId = data.run_id;
-  }
-
+function _applyRunUpdate(data, stageBadge) {
   setProgress(data.progress_pct || 0);
   const stages = data.stages || {};
   let done = 0;
@@ -2578,52 +2845,30 @@ async function _applyRunUpdate(data, stageBadge) {
   renderPipeline();
 
   if (data.status === 'COMPLETED') {
-    try {
-      setProgress(100);
-      state.kpis = _flattenKpis(data.kpis || {}, data.regression || {});
-      state.contracts = data.contracts || {};
-      renderKPIs();
-      const localReport = makeLocalReport(data.run_id, data.status);
-      state.report = localReport;
-      state.capsule = null;
-      renderReport(localReport);
-      renderCapsule(null, localReport);
-      await loadRunReport(data.run_id, data);
-      toast('运行完成 ✓', 'ok');
-      _addHistory({
-        runId: data.run_id,
-        status: 'COMPLETED',
-        model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
-        kpis: state.kpis,
-        contracts: state.contracts,
-        elapsed: Math.round(data.elapsed || 0),
-        ts: Date.now(),
-      });
-    } catch (err) {
-      console.error('Failed to render completed run', err);
-      toast('运行完成，但报告渲染失败', 'error');
-    } finally {
-      _resetRunBtn();
-    }
+    setProgress(100);
+    state.kpis = _flattenKpis(data.kpis || {}, data.regression || {});
+    renderKPIs();
+    toast('运行完成 ✓', 'ok');
+    _addHistory({
+      runId: data.run_id,
+      status: 'COMPLETED',
+      model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
+      kpis: state.kpis,
+      elapsed: Math.round(data.elapsed || 0),
+      ts: Date.now(),
+    });
+    _resetRunBtn();
   } else if (data.status === 'FAILED') {
-    try {
-      toast('运行失败', 'error');
-      state.kpis = [];
-      state.contracts = data.contracts || {};
-      await loadRunReport(data.run_id, data);
-      _addHistory({
-        runId: data.run_id,
-        status: 'FAILED',
-        model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
-        kpis: [],
-        elapsed: Math.round(data.elapsed || 0),
-        ts: Date.now(),
-      });
-    } catch (err) {
-      console.error('Failed to render failed run', err);
-    } finally {
-      _resetRunBtn();
-    }
+    toast('运行失败', 'error');
+    _addHistory({
+      runId: data.run_id,
+      status: 'FAILED',
+      model: state.spec.match(/model_name:\s*(\S+)/)?.[1] || '—',
+      kpis: [],
+      elapsed: Math.round(data.elapsed || 0),
+      ts: Date.now(),
+    });
+    _resetRunBtn();
   }
 }
 
@@ -2641,36 +2886,6 @@ function _flattenKpis(kpisObj, regression) {
       regStatus: comp.status || null,
     };
   });
-}
-
-function _startRunPolling(runId, stageBadge) {
-  _stopRunPolling();
-  let attempts = 0;
-  state.pollTimer = setInterval(async () => {
-    if (!state.pipelineRunning) {
-      _stopRunPolling();
-      return;
-    }
-    attempts += 1;
-    try {
-      const res = await fetch(`${API}/api/run/${runId}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      await _applyRunUpdate(data, stageBadge);
-      if (['COMPLETED', 'FAILED', 'ABORTED'].includes(data.status)) {
-        _stopRunPolling();
-      }
-    } catch {
-      if (attempts > 600) _stopRunPolling();
-    }
-  }, 700);
-}
-
-function _stopRunPolling() {
-  if (state.pollTimer) {
-    clearInterval(state.pollTimer);
-    state.pollTimer = null;
-  }
 }
 
 async function _simulatedRun(specYaml, stageBadge) {
@@ -2692,17 +2907,12 @@ async function _simulatedRun(specYaml, stageBadge) {
     stageBadge.textContent = `${STAGES.length}/${STAGES.length}`;
     state.kpis = generateMockKPIs(specYaml);
     renderKPIs();
-    const simRunId = 'sim_' + Date.now().toString(36);
-    state.runId = simRunId;
-    renderReport(makeLocalReport(simRunId, 'COMPLETED (sim)'));
-    renderCapsule(null);
     toast('模拟运行完成 ✓', 'ok');
     _addHistory({
-      runId: simRunId,
+      runId: 'sim_' + Date.now().toString(36),
       status: 'COMPLETED (sim)',
       model: specYaml.match(/model_name:\s*(\S+)/)?.[1] || '—',
       kpis: state.kpis,
-      contracts: state.contracts,
       elapsed: STAGES.reduce((a, s) => a + s.duration[0], 0),
       ts: Date.now(),
     });
@@ -2714,7 +2924,6 @@ async function _simulatedRun(specYaml, stageBadge) {
 }
 
 function _resetRunBtn() {
-  _stopRunPolling();
   state.pipelineRunning = false;
   document.getElementById('btn-start-run').disabled = false;
   document.getElementById('btn-abort-run').disabled = true;
@@ -2772,1061 +2981,10 @@ function generateMockKPIs(yaml) {
   return kpis;
 }
 
-async function loadRunReport(runId, fallbackData = {}) {
-  if (state.serverOnline && runId) {
-    try {
-      const res = await fetch(`${API}/api/run/${runId}/report`);
-      if (res.ok) {
-        const report = await res.json();
-        state.report = report;
-        state.capsule = report.capsule || null;
-        state.contracts = report.contracts || {};
-        renderReport(report);
-        renderCapsule(report.capsule, report);
-        return;
-      }
-    } catch {}
-  }
-  const report = makeLocalReport(runId || state.runId || 'local', fallbackData.status || 'COMPLETED');
-  report.contracts = fallbackData.contracts || report.contracts;
-  state.report = report;
-  state.capsule = null;
-  renderReport(report);
-  renderCapsule(null, report);
-}
-
-function makeLocalReport(runId, status) {
-  const kpis = {};
-  const comparisons = {};
-  state.kpis.forEach(k => {
-    kpis[k.name] = k.value;
-    comparisons[k.name] = {
-      status: k.regStatus || 'INFO',
-      expected: k.expected,
-      actual: k.value,
-      rtol: k.rtol,
-    };
-  });
-  return {
-    summary: {
-      run_id: runId,
-      status,
-      model_name: (state.spec || specEditor.value).match(/model_name:\s*(\S+)/)?.[1] || '—',
-      abaqus_release: (state.spec || specEditor.value).match(/abaqus_release:\s*["']?(\S+?)["']?$/m)?.[1] || '—',
-      capsule_path: '',
-      workdir: '',
-    },
-    kpis,
-    regression: { passed: true, comparisons },
-    contracts: state.contracts || { passed: true, results: [] },
-    stages: state.stageResults,
-    artifacts: {},
-    image_artifacts: [],
-    markdown: '# Abaqus Run Report\n\n本地模拟运行报告。真实 Abaqus 运行完成后这里会显示 capsule、artifacts 和 provenance。',
-  };
-}
-
-function renderReport(report) {
-  state.report = report;
-  const area = document.getElementById('report-area');
-  const summary = report.summary || {};
-  const kpis = report.kpis || {};
-  const comparisons = report.regression?.comparisons || {};
-  const contracts = report.contracts || {};
-  const contractResults = Array.isArray(contracts.results) ? contracts.results : [];
-  const artifactCount = Object.keys(report.artifacts || {}).length;
-  const imageArtifacts = report.image_artifacts || [];
-  const imageSources = report.image_artifact_sources || {};
-  const statusClass = summary.status === 'COMPLETED' || summary.status === 'COMPLETED (sim)'
-    ? 'report-pass' : 'report-fail';
-  const contractOverall = contractResults.length
-    ? (contracts.passed ? 'PASS' : 'FAIL')
-    : '—';
-  const contractOverallClass = contractOverall === 'PASS'
-    ? 'report-pass'
-    : (contractOverall === 'FAIL' ? 'report-fail' : '');
-
-  const kpiRows = Object.entries(kpis).map(([name, value]) => {
-    const comp = comparisons[name] || {};
-    const reg = comp.status || 'INFO';
-    const regClass = reg === 'PASS' || reg === 'INFO' ? 'report-pass' : 'report-fail';
-    const expected = comp.expected != null ? formatNum(comp.expected) : '—';
-    const actual = typeof value === 'object' ? value.value : value;
-    return `
-      <tr>
-        <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(name)}</td>
-        <td>${formatNum(actual)}</td>
-        <td>${expected}</td>
-        <td class="${regClass}">${escapeHTML(reg)}</td>
-      </tr>`;
-  }).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 KPI</td></tr>';
-
-  const contractRows = contractResults.map(item => {
-    const status = item.status || (item.passed ? 'PASS' : 'FAIL');
-    const cls = status === 'PASS' || status === 'INFO'
-      ? 'report-pass'
-      : (status === 'WARNING' ? 'report-warn' : 'report-fail');
-    return `
-      <tr>
-        <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(item.name || '—')}</td>
-        <td>${escapeHTML(item.check || item.type || '—')}</td>
-        <td>${escapeHTML(item.severity || '—')}</td>
-        <td class="${cls}">${escapeHTML(status)}</td>
-        <td>${escapeHTML(item.detail || '')}</td>
-      </tr>`;
-  }).join('') || '<tr><td colspan="5" style="color:var(--text3)">暂无 Physics Contract</td></tr>';
-
-  const visualHtml = imageArtifacts.length
-    ? imageArtifacts.map(name => `
-        <img src="${escapeHTML(imageSources[name] || `${API}/api/run/${summary.run_id}/artifact/${encodeURIComponent(name)}`)}"
-             alt="${escapeHTML(name)}"
-             style="max-width:100%;border-radius:6px;border:1px solid var(--border);margin-bottom:10px">`
-      ).join('')
-    : `<div class="visual-placeholder">
-        <div>
-          <div style="color:var(--text2);margin-bottom:6px">ODB 场图占位</div>
-          <div>下一步由 Abaqus Python 导出 Mises / U magnitude PNG 后在这里展示</div>
-        </div>
-      </div>`;
-
-  area.innerHTML = `
-    <div class="report-grid">
-      <div class="report-band">
-        <div class="report-band-title">Run Summary</div>
-        <div class="report-metrics">
-          <div class="report-metric">
-            <div class="report-metric-label">Status</div>
-            <div class="report-metric-value ${statusClass}">${escapeHTML(summary.status || '—')}</div>
-          </div>
-          <div class="report-metric">
-            <div class="report-metric-label">Run ID</div>
-            <div class="report-metric-value">${escapeHTML(summary.run_id || '—')}</div>
-          </div>
-          <div class="report-metric">
-            <div class="report-metric-label">Model</div>
-            <div class="report-metric-value">${escapeHTML(summary.model_name || '—')}</div>
-          </div>
-          <div class="report-metric">
-            <div class="report-metric-label">Artifacts</div>
-            <div class="report-metric-value">${artifactCount}</div>
-          </div>
-          <div class="report-metric">
-            <div class="report-metric-label">Contracts</div>
-            <div class="report-metric-value ${contractOverallClass}">${escapeHTML(contractOverall)}</div>
-          </div>
-        </div>
-      </div>
-      <div class="report-band">
-        <div class="report-band-title">ODB Visuals</div>
-        ${visualHtml}
-      </div>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">KPI / Regression</div>
-      <table class="report-table">
-        <thead><tr><th>KPI</th><th>Actual</th><th>Expected</th><th>Status</th></tr></thead>
-        <tbody>${kpiRows}</tbody>
-      </table>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Physics Contracts</div>
-      <table class="report-table">
-        <thead><tr><th>Name</th><th>Check</th><th>Severity</th><th>Status</th><th>Detail</th></tr></thead>
-        <tbody>${contractRows}</tbody>
-      </table>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Markdown Report</div>
-      <div class="btn-row" style="margin-bottom:10px">
-        <button class="btn btn-secondary" id="btn-copy-report-md">复制 Markdown</button>
-        <button class="btn btn-secondary" id="btn-download-report-md">下载 .md</button>
-        <button class="btn btn-secondary" id="btn-download-report-html">下载 .html</button>
-        <button class="btn btn-secondary" id="btn-download-report-pdf">下载 .pdf</button>
-        <button class="btn btn-secondary" id="btn-preview-report-html">预览/打印</button>
-        <button class="btn btn-secondary" id="btn-download-report-bundle">下载 bundle</button>
-      </div>
-      <div class="markdown-preview">${escapeHTML(report.markdown || '')}</div>
-    </div>`;
-  document.getElementById('btn-copy-report-md').onclick = copyReportMarkdown;
-  document.getElementById('btn-download-report-md').onclick = downloadReportMarkdown;
-  document.getElementById('btn-download-report-html').onclick = downloadReportHTML;
-  document.getElementById('btn-download-report-pdf').onclick = downloadReportPDF;
-  document.getElementById('btn-preview-report-html').onclick = previewReportHTML;
-  document.getElementById('btn-download-report-bundle').onclick = downloadReportBundle;
-}
-
-async function loadOfflineReport() {
-  const source = document.getElementById('offline-report-source').value.trim();
-  if (!source) {
-    toast('请输入 run 目录、capsule.json 或 result.json 路径', 'error');
-    return;
-  }
-  const template = document.getElementById('offline-report-template').value;
-  const btn = document.getElementById('btn-load-offline-report');
-  btn.disabled = true;
-  btn.textContent = '▣ 加载中...';
-  try {
-    const res = await fetch(`${API}/api/report/export`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source, template }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const report = await res.json();
-    report.offline_source = report.offline_source || source;
-    state.report = report;
-    state.capsule = report.capsule || null;
-    renderReport(report);
-    renderCapsule(report.capsule, report);
-    toast('离线报告已加载', 'ok');
-  } catch (err) {
-    console.error(err);
-    toast('离线报告加载失败', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '▣ 加载离线报告';
-  }
-}
-
-function renderCapsule(capsule, report = null) {
-  const area = document.getElementById('capsule-area');
-  if (!capsule) {
-    area.innerHTML = `
-      <div class="capsule-band">
-        <div class="capsule-band-title">Capsule</div>
-        <div class="visual-placeholder">当前运行没有 capsule。真实 Abaqus run 完成后会显示 inputs、provenance、artifacts 和 hash。</div>
-      </div>`;
-    return;
-  }
-  const artifacts = capsule.artifacts || report?.artifacts || {};
-  const artifactRows = Object.entries(artifacts).map(([name, meta]) => `
-    <div class="artifact-row">
-      <span class="artifact-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
-      <span class="artifact-size">${formatBytes(meta.bytes || 0)}</span>
-    </div>`).join('');
-
-  const provenance = capsule.provenance || {};
-  const inputs = capsule.inputs || {};
-  area.innerHTML = `
-    <div class="report-grid">
-      <div class="capsule-band">
-        <div class="capsule-band-title">Identity</div>
-        <div class="report-metrics">
-          <div class="report-metric"><div class="report-metric-label">Run ID</div><div class="report-metric-value">${escapeHTML(capsule.run_id || '—')}</div></div>
-          <div class="report-metric"><div class="report-metric-label">Schema</div><div class="report-metric-value">${escapeHTML(capsule.schema_version || '—')}</div></div>
-          <div class="report-metric"><div class="report-metric-label">Status</div><div class="report-metric-value report-pass">${escapeHTML(provenance.status || '—')}</div></div>
-          <div class="report-metric"><div class="report-metric-label">Abaqus</div><div class="report-metric-value">${escapeHTML(provenance.abaqus_release || '—')}</div></div>
-        </div>
-      </div>
-      <div class="capsule-band">
-        <div class="capsule-band-title">Inputs / Provenance</div>
-        <div class="markdown-preview">${escapeHTML(JSON.stringify({ inputs, provenance }, null, 2))}</div>
-      </div>
-    </div>
-    <div class="capsule-band" style="margin-top:14px">
-      <div class="capsule-band-title">Artifacts</div>
-      <div class="artifact-list">${artifactRows || '<div style="color:var(--text3)">暂无 artifacts</div>'}</div>
-    </div>`;
-}
-
-async function copyReportMarkdown() {
-  const text = state.report?.markdown || '';
-  if (!text) {
-    toast('当前没有可复制的报告 Markdown', 'info');
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(text);
-    toast('报告 Markdown 已复制', 'ok');
-  } catch {
-    toast('复制失败，请手动选中 Markdown', 'error');
-  }
-}
-
-function downloadReportMarkdown() {
-  const text = state.report?.markdown || '';
-  if (!text) {
-    toast('当前没有可下载的报告 Markdown', 'info');
-    return;
-  }
-  const runId = state.report?.summary?.run_id || state.runId || 'run';
-  const blob = new Blob([text + '\n'], { type: 'text/markdown;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `abaqus-report-${runId}.md`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  toast('报告 Markdown 已下载', 'ok');
-}
-
-function downloadReportHTML() {
-  if (!state.report) {
-    toast('当前没有可下载的报告 HTML', 'info');
-    return;
-  }
-  const runId = state.report?.summary?.run_id || state.runId || 'run';
-  const status = state.report?.summary?.status || '';
-  if (state.serverOnline && runId && status !== 'COMPLETED (sim)' && !state.report?.offline_source) {
-    const template = state.report?.template || 'standard';
-    const a = document.createElement('a');
-    a.href = `${API}/api/run/${encodeURIComponent(runId)}/report.html?template=${encodeURIComponent(template)}`;
-    a.download = `abaqus-report-${runId}.html`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    toast('报告 HTML 已下载', 'ok');
-    return;
-  }
-  const html = state.report.html || makeReportHTML(state.report);
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `abaqus-report-${runId}.html`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  toast('报告 HTML 已下载', 'ok');
-}
-
-async function downloadReportPDF() {
-  if (!state.report) {
-    toast('当前没有可下载的报告 PDF', 'info');
-    return;
-  }
-  const runId = state.report?.summary?.run_id || state.runId || '';
-  const status = state.report?.summary?.status || '';
-  const offlineSource = state.report?.offline_source || '';
-  const template = state.report?.template || 'standard';
-  try {
-    let res;
-    if (offlineSource) {
-      res = await fetch(`${API}/api/report/export.pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: offlineSource, template }),
-      });
-    } else {
-      if (!state.serverOnline || !runId || status === 'COMPLETED (sim)') {
-        toast('PDF 需要真实 Abaqus run 或离线 evidence source', 'info');
-        return;
-      }
-      res = await fetch(`${API}/api/run/${encodeURIComponent(runId)}/report.pdf?template=${encodeURIComponent(template)}`);
-    }
-    if (!res.ok) throw new Error(await res.text());
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `abaqus-report-${runId || 'offline'}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    toast('报告 PDF 已下载', 'ok');
-  } catch (err) {
-    console.error(err);
-    toast('PDF 导出失败，请确认已安装 Playwright Chromium', 'error');
-  }
-}
-
-async function downloadReportBundle() {
-  if (!state.report) {
-    toast('当前没有可下载的报告 bundle', 'info');
-    return;
-  }
-  const runId = state.report?.summary?.run_id || state.runId || '';
-  const status = state.report?.summary?.status || '';
-  const offlineSource = state.report?.offline_source || '';
-  if (offlineSource) {
-    try {
-      const template = state.report?.template || 'standard';
-      const res = await fetch(`${API}/api/report/export.zip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: offlineSource, template }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `abaqus-report-${runId || 'offline'}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast('离线报告 bundle 已下载', 'ok');
-    } catch (err) {
-      console.error(err);
-      toast('离线报告 bundle 下载失败', 'error');
-    }
-    return;
-  }
-  if (!state.serverOnline || !runId || status === 'COMPLETED (sim)') {
-    toast('bundle 需要真实 Abaqus run 和服务端 artifacts', 'info');
-    return;
-  }
-  const template = state.report?.template || 'standard';
-  const a = document.createElement('a');
-  a.href = `${API}/api/run/${encodeURIComponent(runId)}/report.zip?template=${encodeURIComponent(template)}`;
-  a.download = `abaqus-report-${runId}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  toast('报告 bundle 已下载', 'ok');
-}
-
-function previewReportHTML() {
-  if (!state.report) {
-    toast('当前没有可预览的报告 HTML', 'info');
-    return;
-  }
-  const runId = state.report?.summary?.run_id || state.runId || '';
-  const status = state.report?.summary?.status || '';
-  if (state.report?.offline_source) {
-    const html = state.report.html || makeReportHTML(state.report);
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank', 'noopener');
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
-    return;
-  }
-  if (!state.serverOnline || !runId || status === 'COMPLETED (sim)') {
-    toast('预览/打印需要真实 Abaqus run 和服务端报告', 'info');
-    return;
-  }
-  const template = state.report?.template || 'standard';
-  const url = `${API}/api/run/${encodeURIComponent(runId)}/report.html?template=${encodeURIComponent(template)}&download=false`;
-  window.open(url, '_blank', 'noopener');
-}
-
-function makeReportHTML(report) {
-  const summary = report.summary || {};
-  const titles = {
-    standard: 'Abaqus Run Report',
-    client_summary: 'Simulation QA Summary',
-    engineering_delivery: 'Engineering Delivery Report',
-  };
-  const title = titles[report.template] || titles.standard;
-  const kpis = Object.entries(report.kpis || {})
-    .map(([name, value]) => {
-      const actual = typeof value === 'object' ? value.value : value;
-      const status = report.regression?.comparisons?.[name]?.status || 'INFO';
-      return `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(formatNum(actual))}</td><td>${escapeHTML(status)}</td></tr>`;
-    }).join('') || '<tr><td colspan="3">No KPI values reported.</td></tr>';
-  const contracts = Array.isArray(report.contracts?.results) ? report.contracts.results : [];
-  const contractRows = contracts.map(item => `
-    <tr>
-      <td>${escapeHTML(item.name || '—')}</td>
-      <td>${escapeHTML(item.check || item.type || '—')}</td>
-      <td>${escapeHTML(item.status || (item.passed ? 'PASS' : 'FAIL'))}</td>
-      <td>${escapeHTML(item.detail || '')}</td>
-    </tr>`).join('') || '<tr><td colspan="4">No Physics Contract results reported.</td></tr>';
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHTML(title)} - ${escapeHTML(summary.run_id || 'run')}</title>
-<style>
-body{margin:0;background:#eef2f6;color:#1f2933;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55}
-main{max-width:980px;margin:0 auto;padding:30px 22px 54px}
-section{background:white;border:1px solid #d7dce3;border-radius:8px;margin-top:16px;padding:20px}
-h1{margin:0;font-size:32px}h2{font-size:18px;margin:0 0 12px}
-.hero{border-top:5px solid #d85b21}.muted{color:#667085}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #d7dce3;padding:9px;text-align:left;vertical-align:top}
-pre{white-space:pre-wrap;background:#f6f8fb;border:1px solid #d7dce3;border-radius:6px;padding:14px;overflow-x:auto}
-</style>
-</head>
-<body><main>
-<section class="hero"><p class="muted">Run report</p><h1>${escapeHTML(title)}</h1><div>${escapeHTML(summary.run_id || 'run')}</div></section>
-<section><h2>Summary</h2><p>Status: <strong>${escapeHTML(summary.status || '—')}</strong></p><p>Model: ${escapeHTML(summary.model_name || '—')}</p><p>Abaqus: ${escapeHTML(summary.abaqus_release || '—')}</p></section>
-<section><h2>KPI / Regression</h2><table><thead><tr><th>KPI</th><th>Actual</th><th>Status</th></tr></thead><tbody>${kpis}</tbody></table></section>
-<section><h2>Physics Contracts</h2><table><thead><tr><th>Name</th><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>${contractRows}</tbody></table></section>
-<section><h2>Markdown Source</h2><pre>${escapeHTML(report.markdown || '')}</pre></section>
-</main></body></html>`;
-}
-
-// ── Simulation Diff ──────────────────────────────────────────────
-async function compareLatestRuns() {
-  if (state.history.length < 2) {
-    toast('至少需要两次运行记录才能 diff', 'info');
-    navigateTo('diff');
-    return;
-  }
-  const candidate = state.history[0];
-  const baseline = state.history[1];
-  const rtol = getDiffRtol();
-  let tolerances = {};
-  try {
-    tolerances = getDiffTolerances();
-  } catch (err) {
-    toast(err.message, 'error');
-    navigateTo('diff');
-    return;
-  }
-  let diff = null;
-  if (state.serverOnline && baseline.runId && candidate.runId &&
-      !String(baseline.runId).startsWith('sim_') && !String(candidate.runId).startsWith('sim_')) {
-    try {
-      const params = new URLSearchParams({ rtol: String(rtol), tolerances_json: JSON.stringify(tolerances) });
-      const res = await fetch(`${API}/api/run/${baseline.runId}/diff/${candidate.runId}?${params.toString()}`);
-      if (res.ok) diff = await res.json();
-    } catch {}
-  }
-  if (!diff) diff = makeLocalDiff(baseline, candidate, { rtol, tolerances });
-  state.diff = diff;
-  renderDiff(diff);
-  navigateTo('diff');
-}
-
-function getDiffRtol() {
-  const input = document.getElementById('diff-rtol');
-  const value = Number(input?.value || 0.05);
-  return Number.isFinite(value) && value >= 0 ? value : 0.05;
-}
-
-function getDiffTolerances() {
-  const raw = document.getElementById('diff-tolerances')?.value.trim() || '';
-  if (!raw) return {};
-  const parsed = JSON.parse(raw);
-  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-    throw new Error('Per-KPI tolerances 必须是 JSON object');
-  }
-  return parsed;
-}
-
-function makeLocalDiff(baseline, candidate, options = {}) {
-  const defaultRtol = options.rtol ?? 0.05;
-  const tolerances = options.tolerances || {};
-  const baseKpis = Object.fromEntries((baseline.kpis || []).map(k => [k.name, k.value]));
-  const candKpis = Object.fromEntries((candidate.kpis || []).map(k => [k.name, k.value]));
-  const changes = [];
-  [...new Set([...Object.keys(baseKpis), ...Object.keys(candKpis)])].sort().forEach(name => {
-    if (!(name in baseKpis)) {
-      changes.push({ name, before: null, after: candKpis[name], status: 'ADDED' });
-      return;
-    }
-    if (!(name in candKpis)) {
-      changes.push({ name, before: baseKpis[name], after: null, status: 'REMOVED' });
-      return;
-    }
-    const before = Number(baseKpis[name]);
-    const after = Number(candKpis[name]);
-    const delta = after - before;
-    const rel = Math.abs(delta) / Math.max(Math.abs(before), 1e-12);
-    const rtol = Number(tolerances[name] ?? defaultRtol);
-    changes.push({
-      name,
-      before,
-      after,
-      delta,
-      rel_change: rel,
-      rtol,
-      status: rel <= rtol ? 'PASS' : 'WARNING',
-    });
-  });
-  const contractChanges = makeLocalContractDiff(baseline.contracts || {}, candidate.contracts || {});
-  const sections = {
-    kpis: { changes },
-    contracts: { changes: contractChanges },
-    spec: { changes: [] },
-    inputs: { changes: [] },
-    artifacts: { changes: [] },
-    provenance: { changes: [] },
-  };
-  return {
-    passed: changes.every(c => c.status === 'PASS') && contractChanges.every(c => c.status === 'PASS'),
-    baseline: { run_id: baseline.runId, status: baseline.status },
-    candidate: { run_id: candidate.runId, status: candidate.status },
-    summary: summarizeDiffSections(sections),
-    sections,
-  };
-}
-
-function summarizeDiffSections(sections) {
-  const summary = { total_changes: 0, warning_changes: 0, structural_changes: 0, sections: {} };
-  Object.entries(sections || {}).forEach(([name, section]) => {
-    const counts = { total: 0, PASS: 0, WARNING: 0, ADDED: 0, REMOVED: 0, INFO: 0, OTHER: 0 };
-    (section.changes || []).forEach(change => {
-      const status = String(change.status || 'INFO').toUpperCase();
-      const bucket = Object.prototype.hasOwnProperty.call(counts, status) ? status : 'OTHER';
-      counts[bucket] += 1;
-      counts.total += 1;
-    });
-    summary.total_changes += counts.total;
-    summary.warning_changes += counts.WARNING + counts.OTHER;
-    summary.structural_changes += counts.ADDED + counts.REMOVED;
-    summary.sections[name] = counts;
-  });
-  return summary;
-}
-
-function makeLocalContractDiff(baseline, candidate) {
-  const base = Object.fromEntries(((baseline.results || [])).map(c => [c.name, c.status || (c.passed ? 'PASS' : 'FAIL')]));
-  const cand = Object.fromEntries(((candidate.results || [])).map(c => [c.name, c.status || (c.passed ? 'PASS' : 'FAIL')]));
-  return [...new Set([...Object.keys(base), ...Object.keys(cand)])].sort().map(name => {
-    if (!(name in base)) return { name, before: null, after: cand[name], status: 'ADDED' };
-    if (!(name in cand)) return { name, before: base[name], after: null, status: 'REMOVED' };
-    return { name, before: base[name], after: cand[name], status: base[name] === cand[name] ? 'PASS' : 'WARNING' };
-  });
-}
-
-function renderDiff(diff) {
-  const area = document.getElementById('diff-area');
-  const kpiChanges = diff.sections?.kpis?.changes || diff.changes || [];
-  const contractChanges = diff.sections?.contracts?.changes || [];
-  const specChanges = diff.sections?.spec?.changes || [];
-  const artifactChanges = diff.sections?.artifacts?.changes || [];
-  const summary = diff.summary || summarizeDiffSections(diff.sections || { kpis: { changes: kpiChanges }, contracts: { changes: contractChanges } });
-  const statusClass = diff.passed ? 'report-pass' : 'report-warn';
-  const kpiRows = kpiChanges.map(change => {
-    const rel = change.rel_change != null ? `${(change.rel_change * 100).toFixed(2)}%` : '—';
-    const rtol = change.rtol != null ? `${(Number(change.rtol) * 100).toFixed(2)}%` : '—';
-    const cls = change.status === 'PASS' ? 'report-pass' : 'report-warn';
-    return `<tr>
-      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.name)}</td>
-      <td>${formatNum(change.before)}</td>
-      <td>${formatNum(change.after)}</td>
-      <td>${formatNum(change.delta)}</td>
-      <td>${escapeHTML(rel)}</td>
-      <td>${escapeHTML(rtol)}</td>
-      <td class="${cls}">${escapeHTML(change.status)}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="7" style="color:var(--text3)">暂无 KPI 差异</td></tr>';
-  const contractRows = contractChanges.map(change => {
-    const cls = change.status === 'PASS' ? 'report-pass' : 'report-warn';
-    return `<tr>
-      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.name)}</td>
-      <td>${escapeHTML(change.before || '—')}</td>
-      <td>${escapeHTML(change.after || '—')}</td>
-      <td class="${cls}">${escapeHTML(change.status)}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 Contract 差异</td></tr>';
-  const specRows = specChanges.slice(0, 20).map(change => `
-    <tr>
-      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.path || '—')}</td>
-      <td>${escapeHTML(String(change.before ?? '—'))}</td>
-      <td>${escapeHTML(String(change.after ?? '—'))}</td>
-      <td class="report-warn">${escapeHTML(change.status || 'WARNING')}</td>
-    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--text3)">暂无 Spec 差异</td></tr>';
-  const artifactRows = artifactChanges.slice(0, 20).map(change => {
-    const cls = change.status === 'PASS' ? 'report-pass' : 'report-warn';
-    return `<tr>
-      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(change.path || '—')}</td>
-      <td>${escapeHTML(shortHash(change.before_sha256 ?? change.before))}</td>
-      <td>${escapeHTML(shortHash(change.after_sha256 ?? change.after))}</td>
-      <td>${escapeHTML(formatOptionalBytes(change.before_bytes))}</td>
-      <td>${escapeHTML(formatOptionalBytes(change.after_bytes))}</td>
-      <td>${escapeHTML(change.reason || 'changed')}</td>
-      <td class="${cls}">${escapeHTML(change.status || 'WARNING')}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="7" style="color:var(--text3)">暂无 Artifact 差异</td></tr>';
-  const summaryRows = Object.entries(summary.sections || {}).map(([name, counts]) => `
-    <tr>
-      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(name)}</td>
-      <td>${counts.total || 0}</td>
-      <td>${counts.PASS || 0}</td>
-      <td>${counts.WARNING || 0}</td>
-      <td>${counts.ADDED || 0}</td>
-      <td>${counts.REMOVED || 0}</td>
-    </tr>`).join('');
-
-  area.innerHTML = `
-    <div class="report-grid">
-      <div class="report-band">
-        <div class="report-band-title">Diff Summary</div>
-        <div class="report-metrics">
-          <div class="report-metric"><div class="report-metric-label">Baseline</div><div class="report-metric-value">${escapeHTML(diff.baseline?.run_id || '—')}</div></div>
-          <div class="report-metric"><div class="report-metric-label">Candidate</div><div class="report-metric-value">${escapeHTML(diff.candidate?.run_id || '—')}</div></div>
-          <div class="report-metric"><div class="report-metric-label">Overall</div><div class="report-metric-value ${statusClass}">${diff.passed ? 'PASS' : 'WARNING'}</div></div>
-          <div class="report-metric"><div class="report-metric-label">Total Rows</div><div class="report-metric-value">${summary.total_changes || 0}</div></div>
-          <div class="report-metric"><div class="report-metric-label">Warnings</div><div class="report-metric-value">${summary.warning_changes || 0}</div></div>
-          <div class="report-metric"><div class="report-metric-label">Added / Removed</div><div class="report-metric-value">${summary.structural_changes || 0}</div></div>
-        </div>
-      </div>
-      <div class="report-band">
-        <div class="report-band-title">Actions</div>
-        <button class="btn btn-primary" id="btn-diff-latest-inline">⇄ 对比最近两次运行</button>
-        <button class="btn btn-secondary" id="btn-download-diff-md" style="margin-left:8px">下载 diff.md</button>
-      </div>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Change Summary</div>
-      <table class="report-table"><thead><tr><th>Section</th><th>Total</th><th>PASS</th><th>WARNING</th><th>ADDED</th><th>REMOVED</th></tr></thead><tbody>${summaryRows}</tbody></table>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">KPI Diff</div>
-      <table class="report-table"><thead><tr><th>KPI</th><th>Before</th><th>After</th><th>Delta</th><th>Rel</th><th>rtol</th><th>Status</th></tr></thead><tbody>${kpiRows}</tbody></table>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Physics Contract Diff</div>
-      <table class="report-table"><thead><tr><th>Name</th><th>Before</th><th>After</th><th>Status</th></tr></thead><tbody>${contractRows}</tbody></table>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Spec Diff</div>
-      <table class="report-table"><thead><tr><th>Field</th><th>Before</th><th>After</th><th>Status</th></tr></thead><tbody>${specRows}</tbody></table>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Artifact Diff</div>
-      <table class="report-table"><thead><tr><th>Artifact</th><th>Before SHA</th><th>After SHA</th><th>Before Size</th><th>After Size</th><th>Reason</th><th>Status</th></tr></thead><tbody>${artifactRows}</tbody></table>
-    </div>`;
-  document.getElementById('btn-diff-latest-inline').onclick = compareLatestRuns;
-  document.getElementById('btn-download-diff-md').onclick = downloadDiffMarkdown;
-}
-
-function diffMarkdown(diff) {
-  if (diff.markdown) return diff.markdown;
-  const lines = [
-    '# Simulation Diff Report',
-    '',
-    `- Baseline: \`${diff.baseline?.run_id || '-'}\``,
-    `- Candidate: \`${diff.candidate?.run_id || '-'}\``,
-    `- Overall: \`${diff.passed ? 'PASS' : 'WARNING'}\``,
-    '',
-    '## Change Summary',
-    '',
-    '| Section | Total | PASS | WARNING | ADDED | REMOVED |',
-    '|---------|-------|------|---------|-------|---------|',
-  ];
-  Object.entries(diff.summary?.sections || {}).forEach(([name, counts]) => {
-    lines.push(`| ${name} | ${counts.total || 0} | ${counts.PASS || 0} | ${counts.WARNING || 0} | ${counts.ADDED || 0} | ${counts.REMOVED || 0} |`);
-  });
-  lines.push('', '## KPI Diff', '', '| KPI | Before | After | Delta | Rel Change | rtol | Status |', '|-----|--------|-------|-------|------------|------|--------|');
-  (diff.sections?.kpis?.changes || diff.changes || []).forEach(change => {
-    const rel = change.rel_change != null ? `${(change.rel_change * 100).toFixed(2)}%` : '-';
-    const rtol = change.rtol != null ? `${(Number(change.rtol) * 100).toFixed(2)}%` : '-';
-    lines.push(`| ${change.name} | ${change.before ?? '-'} | ${change.after ?? '-'} | ${change.delta ?? '-'} | ${rel} | ${rtol} | ${change.status} |`);
-  });
-  const artifacts = diff.sections?.artifacts?.changes || [];
-  if (artifacts.length) {
-    lines.push(
-      '',
-      '## Artifact Diff',
-      '',
-      '| Artifact | Before SHA | After SHA | Before Bytes | After Bytes | Reason | Status |',
-      '|----------|------------|-----------|--------------|-------------|--------|--------|',
-    );
-    artifacts.forEach(change => {
-      lines.push(`| ${change.path || '-'} | ${change.before_sha256 ?? change.before ?? '-'} | ${change.after_sha256 ?? change.after ?? '-'} | ${change.before_bytes ?? '-'} | ${change.after_bytes ?? '-'} | ${change.reason || 'changed'} | ${change.status || 'WARNING'} |`);
-    });
-  }
-  return lines.join('\n');
-}
-
-function downloadDiffMarkdown() {
-  if (!state.diff) {
-    toast('暂无 Diff 可下载', 'info');
-    return;
-  }
-  const text = diffMarkdown(state.diff);
-  const baseline = state.diff.baseline?.run_id || 'baseline';
-  const candidate = state.diff.candidate?.run_id || 'candidate';
-  const blob = new Blob([text + '\n'], { type: 'text/markdown;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `abaqus-diff-${baseline}-vs-${candidate}.md`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('Diff Markdown 已下载', 'ok');
-}
-
-function memoryRoots() {
-  return document.getElementById('memory-roots').value
-    .split(/[\n,]+/)
-    .map(v => v.trim())
-    .filter(Boolean);
-}
-
-async function searchMemory() {
-  const roots = memoryRoots();
-  if (!roots.length) {
-    toast('请输入至少一个搜索路径', 'error');
-    return;
-  }
-  const btn = document.getElementById('btn-memory-search');
-  btn.disabled = true;
-  btn.textContent = '⌕ 搜索中...';
-  try {
-    const payload = {
-      roots,
-      query: document.getElementById('memory-query').value.trim(),
-      match_mode: document.getElementById('memory-match-mode').value,
-      similar_to: document.getElementById('memory-similar').value.trim(),
-      status: document.getElementById('memory-status').value,
-      geometry_type: document.getElementById('memory-geometry-type').value.trim(),
-      solver: document.getElementById('memory-solver').value,
-      material_name: document.getElementById('memory-material-name').value.trim(),
-      contract: document.getElementById('memory-contract').value.trim(),
-      contracts_passed: document.getElementById('memory-contracts-passed').value,
-      diagnosis_id: document.getElementById('memory-diagnosis').value.trim(),
-      kpi: document.getElementById('memory-kpi').value.trim(),
-      artifact: document.getElementById('memory-artifact').value.trim(),
-      limit: parseInt(document.getElementById('memory-limit').value || '10', 10),
-      sort_by: document.getElementById('memory-sort-by').value,
-      sort_order: document.getElementById('memory-sort-order').value,
-      min_score: parseFloat(document.getElementById('memory-min-score').value || '0'),
-    };
-    const res = await fetch(`${API}/api/memory/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const result = await res.json();
-    state.memory = result;
-    renderMemory(result);
-    toast(`找到 ${result.total_matches || 0} 个案例`, 'ok');
-  } catch (err) {
-    console.error(err);
-    toast('Case Memory 搜索失败', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '⌕ 搜索案例';
-  }
-}
-
-function fillMemoryFromCurrentRun() {
-  const summary = state.report?.summary || {};
-  const capsulePath = summary.capsule_path || state.capsule?.capsule_path || '';
-  const workdir = summary.workdir || '';
-  const target = capsulePath || workdir;
-  if (!target) {
-    toast('当前没有可用的真实 run/capsule 路径', 'info');
-    return;
-  }
-  document.getElementById('memory-similar').value = target;
-  if (workdir) {
-    const roots = new Set(memoryRoots());
-    roots.add(workdir);
-    document.getElementById('memory-roots').value = Array.from(roots).join('\n');
-  }
-  navigateTo('memory');
-}
-
-function renderMemory(result) {
-  const area = document.getElementById('memory-results');
-  const matches = result.matches || [];
-  const query = result.query || {};
-  const facetRows = Object.entries(result.facets || {}).map(([name, values]) => `
-    <tr>
-      <td style="font-family:var(--mono);color:var(--text)">${escapeHTML(name)}</td>
-      <td>${Object.entries(values || {}).slice(0, 6).map(([value, count]) => `<span class="memory-chip">${escapeHTML(value)} ${count}</span>`).join(' ') || '—'}</td>
-    </tr>`).join('');
-  if (!matches.length) {
-    area.innerHTML = `
-      <div class="report-band">
-        <div class="report-band-title">Results</div>
-        <div class="visual-placeholder">没有匹配案例。可以放宽 status / KPI / diagnosis 过滤，或换一个 capsule 根目录。</div>
-      </div>`;
-    return;
-  }
-
-  const rows = matches.map(item => {
-    const kpiChips = (item.kpi_names || []).slice(0, 6)
-      .map(k => `<span class="memory-chip">${escapeHTML(k)}</span>`).join('');
-    const reasonChips = (item.reasons || []).slice(0, 6)
-      .map(r => `<span class="memory-chip">${escapeHTML(r)}</span>`).join('');
-    const statusClass = item.status === 'FAILED' ? 'report-fail' : 'report-pass';
-    return `
-      <div class="memory-result-card">
-        <div class="memory-card-head">
-          <div class="memory-score">${formatNum(item.score || 0)}</div>
-          <div class="memory-run">
-            <div class="memory-run-id">${escapeHTML(item.run_id || '—')}</div>
-            <div class="memory-run-meta">${escapeHTML(item.model_name || '—')} · ${escapeHTML(item.geometry_type || '—')} · ${escapeHTML(item.material_name || '—')} · ${item.kpi_count || 0} KPIs · ${item.contract_count || 0} contracts · ${item.artifact_count || 0} artifacts</div>
-          </div>
-          <div class="memory-status ${statusClass}">${escapeHTML(item.status || '—')}</div>
-        </div>
-        ${kpiChips ? `<div class="memory-chip-row">${kpiChips}</div>` : ''}
-        ${reasonChips ? `<div class="memory-chip-row">${reasonChips}</div>` : ''}
-        <div class="memory-path">${escapeHTML(item.workdir || item.capsule_path || '')}</div>
-      </div>`;
-  }).join('');
-
-  area.innerHTML = `
-    <div class="report-band" style="margin-bottom:14px">
-      <div class="report-band-title">Search Summary</div>
-      <div class="report-metrics">
-        <div class="report-metric"><div class="report-metric-label">Indexed</div><div class="report-metric-value">${result.total_indexed || 0}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Matches</div><div class="report-metric-value">${result.total_matches || 0}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Query</div><div class="report-metric-value">${escapeHTML(query.query || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Match</div><div class="report-metric-value">${escapeHTML(query.match_mode || 'any')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Target</div><div class="report-metric-value">${escapeHTML(query.similar_to || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Geometry</div><div class="report-metric-value">${escapeHTML(query.geometry_type || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Solver</div><div class="report-metric-value">${escapeHTML(query.solver || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Material</div><div class="report-metric-value">${escapeHTML(query.material_name || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Sort</div><div class="report-metric-value">${escapeHTML(query.sort_by || 'score')} ${escapeHTML(query.sort_order || 'desc')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Min Score</div><div class="report-metric-value">${formatNum(query.min_score || 0)}</div></div>
-      </div>
-    </div>
-    ${facetRows ? `<div class="report-band" style="margin-bottom:14px">
-      <div class="report-band-title">Facets</div>
-      <table class="report-table"><thead><tr><th>Facet</th><th>Top Values</th></tr></thead><tbody>${facetRows}</tbody></table>
-    </div>` : ''}
-    ${rows}`;
-}
-
-async function runEnvironmentPreflight() {
-  const btn = document.getElementById('btn-run-preflight');
-  btn.disabled = true;
-  btn.textContent = '⌁ 预检中...';
-  try {
-    const payload = {
-      abaqus_cmd: document.getElementById('preflight-abaqus-cmd').value.trim(),
-      timeout_seconds: parseFloat(document.getElementById('preflight-timeout').value || '15'),
-      check_release: document.getElementById('preflight-check-release').checked,
-      expected_release: document.getElementById('preflight-expected-release').value.trim(),
-      workdir: document.getElementById('preflight-workdir').value.trim(),
-      runner_cfg: parseOptionalJsonObject(document.getElementById('preflight-runner-json').value.trim(), 'Runner JSON'),
-    };
-    const res = await fetch(`${API}/api/validate/env`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const result = await res.json();
-    state.preflight = result;
-    renderEnvironmentPreflight(result);
-    toast(`Environment: ${result.status || 'unknown'}`, result.status === 'ready' ? 'ok' : 'info');
-  } catch (err) {
-    console.error(err);
-    toast('环境预检失败', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '⌁ 运行预检';
-  }
-}
-
-function renderEnvironmentPreflight(result) {
-  const area = document.getElementById('preflight-results');
-  const platform = result.platform || {};
-  const abaqus = result.abaqus || {};
-  const release = abaqus.release_check || {};
-  const releaseMatch = abaqus.release_match || {};
-  const environment = result.environment || {};
-  const workdir = environment.workdir || {};
-  const license = environment.license || {};
-  const runner = result.runner || {};
-  const statusClass = result.status === 'ready' ? 'report-pass'
-    : result.status === 'missing_abaqus' || result.status === 'release_check_failed' || result.status === 'release_mismatch'
-      ? 'report-fail'
-      : 'report-warn';
-  const checks = (result.checks || []).map(check => {
-    const checkClass = check.status === 'pass' ? 'report-pass'
-      : check.status === 'fail' ? 'report-fail' : 'report-warn';
-    return `
-      <tr>
-        <td>${escapeHTML(check.name || '')}</td>
-        <td><span class="${checkClass}">${escapeHTML(check.status || '')}</span></td>
-        <td>${escapeHTML(check.detail || '')}</td>
-      </tr>`;
-  }).join('');
-  area.innerHTML = `
-    <div class="report-band">
-      <div class="report-band-title">Preflight Summary</div>
-      <div class="report-metrics">
-        <div class="report-metric"><div class="report-metric-label">Status</div><div class="report-metric-value ${statusClass}">${escapeHTML(result.status || 'unknown')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">OS</div><div class="report-metric-value">${escapeHTML(`${platform.system || ''} ${platform.release || ''}`.trim() || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Python</div><div class="report-metric-value">${escapeHTML(platform.python_version || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Abaqus</div><div class="report-metric-value">${escapeHTML(release.version || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Expected</div><div class="report-metric-value">${escapeHTML(abaqus.expected_release || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Release Match</div><div class="report-metric-value">${escapeHTML(releaseMatch.status || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Workdir</div><div class="report-metric-value">${escapeHTML(workdir.status || '—')}</div></div>
-        <div class="report-metric"><div class="report-metric-label">Runner</div><div class="report-metric-value">${escapeHTML(runner.status || '—')}</div></div>
-      </div>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Command Evidence</div>
-      <table class="report-table">
-        <tbody>
-          <tr><th>Requested</th><td>${escapeHTML(abaqus.command || 'abaqus')}</td></tr>
-          <tr><th>Resolved</th><td>${escapeHTML(abaqus.resolved_path || 'not found')}</td></tr>
-          <tr><th>Release Status</th><td>${escapeHTML(release.status || 'unknown')}</td></tr>
-          <tr><th>Expected Release</th><td>${escapeHTML(abaqus.expected_release || '—')}</td></tr>
-          <tr><th>Release Match</th><td>${escapeHTML(releaseMatch.detail || releaseMatch.status || '—')}</td></tr>
-          <tr><th>Return Code</th><td>${release.returncode ?? '—'}</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Run Environment</div>
-      <table class="report-table">
-        <tbody>
-          <tr><th>Workdir</th><td>${escapeHTML(workdir.path || '—')}</td></tr>
-          <tr><th>Writable</th><td>${escapeHTML(String(workdir.writable ?? '—'))}</td></tr>
-          <tr><th>License Markers</th><td>${escapeHTML((license.present || []).join(', ') || 'none detected')}</td></tr>
-          <tr><th>Runner CPUs</th><td>${escapeHTML(runner.cpus ?? 'default')}</td></tr>
-          <tr><th>Runner MP Mode</th><td>${escapeHTML(runner.mp_mode ?? 'default')}</td></tr>
-          <tr><th>Runner Timeout</th><td>${escapeHTML(runner.timeout_seconds ?? 'default')}</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Checks</div>
-      <table class="report-table"><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>${checks || '<tr><td colspan="3">—</td></tr>'}</tbody></table>
-    </div>
-    ${(result.next_actions || []).length ? `<div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Next Actions</div>
-      <table class="report-table"><tbody>${result.next_actions.map(action => `<tr><td>${escapeHTML(action)}</td></tr>`).join('')}</tbody></table>
-    </div>` : ''}
-    <div class="report-band" style="margin-top:14px">
-      <div class="report-band-title">Markdown Evidence</div>
-      <div class="markdown-preview">${escapeHTML(result.markdown || '')}</div>
-    </div>`;
-}
-
-function parseOptionalJsonObject(raw, label) {
-  if (!raw) return {};
-  const parsed = JSON.parse(raw);
-  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-    throw new Error(`${label} must be a JSON object`);
-  }
-  return parsed;
-}
-
-function escapeHTML(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function formatBytes(bytes) {
-  if (!bytes) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let n = bytes;
-  let i = 0;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return `${n.toFixed(i ? 1 : 0)} ${units[i]}`;
-}
-
-function formatOptionalBytes(bytes) {
-  return bytes == null ? '—' : formatBytes(bytes);
-}
-
-function shortHash(value) {
-  const text = String(value ?? '');
-  if (!text || text === 'null') return '—';
-  return text.length > 12 ? `${text.slice(0, 12)}…` : text;
-}
-
 // ── Render KPIs ──────────────────────────────────────────────────
 function renderKPIs() {
   const area = document.getElementById('kpi-area');
-  const empty = document.getElementById('kpi-empty');
-  if (empty) empty.style.display = 'none';
+  document.getElementById('kpi-empty').style.display = 'none';
 
   const kpis = state.kpis;
   if (!kpis.length) return;
@@ -3834,24 +2992,22 @@ function renderKPIs() {
   let html = '<div class="section-title">提取指标</div><div class="kpi-grid">';
 
   kpis.forEach(kpi => {
-    const hasExpected = kpi.expected !== null && kpi.expected !== undefined;
-    const relErr = hasExpected && kpi.expected !== 0
+    const relErr = kpi.expected !== 0
       ? Math.abs((kpi.value - kpi.expected) / kpi.expected)
       : Math.abs(kpi.value);
-    const pass = hasExpected ? relErr <= kpi.rtol : true;
-    const statusClass = hasExpected ? (pass ? 'pass' : 'fail') : 'info';
-    const relPct = hasExpected ? (relErr * 100).toFixed(1) : '—';
-    const expectedText = hasExpected ? `${formatNum(kpi.expected)} ${kpi.unit}` : '—';
+    const pass = relErr <= kpi.rtol;
+    const statusClass = pass ? 'pass' : 'fail';
+    const relPct = (relErr * 100).toFixed(1);
 
     html += `
       <div class="kpi-card ${statusClass}">
-        <span class="kpi-badge ${statusClass}">${hasExpected ? (pass ? 'PASS' : 'FAIL') : 'INFO'}</span>
+        <span class="kpi-badge ${statusClass}">${pass ? 'PASS' : 'FAIL'}</span>
         <div class="kpi-label">${kpi.name}</div>
         <div class="kpi-value ${statusClass}">
           ${formatNum(kpi.value)}<span class="kpi-unit">${kpi.unit}</span>
         </div>
         <div class="kpi-comparison">
-          期望: <span class="expected">${expectedText}</span>
+          期望: <span class="expected">${formatNum(kpi.expected)} ${kpi.unit}</span>
           &nbsp;·&nbsp;误差: <span class="err">${relPct}%</span>
           &nbsp;·&nbsp;容差: ±${(kpi.rtol*100).toFixed(0)}%
         </div>
@@ -3869,7 +3025,6 @@ function renderKPIs() {
 
   // Summary
   const passCount = kpis.filter(k => {
-    if (k.expected === null || k.expected === undefined) return true;
     const relErr = k.expected !== 0 ? Math.abs((k.value - k.expected) / k.expected) : Math.abs(k.value);
     return relErr <= k.rtol;
   }).length;
@@ -3922,13 +3077,7 @@ function drawKpiSparkline(kpis) {
   // Find max absolute value for scaling
   let maxVal = 0;
   kpis.forEach(k => {
-    const actual = Number(k.value);
-    const expected = Number(k.expected);
-    maxVal = Math.max(
-      maxVal,
-      Number.isFinite(actual) ? Math.abs(actual) : 0,
-      Number.isFinite(expected) ? Math.abs(expected) : 0
-    );
+    maxVal = Math.max(maxVal, Math.abs(k.value), k.expected !== null ? Math.abs(k.expected) : 0);
   });
   if (maxVal === 0) maxVal = 1;
 
@@ -3947,17 +3096,15 @@ function drawKpiSparkline(kpis) {
     const cx = padL + i * groupW + groupW / 2;
 
     // Actual bar
-    const actual = Number(kpi.value);
-    const aH = Math.max(2, ((Number.isFinite(actual) ? Math.abs(actual) : 0) / maxVal) * chartH);
+    const aH = Math.max(2, (Math.abs(kpi.value) / maxVal) * chartH);
     const aX = cx - barW - gap / 2;
     const aY = padT + chartH - aH;
     ctx.fillStyle = '#FF6B2B';
     ctx.fillRect(aX, aY, barW, aH);
 
     // Expected bar
-    const expected = Number(kpi.expected);
-    if (Number.isFinite(expected) && expected !== 0) {
-      const eH = Math.max(2, (Math.abs(expected) / maxVal) * chartH);
+    if (kpi.expected !== null && kpi.expected !== 0) {
+      const eH = Math.max(2, (Math.abs(kpi.expected) / maxVal) * chartH);
       const eX = cx + gap / 2;
       const eY = padT + chartH - eH;
       ctx.fillStyle = '#4D8EFF';
@@ -4115,6 +3262,1007 @@ async function _simulateBenchmark() {
   toast('模拟 Benchmark 完成', 'ok');
 }
 
+// ── Offline Evidence workflow ────────────────────────────────────
+async function loadEvidenceExample() {
+  const caseName = document.getElementById('evidence-case').value || 'cantilever';
+  const example = await getEvidenceExample(caseName);
+  document.getElementById('evidence-baseline').value = prettyJson(example.baseline_kpis);
+  document.getElementById('evidence-candidate').value = prettyJson(example.candidate_kpis);
+  document.getElementById('evidence-contracts').value = prettyJson(example.contracts);
+  document.getElementById('evidence-run-id').value = example.run_id || `${caseName}-ui-offline`;
+  document.getElementById('simdiff-id').value = `${caseName}-ui-simdiff`;
+  document.getElementById('simdiff-tolerances').value = prettyJson(tolerancesFromContracts(example.contracts || []));
+  document.getElementById('evidence-input-path').value = example.input_path;
+  document.getElementById('evidence-status').textContent = 'READY';
+  document.getElementById('simdiff-status').textContent = 'READY';
+}
+
+function tolerancesFromContracts(contracts) {
+  const tolerances = {};
+  (contracts || []).forEach((contract) => {
+    if (contract.type === 'relative_error' && contract.kpi) {
+      tolerances[contract.kpi] = {
+        rtol: Number(contract.rtol || 0),
+        atol: Number(contract.atol || 0),
+      };
+    }
+  });
+  return tolerances;
+}
+
+async function getEvidenceExample(caseName) {
+  if (state.serverOnline) {
+    try {
+      const res = await fetch(`${API}/api/evidence/examples/${encodeURIComponent(caseName)}`);
+      if (res.ok) return await res.json();
+    } catch {}
+  }
+  return OFFLINE_EVIDENCE_EXAMPLES[caseName] || OFFLINE_EVIDENCE_EXAMPLES.cantilever;
+}
+
+async function loadEvidenceExampleCases() {
+  if (!state.serverOnline) return;
+  try {
+    const res = await fetch(`${API}/api/evidence/examples`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const select = document.getElementById('evidence-case');
+    const current = select.value || 'cantilever';
+    select.innerHTML = (data.cases || []).map((item) => (
+      `<option value="${escapeHtml(item.case)}">${escapeHtml(item.case)}</option>`
+    )).join('');
+    if ([...select.options].some((option) => option.value === current)) {
+      select.value = current;
+    }
+  } catch {}
+}
+
+document.getElementById('evidence-case').addEventListener('change', () => {
+  loadEvidenceExample();
+});
+
+document.getElementById('btn-evidence-example').addEventListener('click', () => {
+  loadEvidenceExample();
+  toast('Evidence 示例已载入', 'info');
+});
+
+document.getElementById('btn-evidence-run').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-evidence-run');
+  const status = document.getElementById('evidence-status');
+  let baseline;
+  let candidate;
+  let contracts;
+  try {
+    baseline = JSON.parse(document.getElementById('evidence-baseline').value);
+    candidate = JSON.parse(document.getElementById('evidence-candidate').value);
+    contracts = JSON.parse(document.getElementById('evidence-contracts').value);
+  } catch (e) {
+    toast('Evidence JSON 无效: ' + e.message, 'error');
+    return;
+  }
+  if (!contracts || !Array.isArray(contracts)) {
+    toast('Contracts 必须是 JSON array', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⟳ 运行中...';
+  status.textContent = 'RUNNING';
+  try {
+    const res = await fetch(`${API}/api/evidence/offline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        run_id: document.getElementById('evidence-run-id').value.trim() || 'ui-offline-evidence',
+        baseline_kpis: baseline,
+        candidate_kpis: candidate,
+        contracts,
+        input_path: document.getElementById('evidence-input-path').value.trim(),
+        input_metadata: { source: 'frontend-offline-evidence' },
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderEvidenceResult(data);
+    loadEvidenceRecent();
+    loadEvidenceVault();
+    loadCaseMemory();
+    status.textContent = `${data.overall_status} · ${data.capsule.input_count} inputs`;
+    toast(`Evidence ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
+  } catch (e) {
+    status.textContent = 'ERROR';
+    toast('Evidence 运行失败: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '▶ 运行 Evidence';
+});
+
+document.getElementById('btn-evidence-gallery').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-evidence-gallery');
+  const status = document.getElementById('evidence-status');
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  status.textContent = 'GALLERY';
+  try {
+    const res = await fetch(`${API}/api/evidence/demo-gallery`, { method: 'POST' });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderDemoGalleryResult(data);
+    loadEvidenceVault();
+    loadCaseMemory();
+    status.textContent = `${data.overall_status} · ${data.case_count} cases`;
+    toast(`Demo Gallery ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
+  } catch (e) {
+    status.textContent = 'ERROR';
+    toast('Demo Gallery 生成失败: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '生成 Demo Gallery';
+});
+
+document.getElementById('btn-evidence-demo-pack').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-evidence-demo-pack');
+  const status = document.getElementById('evidence-status');
+  btn.disabled = true;
+  btn.textContent = '打包中...';
+  status.textContent = 'DEMO PACK';
+  try {
+    const res = await fetch(`${API}/api/evidence/demo-pack`, { method: 'POST' });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderLocalDemoPackResult(data);
+    loadEvidenceVault();
+    loadCaseMemory();
+    status.textContent = `${data.overall_status} · demo pack`;
+    toast(`Demo Pack ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
+  } catch (e) {
+    status.textContent = 'ERROR';
+    toast('Demo Pack 生成失败: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '生成 Demo Pack';
+});
+
+document.getElementById('btn-evidence-cli-smoke').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-evidence-cli-smoke');
+  const status = document.getElementById('evidence-status');
+  btn.disabled = true;
+  btn.textContent = '运行中...';
+  status.textContent = 'CLI SMOKE';
+  try {
+    const res = await fetch(`${API}/api/evidence/local-cli-smoke`, { method: 'POST' });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    if (data.smoke_vault_id) {
+      const verifyRes = await fetch(`${API}/api/evidence/vault/${encodeURIComponent(data.smoke_vault_id)}/verify-smoke`, { method: 'POST' });
+      if (!verifyRes.ok) throw new Error(await verifyRes.text());
+      data.bundle_verification = await verifyRes.json();
+    }
+    renderLocalCliSmokeResult(data);
+    loadEvidenceVault();
+    loadCaseMemory();
+    const verifyStatus = data.bundle_verification?.overall_status || 'UNVERIFIED';
+    status.textContent = `${data.overall_status} · ${data.step_count} steps · ZIP ${verifyStatus}`;
+    toast(`CLI Smoke ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
+  } catch (e) {
+    status.textContent = 'ERROR';
+    toast('CLI Smoke 运行失败: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '运行 CLI Smoke';
+});
+
+document.getElementById('btn-simdiff-run').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-simdiff-run');
+  const status = document.getElementById('simdiff-status');
+  let baseline;
+  let candidate;
+  let tolerances;
+  try {
+    baseline = JSON.parse(document.getElementById('evidence-baseline').value);
+    candidate = JSON.parse(document.getElementById('evidence-candidate').value);
+    tolerances = JSON.parse(document.getElementById('simdiff-tolerances').value || '{}');
+  } catch (e) {
+    toast('Simulation Diff JSON 无效: ' + e.message, 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '运行中...';
+  status.textContent = 'RUNNING';
+  try {
+    const res = await fetch(`${API}/api/simdiff/kpis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        diff_id: document.getElementById('simdiff-id').value.trim() || 'ui-simulation-diff',
+        baseline_kpis: baseline,
+        candidate_kpis: candidate,
+        tolerances,
+        input_metadata: { source: 'frontend-simulation-diff' },
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderSimulationDiffResult(data);
+    loadEvidenceVault();
+    loadCaseMemory();
+    status.textContent = `${data.overall_status} · ${data.diff.total} rows`;
+    toast(`Simulation Diff ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
+  } catch (e) {
+    status.textContent = 'ERROR';
+    toast('Simulation Diff 运行失败: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '运行 Simulation Diff';
+});
+
+function renderEvidenceResult(data) {
+  setEvidenceStat('overall', data.overall_status, data.overall_status);
+  setEvidenceStat('contract', data.contracts.status, `${data.contracts.status} · ${data.contracts.total}`);
+  setEvidenceStat('diff', data.diff.status, `${data.diff.status} · ${data.diff.total}`);
+  setEvidenceStat('capsule', 'PASS', `${data.capsule.input_count}/${data.capsule.artifact_count}`);
+  const urls = data.artifact_urls || {};
+  document.getElementById('evidence-paths').innerHTML = `
+    <div class="artifact-links">
+      ${artifactLink(urls.evidence_json, 'JSON')}
+      ${artifactLink(urls.report_markdown, 'MD')}
+      ${artifactLink(urls.report_html, 'HTML')}
+      ${artifactLink(urls.capsule_manifest, 'CAPSULE')}
+      ${artifactLink(urls.bundle_zip, 'ZIP')}
+    </div>
+    <div>evidence: <span>${escapeHtml(data.evidence_path)}</span></div>
+    <div>report: <span>${escapeHtml(data.report_path)}</span></div>
+    <div>capsule: <span>${escapeHtml(data.capsule.manifest_path)}</span></div>
+    <div>hash: <span>${escapeHtml(data.capsule.capsule_hash)}</span></div>`;
+  document.getElementById('evidence-report').textContent = data.report_markdown || '';
+  document.getElementById('evidence-report-size').textContent = `${(data.report_markdown || '').length} chars`;
+}
+
+function renderDemoGalleryResult(data) {
+  const urls = data.artifact_urls || {};
+  setEvidenceStat('overall', data.overall_status, data.overall_status);
+  setEvidenceStat('contract', data.overall_status, `${data.case_count} cases`);
+  setEvidenceStat('diff', data.overall_status, 'gallery');
+  setEvidenceStat('capsule', data.overall_status, 'bundled');
+  const cases = (data.cases || []).map((item) => (
+    `<div>${escapeHtml(item.case)}: <span>${escapeHtml(item.overall_status)} / ${escapeHtml(item.contracts_status)} / ${escapeHtml(item.diff_status)}</span></div>`
+  )).join('');
+  document.getElementById('evidence-paths').innerHTML = `
+    <div class="artifact-links">
+      ${artifactLink(urls.index_json, 'INDEX JSON')}
+      ${artifactLink(urls.index_markdown, 'INDEX MD')}
+      ${artifactLink(urls.index_html || data.index_html_url, 'HTML')}
+      ${artifactLink(urls.gallery_zip, 'GALLERY ZIP')}
+    </div>
+    <div>artifact: <span>${escapeHtml(data.artifact_id)}</span></div>
+    <div>generated: <span>${escapeHtml(data.generated_at)}</span></div>
+    ${cases}`;
+  document.getElementById('evidence-report').textContent = data.index_markdown || '';
+  document.getElementById('evidence-report-size').textContent = `${(data.index_markdown || '').length} chars`;
+}
+
+function renderLocalDemoPackResult(data) {
+  const urls = data.vault_urls || {};
+  const index = data.index || {};
+  const gallery = index.offline_demo_gallery || {};
+  const doctor = index.solver_doctor || {};
+  setEvidenceStat('overall', data.overall_status, data.overall_status);
+  setEvidenceStat('contract', data.overall_status, `${gallery.case_count || 0} cases`);
+  setEvidenceStat('diff', doctor.status || 'WARNING', `doctor ${doctor.status || '-'}`);
+  setEvidenceStat('capsule', data.real_env_verified ? 'PASS' : 'WARNING', 'vault');
+  document.getElementById('evidence-paths').innerHTML = `
+    <div class="artifact-links">
+      ${artifactLink(urls['index.json'], 'INDEX JSON')}
+      ${artifactLink(urls['index.md'], 'INDEX MD')}
+      ${artifactLink(urls['index.html'] || data.index_html_url, 'HTML')}
+      ${artifactLink(urls['offline-demo-gallery/index.html'], 'GALLERY HTML')}
+      ${artifactLink(urls['solver-doctor/doctor.md'], 'DOCTOR MD')}
+      ${artifactLink(urls['simulation-diff/diff.md'], 'DIFF MD')}
+      ${artifactLink(urls['local-demo-pack.zip'] || data.pack_zip_url, 'DEMO ZIP')}
+    </div>
+    <div>vault: <span>${escapeHtml(data.vault_id)}</span></div>
+    <div>gallery: <span>${escapeHtml(gallery.overall_status || '-')} · ${escapeHtml(gallery.case_count || 0)} cases</span></div>
+    <div>doctor: <span>${escapeHtml(doctor.status || '-')} · ${escapeHtml(doctor.primary_category || '-')}</span></div>`;
+  document.getElementById('evidence-report').textContent = data.index_markdown || '';
+  document.getElementById('evidence-report-size').textContent = `${(data.index_markdown || '').length} chars`;
+}
+
+function renderLocalCliSmokeResult(data) {
+  const urls = data.smoke_vault_urls || {};
+  const steps = data.steps || [];
+  const verify = data.bundle_verification || {};
+  const nestedVerify = verify.copied_demo_pack_verification || {};
+  const verifiedFiles = verify.files || [];
+  const failedSteps = steps.filter((step) => step.status !== 'PASS').length;
+  setEvidenceStat('overall', data.overall_status, data.overall_status);
+  setEvidenceStat('contract', data.overall_status, `${data.step_count || steps.length} steps`);
+  setEvidenceStat('diff', failedSteps ? 'FAIL' : 'PASS', `${failedSteps} failed`);
+  setEvidenceStat('capsule', verify.overall_status || 'WARNING', `${verify.checked_file_count || 0} files`);
+  const stepRows = steps.map((step) => (
+    `<div>${escapeHtml(step.name)}: <span>${escapeHtml(step.status)} · ${escapeHtml(step.detail || '')}</span></div>`
+  )).join('');
+  const verifyRows = verifiedFiles.map((file) => (
+    `<div>${escapeHtml(file.filename)}: <span>${escapeHtml(file.status)} · ${escapeHtml(file.actual_sha256 || '-')}</span></div>`
+  )).join('');
+  const nestedVerifyLine = nestedVerify.overall_status
+    ? `<div>copied demo pack verify: <span>${escapeHtml(nestedVerify.overall_status)} · ${escapeHtml(nestedVerify.checked_file_count || 0)} files</span></div>`
+    : '';
+  document.getElementById('evidence-paths').innerHTML = `
+    <div class="artifact-links">
+      ${artifactLink(urls['local_cli_smoke.json'], 'SMOKE JSON')}
+      ${artifactLink(urls['local_cli_smoke.md'], 'SMOKE MD')}
+      ${artifactLink(urls['local_cli_smoke.html'], 'SMOKE HTML')}
+      ${artifactLink(urls['local_cli_smoke.zip'], 'SMOKE ZIP')}
+    </div>
+    <div>smoke vault: <span>${escapeHtml(data.smoke_vault_id || '-')}</span></div>
+    <div>zip verify: <span>${escapeHtml(verify.overall_status || 'UNVERIFIED')} · ${escapeHtml(verify.checked_file_count || 0)} files</span></div>
+    ${nestedVerifyLine}
+    <div>demo vault: <span>${escapeHtml(data.vault_id || '-')}</span></div>
+    <div>report: <span>${escapeHtml(data.markdown_path || '-')}</span></div>
+    ${verifyRows}
+    ${stepRows}`;
+  document.getElementById('evidence-report').textContent = data.report_markdown || '';
+  document.getElementById('evidence-report-size').textContent = `${(data.report_markdown || '').length} chars`;
+}
+
+function renderSimulationDiffResult(data) {
+  const urls = data.vault_urls || {};
+  setEvidenceStat('overall', data.overall_status, data.overall_status);
+  setEvidenceStat('contract', 'WARNING', 'standalone');
+  setEvidenceStat('diff', data.diff.status, `${data.diff.status} · ${data.diff.total}`);
+  setEvidenceStat('capsule', data.real_env_verified ? 'PASS' : 'WARNING', 'vault');
+  document.getElementById('evidence-paths').innerHTML = `
+    <div class="artifact-links">
+      ${artifactLink(urls['diff.json'], 'DIFF JSON')}
+      ${artifactLink(urls['diff.md'], 'DIFF MD')}
+    </div>
+    <div>diff: <span>${escapeHtml(data.diff_path)}</span></div>
+    <div>report: <span>${escapeHtml(data.report_path)}</span></div>
+    <div>vault: <span>${escapeHtml(data.vault_id || '-')}</span></div>`;
+  document.getElementById('evidence-report').textContent = data.report_markdown || '';
+  document.getElementById('evidence-report-size').textContent = `${(data.report_markdown || '').length} chars`;
+}
+
+async function loadEvidenceRecent() {
+  try {
+    const res = await fetch(`${API}/api/evidence/artifacts`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderEvidenceRecent(data.items || []);
+  } catch {}
+}
+
+document.getElementById('btn-evidence-vault-refresh').addEventListener('click', () => {
+  loadEvidenceVault();
+  loadCaseMemory();
+  toast('Evidence Vault 已刷新', 'info');
+});
+document.getElementById('evidence-vault-query').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    loadEvidenceVault();
+  }
+});
+document.getElementById('evidence-vault-kind').addEventListener('change', () => loadEvidenceVault());
+document.getElementById('evidence-vault-status').addEventListener('change', () => loadEvidenceVault());
+document.getElementById('evidence-vault').addEventListener('click', (event) => {
+  const detailTarget = event.target.closest('[data-vault-detail-id]');
+  if (detailTarget) {
+    loadEvidenceVaultDetail(detailTarget.dataset.vaultDetailId);
+    return;
+  }
+  const verifyTarget = event.target.closest('[data-vault-verify-smoke-id]');
+  if (verifyTarget) {
+    verifyEvidenceVaultSmoke(verifyTarget.dataset.vaultVerifySmokeId);
+    return;
+  }
+  const verifyDemoPackTarget = event.target.closest('[data-vault-verify-demo-pack-id]');
+  if (verifyDemoPackTarget) {
+    verifyEvidenceVaultDemoPack(verifyDemoPackTarget.dataset.vaultVerifyDemoPackId);
+  }
+});
+
+document.getElementById('btn-case-memory-search').addEventListener('click', () => {
+  loadCaseMemory();
+});
+
+document.getElementById('btn-case-memory-diff').addEventListener('click', runCaseMemoryDiff);
+
+document.getElementById('case-memory').addEventListener('click', (event) => {
+  const target = event.target.closest('[data-case-memory-role]');
+  if (!target) return;
+  setCaseMemoryDiffId(target.dataset.caseMemoryRole, target.dataset.vaultId);
+});
+
+document.getElementById('case-memory-query').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    loadCaseMemory();
+  }
+});
+document.getElementById('case-memory-kind').addEventListener('change', () => loadCaseMemory());
+document.getElementById('case-memory-status').addEventListener('change', () => loadCaseMemory());
+
+document.getElementById('btn-kpi-recipes-refresh').addEventListener('click', () => {
+  loadKpiRecipes();
+  toast('KPI Recipes 已刷新', 'info');
+});
+document.getElementById('kpi-recipe-case').addEventListener('change', () => loadKpiRecipes());
+document.getElementById('kpi-recipe-type').addEventListener('change', () => loadKpiRecipes());
+document.getElementById('kpi-recipes').addEventListener('click', (event) => {
+  const target = event.target.closest('[data-kpi-recipe-id]');
+  if (!target) return;
+  loadKpiRecipeDetail(target.dataset.kpiRecipeId);
+});
+
+function getEvidenceVaultFilters() {
+  return {
+    query: document.getElementById('evidence-vault-query')?.value || '',
+    kind: document.getElementById('evidence-vault-kind')?.value || '',
+    status: document.getElementById('evidence-vault-status')?.value || '',
+  };
+}
+
+async function loadEvidenceVault(query = null, kind = null, status = null) {
+  try {
+    const filters = getEvidenceVaultFilters();
+    const params = new URLSearchParams();
+    const selectedQuery = query ?? filters.query;
+    const selectedKind = kind ?? filters.kind;
+    const selectedStatus = status ?? filters.status;
+    if (selectedQuery) params.set('query', selectedQuery);
+    if (selectedKind) params.set('kind', selectedKind);
+    if (selectedStatus) params.set('status', selectedStatus);
+    const queryString = params.toString();
+    const res = await fetch(`${API}/api/evidence/vault${queryString ? `?${queryString}` : ''}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderEvidenceVault(data.items || []);
+  } catch {}
+}
+
+async function loadEvidenceVaultDetail(vaultId) {
+  if (!vaultId) return;
+  try {
+    const res = await fetch(`${API}/api/evidence/vault/${encodeURIComponent(vaultId)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderEvidenceVaultDetail(data);
+  } catch (e) {
+    document.getElementById('evidence-vault-detail').textContent = `Vault detail load failed: ${e.message}`;
+  }
+}
+
+async function verifyEvidenceVaultSmoke(vaultId) {
+  if (!vaultId) return;
+  const detail = document.getElementById('evidence-vault-detail');
+  detail.textContent = `Verifying ${vaultId}...`;
+  try {
+    const res = await fetch(`${API}/api/evidence/vault/${encodeURIComponent(vaultId)}/verify-smoke`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderEvidenceVaultBundleVerification(data);
+    toast(`Smoke ZIP verify ${data.overall_status}`, data.overall_status === 'PASS' ? 'ok' : 'error');
+  } catch (e) {
+    detail.textContent = `Smoke ZIP verify failed: ${e.message}`;
+    toast('Smoke ZIP verify failed: ' + e.message, 'error');
+  }
+}
+
+async function verifyEvidenceVaultDemoPack(vaultId) {
+  if (!vaultId) return;
+  const detail = document.getElementById('evidence-vault-detail');
+  detail.textContent = `Verifying ${vaultId}...`;
+  try {
+    const res = await fetch(`${API}/api/evidence/vault/${encodeURIComponent(vaultId)}/verify-demo-pack`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderEvidenceVaultBundleVerification(data);
+    toast(`Demo Pack ZIP verify ${data.overall_status}`, data.overall_status === 'PASS' ? 'ok' : 'error');
+  } catch (e) {
+    detail.textContent = `Demo Pack ZIP verify failed: ${e.message}`;
+    toast('Demo Pack ZIP verify failed: ' + e.message, 'error');
+  }
+}
+
+function getCaseMemoryFilters() {
+  return {
+    query: document.getElementById('case-memory-query')?.value || '',
+    kind: document.getElementById('case-memory-kind')?.value || '',
+    status: document.getElementById('case-memory-status')?.value || '',
+  };
+}
+
+async function loadCaseMemory(query = null, kind = null, status = null) {
+  try {
+    const filters = getCaseMemoryFilters();
+    const params = new URLSearchParams();
+    const selectedQuery = query ?? filters.query;
+    const selectedKind = kind ?? filters.kind;
+    const selectedStatus = status ?? filters.status;
+    if (selectedQuery) params.set('query', selectedQuery);
+    if (selectedKind) params.set('kind', selectedKind);
+    if (selectedStatus) params.set('status', selectedStatus);
+    params.set('limit', '8');
+    const res = await fetch(`${API}/api/case-memory?${params.toString()}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderCaseMemory(data.items || []);
+  } catch (e) {
+    document.getElementById('case-memory-count').textContent = '0';
+    document.getElementById('case-memory').innerHTML = `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">Case Memory load failed</div>
+        <div class="evidence-recent-links">${escapeHtml(e.message || e)}</div>
+      </div>`;
+  }
+}
+
+function getKpiRecipeFilters() {
+  return {
+    caseName: document.getElementById('kpi-recipe-case')?.value || '',
+    kpiType: document.getElementById('kpi-recipe-type')?.value || '',
+  };
+}
+
+async function loadKpiRecipes(caseName = null, kpiType = null) {
+  try {
+    const filters = getKpiRecipeFilters();
+    const params = new URLSearchParams();
+    const selectedCase = caseName ?? filters.caseName;
+    const selectedType = kpiType ?? filters.kpiType;
+    if (selectedCase) params.set('case', selectedCase);
+    if (selectedType) params.set('kpi_type', selectedType);
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${API}/api/kpi-recipes${suffix}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderKpiRecipes(data.items || []);
+  } catch {}
+}
+
+async function loadKpiRecipeDetail(recipeId) {
+  const detail = document.getElementById('kpi-recipe-detail');
+  if (!recipeId || !detail) return;
+  detail.textContent = 'LOADING';
+  try {
+    const res = await fetch(`${API}/api/kpi-recipes/${encodeURIComponent(recipeId)}`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    detail.textContent = prettyJson({
+      id: data.id,
+      case: data.case,
+      title: data.title,
+      description: data.description,
+      kpi_spec: data.kpi_spec,
+      kpi_types: data.kpi_types,
+      verification_boundary: data.verification_boundary,
+    });
+  } catch (e) {
+    detail.textContent = `ERROR: ${e.message || e}`;
+  }
+}
+
+function comparableCaseMemoryFiles(files) {
+  return (files || [])
+    .filter((name) => /(^|\/)(evidence|diff)\.json$/.test(name))
+    .sort();
+}
+
+function updateCaseMemoryFilenameSuggestions(role, files) {
+  const listId = role === 'baseline'
+    ? 'case-memory-diff-baseline-files'
+    : 'case-memory-diff-candidate-files';
+  const list = document.getElementById(listId);
+  if (!list) return;
+  list.innerHTML = comparableCaseMemoryFiles(files)
+    .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+    .join('');
+}
+
+function setCaseMemoryDiffId(role, vaultId) {
+  const inputId = role === 'baseline' ? 'case-memory-diff-baseline' : 'case-memory-diff-candidate';
+  document.getElementById(inputId).value = vaultId || '';
+  updateCaseMemoryFilenameSuggestions(role, caseMemoryFilenameSuggestions[vaultId] || []);
+  toast(`Case Memory ${role} 已选择`, 'info');
+}
+
+async function runCaseMemoryDiff() {
+  const baselineId = document.getElementById('case-memory-diff-baseline').value.trim();
+  const candidateId = document.getElementById('case-memory-diff-candidate').value.trim();
+  const baselineFilename = document.getElementById('case-memory-diff-baseline-file').value.trim();
+  const candidateFilename = document.getElementById('case-memory-diff-candidate-file').value.trim();
+  const btn = document.getElementById('btn-case-memory-diff');
+  const status = document.getElementById('case-memory-diff-status');
+  if (!baselineId || !candidateId) {
+    toast('Case Memory Diff 需要 baseline 和 candidate vault id', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '运行中...';
+  status.textContent = 'RUNNING';
+  try {
+    const payload = {
+      baseline_vault_id: baselineId,
+      candidate_vault_id: candidateId,
+    };
+    if (baselineFilename) payload.baseline_filename = baselineFilename;
+    if (candidateFilename) payload.candidate_filename = candidateFilename;
+    const res = await fetch(`${API}/api/case-memory/diff`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderSimulationDiffResult(data);
+    loadEvidenceVault();
+    loadCaseMemory();
+    status.textContent = `${data.overall_status} · ${data.diff.total} rows`;
+    toast(`Case Memory Diff ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
+  } catch (e) {
+    status.textContent = 'ERROR';
+    toast('Case Memory Diff 运行失败: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Diff';
+}
+
+function renderKpiRecipes(items) {
+  document.getElementById('kpi-recipe-count').textContent = String(items.length);
+  document.getElementById('kpi-recipe-detail').textContent = '—';
+  if (!items.length) {
+    document.getElementById('kpi-recipes').innerHTML = `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">—</div>
+      </div>`;
+    return;
+  }
+  document.getElementById('kpi-recipes').innerHTML = items.slice(0, 8).map((item) => `
+    <div class="evidence-recent-row">
+      <div class="evidence-recent-main">
+        ${escapeHtml(item.case)} · ${escapeHtml(item.title)}
+        <div class="evidence-recent-meta">${escapeHtml((item.kpi_types || []).join(', '))}</div>
+      </div>
+      <div class="evidence-recent-links">
+        ${escapeHtml(item.id)}
+        <button class="case-memory-pick" data-kpi-recipe-id="${escapeHtml(item.id)}">详情</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderCaseMemory(items) {
+  document.getElementById('case-memory-count').textContent = String(items.length);
+  caseMemoryFilenameSuggestions = {};
+  if (!items.length) {
+    document.getElementById('case-memory').innerHTML = `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">—</div>
+      </div>`;
+    return;
+  }
+  document.getElementById('case-memory').innerHTML = items.slice(0, 8).map((item) => {
+    const urls = item.vault_urls || {};
+    const vaultId = item.vault_id || item.memory_id || '';
+    caseMemoryFilenameSuggestions[vaultId] = item.files || [];
+    return `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">
+          ${escapeHtml(item.kind)} · ${escapeHtml(item.title || vaultId)} · ${escapeHtml(item.status || '-')}
+          <div class="evidence-recent-meta">${escapeHtml(item.created_at || '')}</div>
+        </div>
+        <div class="evidence-recent-links">
+          <button class="case-memory-pick" data-case-memory-role="baseline" data-vault-id="${escapeHtml(vaultId)}">基准</button>
+          <button class="case-memory-pick" data-case-memory-role="candidate" data-vault-id="${escapeHtml(vaultId)}">候选</button>
+          ${artifactLink(urls['evidence.html'] || urls['index.html'], 'HTML')}
+          ${artifactLink(urls['local_cli_smoke.html'], 'SMOKE')}
+          ${artifactLink(urls['offline-demo-gallery/index.html'], 'GALLERY')}
+          ${artifactLink(urls['solver-doctor/doctor.md'], 'DOCTOR')}
+          ${artifactLink(urls['simulation-diff/diff.md'], 'DIFF')}
+          ${artifactLink(urls['evidence.md'] || urls['index.md'] || urls['doctor.md'] || urls['diff.md'] || urls['local_cli_smoke.md'], 'MD')}
+          ${artifactLink(urls['bundle.zip'] || urls['local-demo-pack.zip'] || urls['offline-demo-gallery.zip'] || urls['local_cli_smoke.zip'], 'ZIP')}
+          ${artifactLink(urls['evidence.json'] || urls['index.json'] || urls['doctor.json'] || urls['diff.json'] || urls['local_cli_smoke.json'], 'JSON')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderEvidenceVault(items) {
+  document.getElementById('evidence-vault-count').textContent = String(items.length);
+  if (!items.length) {
+    document.getElementById('evidence-vault').innerHTML = `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">—</div>
+      </div>`;
+    return;
+  }
+  document.getElementById('evidence-vault').innerHTML = items.slice(0, 6).map((item) => {
+    const urls = item.vault_urls || {};
+    const summary = item.summary || {};
+    const status = summary.overall_status || summary.status || '-';
+    const verifyButton = item.kind === 'local-demo-pack'
+      ? `<button class="case-memory-pick" data-vault-verify-demo-pack-id="${escapeHtml(item.vault_id)}">VERIFY</button>`
+      : item.kind === 'local-cli-smoke'
+      ? `<button class="case-memory-pick" data-vault-verify-smoke-id="${escapeHtml(item.vault_id)}">VERIFY</button>`
+      : '';
+    return `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">
+          ${escapeHtml(item.kind)} · ${escapeHtml(item.title || item.vault_id)} · ${escapeHtml(status)}
+          <div class="evidence-recent-meta">${escapeHtml(item.created_at || '')}</div>
+        </div>
+        <div class="evidence-recent-links">
+          <button class="case-memory-pick" data-vault-detail-id="${escapeHtml(item.vault_id)}">详情</button>
+          ${verifyButton}
+          ${artifactLink(urls['evidence.html'] || urls['index.html'], 'HTML')}
+          ${artifactLink(urls['local_cli_smoke.html'], 'SMOKE')}
+          ${artifactLink(urls['offline-demo-gallery/index.html'], 'GALLERY')}
+          ${artifactLink(urls['solver-doctor/doctor.md'], 'DOCTOR')}
+          ${artifactLink(urls['simulation-diff/diff.md'], 'DIFF')}
+          ${artifactLink(urls['evidence.md'] || urls['index.md'] || urls['doctor.md'] || urls['diff.md'] || urls['local_cli_smoke.md'], 'MD')}
+          ${artifactLink(urls['bundle.zip'] || urls['local-demo-pack.zip'] || urls['offline-demo-gallery.zip'] || urls['local_cli_smoke.zip'], 'ZIP')}
+          ${artifactLink(urls['evidence.json'] || urls['index.json'] || urls['doctor.json'] || urls['diff.json'] || urls['local_cli_smoke.json'], 'JSON')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderEvidenceVaultBundleVerification(data) {
+  const files = (data.files || []).map((file) => ({
+    filename: file.filename,
+    status: file.status,
+    size_bytes: file.actual_size_bytes,
+    sha256: file.actual_sha256,
+  }));
+  const detail = {
+    workflow: data.workflow,
+    overall_status: data.overall_status,
+    vault_id: data.vault_id,
+    filename: data.filename,
+    checked_file_count: data.checked_file_count,
+    files,
+  };
+  const nestedDemoPack = data.copied_demo_pack_verification || null;
+  if (nestedDemoPack) {
+    detail.copied_demo_pack_verification = {
+      workflow: nestedDemoPack.workflow,
+      overall_status: nestedDemoPack.overall_status,
+      zip_path: nestedDemoPack.zip_path,
+      checked_file_count: nestedDemoPack.checked_file_count,
+    };
+  }
+  document.getElementById('evidence-vault-detail').textContent = JSON.stringify(detail, null, 2);
+}
+
+function renderEvidenceVaultDetail(item) {
+  const files = Object.keys(item.files || {});
+  const detail = {
+    vault_id: item.vault_id,
+    kind: item.kind,
+    title: item.title,
+    created_at: item.created_at,
+    summary: item.summary || {},
+    files,
+  };
+  document.getElementById('evidence-vault-detail').textContent = JSON.stringify(detail, null, 2);
+}
+
+function renderEvidenceRecent(items) {
+  document.getElementById('evidence-recent-count').textContent = String(items.length);
+  if (!items.length) {
+    document.getElementById('evidence-recent').innerHTML = `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">—</div>
+      </div>`;
+    return;
+  }
+  document.getElementById('evidence-recent').innerHTML = items.slice(0, 5).map((item) => {
+    const urls = item.artifact_urls || {};
+    return `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">
+          ${escapeHtml(item.run_id)} · ${escapeHtml(item.overall_status || '-')}
+          <div class="evidence-recent-meta">${escapeHtml(item.generated_at || '')}</div>
+        </div>
+        <div class="evidence-recent-links">
+          ${artifactLink(urls.report_html, 'HTML')}
+          ${artifactLink(urls.report_markdown, 'MD')}
+          ${artifactLink(urls.bundle_zip, 'ZIP')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function setEvidenceStat(kind, status, text) {
+  const box = document.getElementById(`evidence-stat-${kind}`);
+  const value = document.getElementById(`evidence-${kind}${kind === 'overall' ? '' : '-summary'}`);
+  box.classList.remove('pass', 'fail', 'warn');
+  const normalized = String(status || '').toUpperCase();
+  if (normalized === 'PASS') box.classList.add('pass');
+  else if (normalized === 'FAIL') box.classList.add('fail');
+  else if (normalized === 'WARNING') box.classList.add('warn');
+  value.textContent = text;
+}
+
+function artifactLink(url, label) {
+  if (!url) return '';
+  const href = new URL(url, API).href;
+  return `<a class="artifact-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
+}
+
+// ── Solver Doctor workflow ───────────────────────────────────────
+function loadDoctorSample() {
+  document.getElementById('doctor-job-name').value = 'Job-Doctor';
+  document.getElementById('doctor-msg').value = [
+    'STEP     1  INCREMENT     5',
+    '***ERROR: THE SOLUTION HAS NOT CONVERGED',
+    '***WARNING: ZERO PIVOT DETECTED AT DOF 3 NODE 100',
+  ].join('\n');
+  document.getElementById('doctor-dat').value = '***ERROR: License checkout failed\n';
+  document.getElementById('doctor-sta').value = 'STEP  INC  ATT  SEVERE  EQUIL  TOTAL\n1     5    4    12      20     32\n';
+  document.getElementById('doctor-log').value = 'Abaqus JOB Job-Doctor\n';
+  document.getElementById('doctor-status').textContent = 'READY';
+}
+
+document.getElementById('btn-doctor-sample').addEventListener('click', () => {
+  loadDoctorSample();
+  toast('Solver Doctor 示例已载入', 'info');
+});
+
+document.getElementById('btn-doctor-patterns-refresh').addEventListener('click', () => {
+  loadDoctorPatterns();
+  toast('Solver Doctor Patterns 已刷新', 'info');
+});
+document.getElementById('doctor-pattern-category').addEventListener('change', () => loadDoctorPatterns());
+document.getElementById('doctor-pattern-severity').addEventListener('change', () => loadDoctorPatterns());
+document.getElementById('doctor-patterns').addEventListener('click', (event) => {
+  const target = event.target.closest('[data-doctor-pattern-id]');
+  if (!target) return;
+  renderDoctorPatternDetail(target.dataset.doctorPatternId);
+});
+
+function getDoctorPatternFilters() {
+  return {
+    category: document.getElementById('doctor-pattern-category')?.value || '',
+    severity: document.getElementById('doctor-pattern-severity')?.value || '',
+  };
+}
+
+async function loadDoctorPatterns(category = null, severity = null) {
+  try {
+    const filters = getDoctorPatternFilters();
+    const params = new URLSearchParams();
+    const selectedCategory = category ?? filters.category;
+    const selectedSeverity = severity ?? filters.severity;
+    if (selectedCategory) params.set('category', selectedCategory);
+    if (selectedSeverity) params.set('severity', selectedSeverity);
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${API}/api/doctor/patterns${suffix}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderDoctorPatterns(data.patterns || []);
+  } catch {}
+}
+
+function renderDoctorPatterns(patterns) {
+  document.getElementById('doctor-pattern-count').textContent = String(patterns.length);
+  document.getElementById('doctor-pattern-detail').textContent = '—';
+  doctorPatternDetails = {};
+  if (!patterns.length) {
+    document.getElementById('doctor-patterns').innerHTML = `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">—</div>
+      </div>`;
+    return;
+  }
+  document.getElementById('doctor-patterns').innerHTML = patterns.slice(0, 8).map((pattern) => `
+    <div class="evidence-recent-row">
+      <div class="evidence-recent-main">
+        ${escapeHtml(pattern.category)} · ${escapeHtml(pattern.severity)}
+        <div class="evidence-recent-meta">${escapeHtml(pattern.source_file)} · ${escapeHtml(pattern.id)}</div>
+      </div>
+      <div class="evidence-recent-links">
+        ${escapeHtml(pattern.pattern)}
+        <button class="case-memory-pick" data-doctor-pattern-id="${escapeHtml(pattern.id)}">详情</button>
+      </div>
+    </div>
+  `).join('');
+  patterns.forEach((pattern) => {
+    doctorPatternDetails[pattern.id] = pattern;
+  });
+}
+
+function renderDoctorPatternDetail(patternId) {
+  const detail = document.getElementById('doctor-pattern-detail');
+  const pattern = doctorPatternDetails[patternId];
+  if (!detail || !pattern) return;
+  detail.textContent = prettyJson({
+    id: pattern.id,
+    category: pattern.category,
+    severity: pattern.severity,
+    source_file: pattern.source_file,
+    pattern: pattern.pattern,
+    explanation: pattern.explanation,
+    recommendation: pattern.recommendation,
+    real_env_verified: pattern.real_env_verified,
+  });
+}
+
+document.getElementById('btn-doctor-run').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-doctor-run');
+  const status = document.getElementById('doctor-status');
+  btn.disabled = true;
+  btn.textContent = '诊断中...';
+  status.textContent = 'RUNNING';
+  try {
+    const res = await fetch(`${API}/api/doctor/diagnose`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_name: document.getElementById('doctor-job-name').value.trim() || 'Job-1',
+        msg_text: document.getElementById('doctor-msg').value,
+        dat_text: document.getElementById('doctor-dat').value,
+        sta_text: document.getElementById('doctor-sta').value,
+        log_text: document.getElementById('doctor-log').value,
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderDoctorResult(data);
+    loadEvidenceVault();
+    loadCaseMemory();
+    status.textContent = `${data.status} · ${data.primary_category}`;
+    toast(`Solver Doctor ${data.status}`, data.status === 'FAILED' ? 'error' : 'ok');
+  } catch (e) {
+    status.textContent = 'ERROR';
+    toast('Solver Doctor 诊断失败: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '诊断日志';
+});
+
+function renderDoctorResult(data) {
+  setDoctorStat('status', data.status, data.status);
+  setDoctorStat('category', data.status, data.primary_category);
+  setDoctorStat('findings', data.status, String(data.finding_count));
+  setDoctorStat('env', data.real_env_verified ? 'PASS' : 'WARNING', data.real_env_verified ? 'YES' : 'NO');
+  const findings = data.report?.findings || [];
+  document.getElementById('doctor-findings').innerHTML = findings.length ? findings.slice(0, 6).map((finding) => `
+    <div class="evidence-recent-row">
+      <div class="evidence-recent-main">
+        ${escapeHtml(finding.category)} · ${escapeHtml(finding.severity)}
+        <div class="evidence-recent-meta">${escapeHtml(finding.source_file)}:${escapeHtml(finding.line_number || '-')}</div>
+      </div>
+      <div class="evidence-recent-links">${escapeHtml(finding.recommendation)}</div>
+    </div>
+  `).join('') : `
+    <div class="evidence-recent-row">
+      <div class="evidence-recent-main">No recognized findings</div>
+    </div>`;
+  document.getElementById('doctor-report').textContent = data.report_markdown || '';
+  document.getElementById('doctor-report-size').textContent = `${(data.report_markdown || '').length} chars`;
+}
+
+function setDoctorStat(kind, status, text) {
+  const box = document.getElementById(`doctor-stat-${kind}`);
+  const value = document.getElementById(`doctor-result-${kind}`);
+  box.classList.remove('pass', 'fail', 'warn');
+  const normalized = String(status || '').toUpperCase();
+  if (['COMPLETED', 'PASS'].includes(normalized)) box.classList.add('pass');
+  else if (normalized === 'FAILED' || normalized === 'FAIL') box.classList.add('fail');
+  else if (normalized === 'WARNING') box.classList.add('warn');
+  value.textContent = text;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // ── History management ────────────────────────────────────────────
 function _addHistory(entry) {
   state.history.unshift(entry);
@@ -4186,13 +4334,6 @@ document.getElementById('btn-clear-history').addEventListener('click', () => {
   renderHistory();
   toast('历史记录已清空', 'info');
 });
-
-document.getElementById('btn-history-diff').addEventListener('click', compareLatestRuns);
-document.getElementById('btn-diff-latest').addEventListener('click', compareLatestRuns);
-document.getElementById('btn-load-offline-report').addEventListener('click', loadOfflineReport);
-document.getElementById('btn-memory-search').addEventListener('click', searchMemory);
-document.getElementById('btn-memory-current').addEventListener('click', fillMemoryFromCurrentRun);
-document.getElementById('btn-run-preflight').addEventListener('click', runEnvironmentPreflight);
 
 // ── Settings panel logic ──────────────────────────────────────────
 function initSettingsPanel() {
@@ -4417,6 +4558,9 @@ async function loadPremiumFeatures() {
 
 // ── Init settings and history on load ────────────────────────────
 initSettingsPanel();
+loadEvidenceExample();
+loadDoctorSample();
+loadDoctorPatterns();
 // Restore history badge
 if (state.history.length) {
   const badge = document.getElementById('history-badge');
@@ -4469,6 +4613,12 @@ async function checkServer() {
       `${mode} · ABAQUS ${data.abaqus_available ? '✓' : '✗ sim'} · ${data.cases?.length || 0} cases`;
     loadBenchmarkFromAPI();
     loadPremiumFeatures();
+    loadEvidenceExampleCases();
+    loadEvidenceRecent();
+    loadEvidenceVault();
+    loadCaseMemory();
+    loadKpiRecipes();
+    loadDoctorPatterns();
   } catch {
     state.serverOnline = false;
     document.querySelector('.status-dot').style.background = 'var(--yellow)';

@@ -1,0 +1,23 @@
+{
+  "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_submit_job.json",
+  "command": [
+    "C:\\SIMULIA\\Commands\\abaqus.BAT",
+    "job=Cantilever",
+    "input=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.inp",
+    "cpus=1",
+    "mp_mode=threads",
+    "memory=90%",
+    "interactive"
+  ],
+  "evidence": [
+    "function=runner.submit_job.submit_job",
+    "status=completed",
+    "job_name=Cantilever",
+    "log_path=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.log"
+  ],
+  "missing_reason": null,
+  "name": "submit_job",
+  "real_env_required": true,
+  "real_env_verified": true,
+  "status": "completed"
+}

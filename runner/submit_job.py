@@ -10,6 +10,7 @@ Supports background mode, timeout, and license queue control.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import uuid
@@ -87,6 +88,7 @@ def submit_job(
     env_extra = {}
     if not allow_license_queue:
         env_extra["lmhanglimit"] = "1"   # fail quickly if no license
+    subprocess_env = {**os.environ, **env_extra} if env_extra else None
 
     meta = {
         "job_id": job_id,
@@ -105,8 +107,9 @@ def submit_job(
                 cmd,
                 cwd=str(workdir),
                 capture_output=True,
-                text=True, errors='replace', encoding='utf-8',
+                text=True,
                 timeout=timeout_seconds,
+                env=subprocess_env,
             )
             log_path.write_text(result.stdout + "\n" + result.stderr, encoding="utf-8")
             _write_meta(workdir, job_name, meta)
@@ -127,6 +130,7 @@ def submit_job(
                 cwd=str(workdir),
                 stdout=open(log_path, "w"),
                 stderr=subprocess.STDOUT,
+                env=subprocess_env,
             )
             meta["status"] = "submitted"
             _write_meta(workdir, job_name, meta)

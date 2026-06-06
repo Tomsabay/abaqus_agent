@@ -1,0 +1,280 @@
+{
+  "case": "cantilever",
+  "generated_at": "2026-06-06T02:42:29+00:00",
+  "missing": [
+    {
+      "capability": "real_abaqus_e2e_pipeline",
+      "reason": "This validator checks prerequisites only; it does not run CAE noGUI, syntaxcheck, solver submit/monitor, ODB KPI extraction, or compare_expected.",
+      "status": "environment-limited"
+    }
+  ],
+  "mode": "require-real",
+  "out_dir": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass",
+  "overall_status": "real-env-verified",
+  "preflight": {
+    "capabilities": [
+      {
+        "evidence": [
+          "python=3.13.0",
+          "executable=D:\\code\\abaqus_agent\\.venv\\Scripts\\python.exe",
+          "requires-python=>=3.10"
+        ],
+        "missing_reason": null,
+        "name": "python_runtime",
+        "real_env_required": false,
+        "real_env_verified": false,
+        "status": "verified"
+      },
+      {
+        "evidence": [
+          "imported=core.helpers, tools.schema_validator, runner.syntaxcheck, post.extract_kpis"
+        ],
+        "missing_reason": null,
+        "name": "package_imports",
+        "real_env_required": false,
+        "real_env_verified": false,
+        "status": "verified"
+      },
+      {
+        "evidence": [
+          "target=server:main",
+          "callable=True"
+        ],
+        "missing_reason": null,
+        "name": "console_entry_point",
+        "real_env_required": false,
+        "real_env_verified": false,
+        "status": "verified"
+      },
+      {
+        "evidence": [
+          "path=run_benchmark.py",
+          "cases=cantilever,explicit_impact,modal,plate_hole",
+          "validated_specs_without_abaqus=true"
+        ],
+        "missing_reason": null,
+        "name": "benchmark_dry_run_entry",
+        "real_env_required": false,
+        "real_env_verified": false,
+        "status": "dry-run-supported"
+      },
+      {
+        "evidence": [
+          "test_files=47"
+        ],
+        "missing_reason": null,
+        "name": "tests_discoverable",
+        "real_env_required": false,
+        "real_env_verified": false,
+        "status": "covered-by-tests"
+      },
+      {
+        "evidence": [
+          "source=PATH",
+          "path=C:\\SIMULIA\\Commands\\abaqus.BAT"
+        ],
+        "missing_reason": null,
+        "name": "abaqus_executable",
+        "real_env_required": true,
+        "real_env_verified": true,
+        "status": "available"
+      },
+      {
+        "evidence": [
+          "env=LM_LICENSE_FILE,ABAQUS_AGENT_LICENSE_CONFIRMED",
+          "license_checkout_not_run=true"
+        ],
+        "missing_reason": null,
+        "name": "abaqus_license_hint",
+        "real_env_required": true,
+        "real_env_verified": false,
+        "status": "candidate"
+      },
+      {
+        "evidence": [
+          "source=runner/syntaxcheck.py:exists",
+          "abaqus_executable=available",
+          "syntaxcheck_not_run=true"
+        ],
+        "missing_reason": null,
+        "name": "syntaxcheck_prerequisites",
+        "real_env_required": true,
+        "real_env_verified": false,
+        "status": "candidate"
+      },
+      {
+        "evidence": [
+          "sources=runner/submit_job.py,runner/monitor_job.py",
+          "abaqus_executable=available",
+          "license_hint=present",
+          "submit_job_not_run=true"
+        ],
+        "missing_reason": null,
+        "name": "submit_monitor_prerequisites",
+        "real_env_required": true,
+        "real_env_verified": false,
+        "status": "candidate"
+      },
+      {
+        "evidence": [
+          "source=post/extract_kpis.py:exists",
+          "abaqus_executable=available",
+          "license_hint=present",
+          "odb_extraction_not_run=true"
+        ],
+        "missing_reason": null,
+        "name": "odb_kpi_prerequisites",
+        "real_env_required": true,
+        "real_env_verified": false,
+        "status": "candidate"
+      },
+      {
+        "evidence": [
+          "7_stage_pipeline_not_run_by_validator=true",
+          "syntaxcheck_not_run=true",
+          "submit_monitor_not_run=true",
+          "odb_kpi_not_run=true"
+        ],
+        "missing_reason": "This validator checks prerequisites only; it does not run CAE noGUI, syntaxcheck, solver submit/monitor, ODB KPI extraction, or compare_expected.",
+        "name": "real_abaqus_e2e_pipeline",
+        "real_env_required": true,
+        "real_env_verified": false,
+        "status": "environment-limited"
+      }
+    ],
+    "generated_at": "2026-06-06T02:42:09+00:00",
+    "missing": [
+      {
+        "capability": "real_abaqus_e2e_pipeline",
+        "reason": "This validator checks prerequisites only; it does not run CAE noGUI, syntaxcheck, solver submit/monitor, ODB KPI extraction, or compare_expected.",
+        "status": "environment-limited"
+      }
+    ],
+    "mode": "require-real",
+    "overall_status": "real-env-prerequisites-candidate",
+    "project": "abaqus-agent",
+    "real_abaqus_e2e_verified": false,
+    "real_env_prerequisites_ready": true,
+    "require_real_missing": [],
+    "schema_version": "1.0"
+  },
+  "project": "abaqus-agent",
+  "real_env_verified": true,
+  "require_real_missing": [],
+  "schema_version": "1.0",
+  "stages": [
+    {
+      "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_environment_preflight.json",
+      "command": null,
+      "evidence": [
+        "overall_status=real-env-prerequisites-candidate",
+        "real_env_prerequisites_ready=True",
+        "real_abaqus_e2e_verified=False"
+      ],
+      "missing_reason": null,
+      "name": "environment_preflight",
+      "real_env_required": true,
+      "real_env_verified": true,
+      "status": "completed"
+    },
+    {
+      "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_input_job_preparation.json",
+      "command": [
+        "build_model",
+        "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\case\\spec.yaml",
+        "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run"
+      ],
+      "evidence": [
+        "function=runner.build_model.build_model",
+        "run_id=b2b4f23a578fbab8",
+        "cached=False",
+        "inp_path=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.inp"
+      ],
+      "missing_reason": null,
+      "name": "input_job_preparation",
+      "real_env_required": true,
+      "real_env_verified": true,
+      "status": "completed"
+    },
+    {
+      "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_syntaxcheck.json",
+      "command": [
+        "abaqus",
+        "job=Cantilever_syntaxcheck",
+        "input=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.inp",
+        "syntaxcheck",
+        "interactive"
+      ],
+      "evidence": [
+        "function=runner.syntaxcheck.syntaxcheck_inp",
+        "ok=True",
+        "returncode=0",
+        "log_path=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever_syntaxcheck.log"
+      ],
+      "missing_reason": null,
+      "name": "syntaxcheck",
+      "real_env_required": true,
+      "real_env_verified": true,
+      "status": "completed"
+    },
+    {
+      "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_submit_job.json",
+      "command": [
+        "C:\\SIMULIA\\Commands\\abaqus.BAT",
+        "job=Cantilever",
+        "input=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.inp",
+        "cpus=1",
+        "mp_mode=threads",
+        "memory=90%",
+        "interactive"
+      ],
+      "evidence": [
+        "function=runner.submit_job.submit_job",
+        "status=completed",
+        "job_name=Cantilever",
+        "log_path=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.log"
+      ],
+      "missing_reason": null,
+      "name": "submit_job",
+      "real_env_required": true,
+      "real_env_verified": true,
+      "status": "completed"
+    },
+    {
+      "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_monitor_status_collection.json",
+      "command": null,
+      "evidence": [
+        "function=runner.monitor_job.monitor_job",
+        "status=COMPLETED",
+        "odb_exists=True",
+        "sta_path=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.sta"
+      ],
+      "missing_reason": null,
+      "name": "monitor_status_collection",
+      "real_env_required": true,
+      "real_env_verified": true,
+      "status": "completed"
+    },
+    {
+      "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_odb_kpi_adapter_probe.json",
+      "command": [
+        "abaqus",
+        "python",
+        "post/extract_kpis.py",
+        "--",
+        "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.odb"
+      ],
+      "evidence": [
+        "function=post.extract_kpis.extract_kpis",
+        "odb_path=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.odb",
+        "kpis=['MISES_MAX', 'U_tip']",
+        "errors=[]"
+      ],
+      "missing_reason": null,
+      "name": "odb_kpi_adapter_probe",
+      "real_env_required": true,
+      "real_env_verified": true,
+      "status": "completed"
+    }
+  ]
+}

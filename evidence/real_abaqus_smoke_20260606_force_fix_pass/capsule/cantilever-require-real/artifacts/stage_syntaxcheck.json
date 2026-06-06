@@ -1,0 +1,21 @@
+{
+  "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_syntaxcheck.json",
+  "command": [
+    "abaqus",
+    "job=Cantilever_syntaxcheck",
+    "input=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.inp",
+    "syntaxcheck",
+    "interactive"
+  ],
+  "evidence": [
+    "function=runner.syntaxcheck.syntaxcheck_inp",
+    "ok=True",
+    "returncode=0",
+    "log_path=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever_syntaxcheck.log"
+  ],
+  "missing_reason": null,
+  "name": "syntaxcheck",
+  "real_env_required": true,
+  "real_env_verified": true,
+  "status": "completed"
+}

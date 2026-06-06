@@ -1,0 +1,8 @@
+{
+  "cpus": 1,
+  "mp_mode": "threads",
+  "memory": "90%",
+  "timeout_seconds": 300,
+  "allow_license_queue": false,
+  "syntaxcheck_first": true
+}

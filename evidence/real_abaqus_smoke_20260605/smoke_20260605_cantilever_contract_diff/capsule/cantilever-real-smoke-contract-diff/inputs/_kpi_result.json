@@ -1,0 +1,8 @@
+{
+  "kpis": {
+    "U_tip": -1.084326231648447e-05, 
+    "MISES_MAX": 1.0700273513793945
+  }, 
+  "errors": [], 
+  "odb_path": "D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\run\\Cantilever.odb"
+}

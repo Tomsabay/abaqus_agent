@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "abaqus-agent"
-version = "0.1.0"
+version = "0.2.0.dev0"
 description = "Local simulation QA and regression framework for Abaqus FEA"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [{ name = "Abaqus Agent Contributors" }]
-keywords = ["abaqus", "fea", "simulation", "regression-testing", "devops", "mcp"]
+keywords = ["abaqus", "fea", "simulation", "qa", "regression-testing", "devops", "mcp", "odb"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -32,11 +32,18 @@ dependencies = [
 mcp = ["mcp>=1.0"]
 llm = ["anthropic>=0.36", "openai>=1.0"]
 pdf = ["playwright>=1.45"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1", "httpx>=0.24"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1", "httpx>=0.24", "mcp>=1.0"]
 all = ["abaqus-agent[mcp,llm,pdf,dev]"]
 
 [project.scripts]
 abaqus-agent = "cli:main"
+abaqus-agent-case-memory = "scripts.inspect_case_memory:main"
+abaqus-agent-doctor-patterns = "scripts.inspect_solver_doctor_patterns:main"
+abaqus-agent-kpi-recipes = "scripts.inspect_kpi_recipes:main"
+abaqus-agent-local-cli-smoke = "scripts.run_local_cli_smoke:main"
+abaqus-agent-vault = "scripts.inspect_evidence_vault:main"
+abaqus-agent-verify-local-demo-pack = "scripts.verify_local_demo_pack_bundle:main"
+abaqus-agent-verify-local-cli-smoke = "scripts.verify_local_cli_smoke_bundle:main"
 
 [project.urls]
 Homepage = "https://github.com/Tomsabay/abaqus_agent"
@@ -47,6 +54,7 @@ Issues = "https://github.com/Tomsabay/abaqus_agent/issues"
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+extend-exclude = ["evidence/real_abaqus_smoke_*"]
 
 [tool.hatch.build.targets.wheel]
 packages = [
@@ -65,6 +73,8 @@ packages = [
     "premium",
     "reporting",
     "validation",
+    "evidence",
+    "scripts",
     "server.py",
     "mcp_bridge.py",
     "mcp_server.py",

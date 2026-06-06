@@ -1,0 +1,17 @@
+contracts:
+  - name: custom deck tip deflects downward
+    type: direction
+    kpi: U_tip
+    op: "<"
+    value: 0
+  - name: custom deck tip near reference
+    type: relative_error
+    kpi: U_tip
+    reference: -0.002
+    rtol: 0.1
+    atol: 0.000001
+  - name: custom deck stress plausible
+    type: range
+    kpi: MISES_MAX
+    min: 0
+    max: 1

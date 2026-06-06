@@ -5,12 +5,39 @@ Uses direct function calls (the MCP tools are just async functions)
 rather than requiring a full MCP client/transport setup.
 """
 import asyncio
+import hashlib
 import json
 import sys
+import zipfile
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+
+def _drain_pending_tasks() -> None:
+    loop = asyncio.get_event_loop()
+    pending = [task for task in asyncio.all_tasks(loop) if not task.done()]
+    if not pending:
+        return
+
+    for task in pending:
+        task.cancel()
+    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+
+
+@pytest.fixture(autouse=True)
+def clean_mcp_server_state():
+    yield
+    _drain_pending_tasks()
+
+    from mcp_server import RUNS, _progress_queues
+    from premium.licensing import feature_gate
+
+    RUNS.clear()
+    _progress_queues.clear()
+    feature_gate.reset()
 
 
 # ── Tool tests ────────────────────────────────────────────────────
@@ -371,6 +398,479 @@ class TestMCPTools:
         from premium.licensing import feature_gate
         feature_gate.reset()
 
+    def test_get_offline_evidence_example_tool(self):
+        from mcp_server import get_offline_evidence_example_tool
+        result = asyncio.get_event_loop().run_until_complete(
+            get_offline_evidence_example_tool(case_name="modal")
+        )
+        data = json.loads(result)
+        assert data["run_id"] == "modal-example-offline"
+        assert data["candidate_kpis"]["freq_2"] == 1000.0
+
+        custom_result = asyncio.get_event_loop().run_until_complete(
+            get_offline_evidence_example_tool(case_name="custom_inp_deck")
+        )
+        custom_data = json.loads(custom_result)
+        assert custom_data["input_type"] == "custom_inp"
+        assert custom_data["input_path"].endswith(".inp")
+
+        missing = asyncio.get_event_loop().run_until_complete(
+            get_offline_evidence_example_tool(case_name="missing")
+        )
+        assert "error" in json.loads(missing)
+
+    def test_create_local_demo_pack_tool(self, tmp_path):
+        from evidence.vault import create_vault_entry
+        from mcp_server import (
+            create_local_demo_pack_tool,
+            verify_evidence_vault_demo_pack_bundle_tool,
+            verify_local_demo_pack_bundle_tool,
+        )
+        result = asyncio.get_event_loop().run_until_complete(
+            create_local_demo_pack_tool(out_dir=str(tmp_path))
+        )
+        data = json.loads(result)
+
+        assert data["overall_status"] == "PASS"
+        assert data["real_env_verified"] is False
+        assert data["index"]["workflow"] == "local-demo-pack"
+        assert data["index"]["manifest_path"].endswith("local-demo-pack-manifest.json")
+        assert data["index"]["offline_demo_gallery"]["case_count"] == 4
+        assert data["index"]["solver_doctor"]["status"] == "FAILED"
+        assert data["index"]["simulation_diff"]["status"] == "FAIL"
+        assert "Abaqus Agent Local Demo Pack" in data["index_markdown"]
+        assert "Simulation Diff Sample" in data["index_markdown"]
+        assert "Offline Simulation QA evidence bundle" in data["index_html"]
+        assert "offline-demo-gallery/index.html" in data["index_html"]
+        assert "simulation-diff/diff.md" in data["index_html"]
+        assert Path(data["index_path"]).exists()
+        assert Path(data["index_markdown_path"]).exists()
+        assert Path(data["index_html_path"]).exists()
+        assert Path(data["pack_zip_path"]).exists()
+        with zipfile.ZipFile(data["pack_zip_path"]) as pack:
+            names = set(pack.namelist())
+            assert {
+                "index.json",
+                "index.md",
+                "index.html",
+                "local-demo-pack-manifest.json",
+                "offline-demo-gallery/index.json",
+                "offline-demo-gallery/index.md",
+                "offline-demo-gallery/index.html",
+                "offline-demo-gallery/offline-demo-gallery.zip",
+                "offline-demo-gallery/cantilever/evidence.json",
+                "offline-demo-gallery/cantilever/evidence.md",
+                "offline-demo-gallery/cantilever/evidence.html",
+                "offline-demo-gallery/cantilever/capsule.json",
+                "offline-demo-gallery/cantilever/cantilever-demo-bundle.zip",
+                "solver-doctor/doctor.json",
+                "solver-doctor/doctor.md",
+                "simulation-diff/diff.json",
+                "simulation-diff/diff.md",
+            }.issubset(names)
+            manifest = json.loads(pack.read("local-demo-pack-manifest.json"))
+            assert manifest["workflow"] == "local-demo-pack"
+            manifest_files = {entry["filename"]: entry for entry in manifest["files"]}
+            assert "local-demo-pack-manifest.json" not in manifest_files
+            assert manifest_files["index.md"]["size_bytes"] == len(pack.read("index.md"))
+            assert manifest_files["index.md"]["sha256"] == hashlib.sha256(
+                pack.read("index.md")
+            ).hexdigest()
+            assert len(manifest_files["solver-doctor/doctor.json"]["sha256"]) == 64
+            assert len(
+                [
+                    name
+                    for name in names
+                    if name.startswith("offline-demo-gallery/")
+                    and name.endswith("/evidence.html")
+                ]
+            ) == 4
+            assert b"Simulation Diff Report" in pack.read("simulation-diff/diff.md")
+
+        verify_result = asyncio.get_event_loop().run_until_complete(
+            verify_local_demo_pack_bundle_tool(zip_path=data["pack_zip_path"])
+        )
+        verify_data = json.loads(verify_result)
+        assert verify_data["workflow"] == "local-demo-pack-bundle-verify"
+        assert verify_data["bundle_workflow"] == "local-demo-pack"
+        assert verify_data["overall_status"] == "PASS"
+        assert verify_data["checked_file_count"] == 31
+        assert all(item["status"] == "PASS" for item in verify_data["files"])
+
+        vault_root = tmp_path / "vault"
+        record = create_vault_entry(
+            kind="local-demo-pack",
+            title="MCP Demo Pack Verify",
+            files={
+                "local-demo-pack.zip": Path(data["pack_zip_path"]),
+                "local-demo-pack-manifest.json": Path(data["index"]["manifest_path"]),
+            },
+            summary={"overall_status": "PASS"},
+            root=vault_root,
+        )
+        vault_verify_result = asyncio.get_event_loop().run_until_complete(
+            verify_evidence_vault_demo_pack_bundle_tool(
+                vault_id=record["vault_id"],
+                vault_root=str(vault_root),
+            )
+        )
+        vault_verify_data = json.loads(vault_verify_result)
+        assert vault_verify_data["vault_id"] == record["vault_id"]
+        assert vault_verify_data["filename"] == "local-demo-pack.zip"
+        assert vault_verify_data["vault_root"] == str(vault_root)
+        assert vault_verify_data["overall_status"] == "PASS"
+        assert vault_verify_data["checked_file_count"] == 31
+
+    def test_run_local_cli_smoke_tool(self, tmp_path):
+        from mcp_server import (
+            run_local_cli_smoke_tool,
+            verify_evidence_vault_smoke_bundle_tool,
+            verify_local_cli_smoke_bundle_tool,
+        )
+        result = asyncio.get_event_loop().run_until_complete(
+            run_local_cli_smoke_tool(out_dir=str(tmp_path))
+        )
+        data = json.loads(result)
+
+        assert data["workflow"] == "local-cli-smoke"
+        assert data["overall_status"] == "PASS"
+        assert data["real_env_verified"] is False
+        assert data["step_count"] == 11
+        assert all(step["status"] == "PASS" for step in data["steps"])
+        assert data["smoke_vault_id"].startswith("local-cli-smoke-")
+        assert Path(data["json_path"]).exists()
+        assert Path(data["markdown_path"]).exists()
+        assert Path(data["html_path"]).exists()
+        assert Path(data["zip_path"]).exists()
+        assert "local_cli_smoke.zip" in data["smoke_vault_files"]
+        with zipfile.ZipFile(data["zip_path"]) as bundle:
+            assert set(bundle.namelist()) == {
+                "copied-local-demo-pack.zip",
+                "local_cli_smoke.html",
+                "local_cli_smoke.json",
+                "local_cli_smoke_manifest.json",
+                "local_cli_smoke.md",
+            }
+        assert "Abaqus Agent Local CLI Smoke" in data["report_markdown"]
+        assert "Smoke Steps" in data["report_html"]
+
+        verify_result = asyncio.get_event_loop().run_until_complete(
+            verify_local_cli_smoke_bundle_tool(zip_path=data["zip_path"])
+        )
+        verify_data = json.loads(verify_result)
+        assert verify_data["workflow"] == "local-cli-smoke-bundle-verify"
+        assert verify_data["overall_status"] == "PASS"
+        assert verify_data["checked_file_count"] == 4
+        assert all(item["status"] == "PASS" for item in verify_data["files"])
+        nested_verify_data = verify_data["copied_demo_pack_verification"]
+        assert nested_verify_data["overall_status"] == "PASS"
+        assert nested_verify_data["checked_file_count"] == 31
+
+        vault_verify_result = asyncio.get_event_loop().run_until_complete(
+            verify_evidence_vault_smoke_bundle_tool(
+                vault_id=data["smoke_vault_id"],
+                vault_root=data["vault_root"],
+            )
+        )
+        vault_verify_data = json.loads(vault_verify_result)
+        assert vault_verify_data["vault_id"] == data["smoke_vault_id"]
+        assert vault_verify_data["filename"] == "local_cli_smoke.zip"
+        assert vault_verify_data["overall_status"] == "PASS"
+        assert vault_verify_data["checked_file_count"] == 4
+        nested_vault_verify_data = vault_verify_data["copied_demo_pack_verification"]
+        assert nested_vault_verify_data["overall_status"] == "PASS"
+        assert nested_vault_verify_data["checked_file_count"] == 31
+
+    def test_search_case_memory_tool(self, tmp_path, monkeypatch):
+        from evidence.vault import create_vault_entry
+        from mcp_server import search_case_memory_tool
+
+        monkeypatch.setenv("ABAQUS_AGENT_EVIDENCE_VAULT", str(tmp_path / "vault"))
+        report = tmp_path / "doctor.md"
+        report.write_text("# Solver Doctor: Memory Case\n", encoding="utf-8")
+        create_vault_entry(
+            kind="solver-doctor",
+            title="Memory Case",
+            files={"doctor.md": report},
+            summary={"status": "FAILED", "primary_category": "LICENSE"},
+        )
+
+        result = asyncio.get_event_loop().run_until_complete(
+            search_case_memory_tool(query="license", kind="solver-doctor")
+        )
+        data = json.loads(result)
+
+        assert data["workflow"] == "case-memory-vault-search"
+        assert data["total"] == 1
+        item = data["items"][0]
+        assert item["kind"] == "solver-doctor"
+        assert item["title"] == "Memory Case"
+        assert item["status"] == "FAILED"
+        assert item["vault_urls"]["doctor.md"].startswith("case-memory://vault/")
+
+    def test_evidence_vault_tools(self, tmp_path, monkeypatch):
+        from evidence.vault import create_vault_entry
+        from mcp_server import (
+            copy_evidence_vault_file_tool,
+            get_evidence_vault_record_tool,
+            read_evidence_vault_file_tool,
+            search_evidence_vault_tool,
+        )
+
+        monkeypatch.setenv("ABAQUS_AGENT_EVIDENCE_VAULT", str(tmp_path / "vault"))
+        report = tmp_path / "index.md"
+        report.write_text("# Demo Pack\n", encoding="utf-8")
+        record = create_vault_entry(
+            kind="local-demo-pack",
+            title="Vault Demo Pack",
+            files={"index.md": report, "local-demo-pack.zip": report},
+            summary={"overall_status": "PASS", "case_count": 4},
+        )
+
+        search_result = asyncio.get_event_loop().run_until_complete(
+            search_evidence_vault_tool(
+                query="local-demo-pack.zip",
+                kind="local-demo-pack",
+                status="PASS",
+            )
+        )
+        search_data = json.loads(search_result)
+        assert search_data["query"] == "local-demo-pack.zip"
+        assert search_data["kind"] == "local-demo-pack"
+        assert search_data["status"] == "pass"
+        assert search_data["total"] == 1
+        assert search_data["items"][0]["vault_urls"]["index.md"].startswith(
+            "evidence-vault://entries/"
+        )
+
+        detail_result = asyncio.get_event_loop().run_until_complete(
+            get_evidence_vault_record_tool(vault_id=record["vault_id"])
+        )
+        detail_data = json.loads(detail_result)
+        assert detail_data["vault_id"] == record["vault_id"]
+        assert detail_data["summary"]["overall_status"] == "PASS"
+        assert detail_data["vault_urls"]["local-demo-pack.zip"].startswith(
+            "evidence-vault://entries/"
+        )
+
+        missing_result = asyncio.get_event_loop().run_until_complete(
+            get_evidence_vault_record_tool(vault_id="missing-vault")
+        )
+        assert "error" in json.loads(missing_result)
+
+        read_result = asyncio.get_event_loop().run_until_complete(
+            read_evidence_vault_file_tool(
+                vault_id=record["vault_id"],
+                filename="index.md",
+                max_chars=6,
+            )
+        )
+        read_data = json.loads(read_result)
+        assert read_data["vault_url"].startswith("evidence-vault://entries/")
+        assert read_data["truncated"] is True
+        assert read_data["content"] == "# Demo"
+
+        zip_result = asyncio.get_event_loop().run_until_complete(
+            read_evidence_vault_file_tool(
+                vault_id=record["vault_id"],
+                filename="local-demo-pack.zip",
+            )
+        )
+        zip_data = json.loads(zip_result)
+        assert "Unsupported text vault file type" in zip_data["error"]
+
+        copied_zip = tmp_path / "exports" / "local-demo-pack.zip"
+        copy_result = asyncio.get_event_loop().run_until_complete(
+            copy_evidence_vault_file_tool(
+                vault_id=record["vault_id"],
+                filename="local-demo-pack.zip",
+                out_path=str(copied_zip),
+            )
+        )
+        copy_data = json.loads(copy_result)
+        assert copy_data["vault_id"] == record["vault_id"]
+        assert copy_data["filename"] == "local-demo-pack.zip"
+        assert copy_data["output_path"] == str(copied_zip)
+        assert copied_zip.read_text(encoding="utf-8") == "# Demo Pack\n"
+
+        unsafe_result = asyncio.get_event_loop().run_until_complete(
+            read_evidence_vault_file_tool(
+                vault_id=record["vault_id"],
+                filename="../index.md",
+            )
+        )
+        assert "error" in json.loads(unsafe_result)
+
+    def test_diff_case_memory_tool(self, tmp_path, monkeypatch):
+        from evidence.vault import create_vault_entry
+        from mcp_server import diff_case_memory_tool
+
+        vault_root = tmp_path / "vault"
+        monkeypatch.setenv("ABAQUS_AGENT_EVIDENCE_VAULT", str(vault_root))
+        first = tmp_path / "first.json"
+        second = tmp_path / "second.json"
+        first.write_text(
+            json.dumps(
+                {
+                    "workflow": "offline-evidence-slice",
+                    "run_id": "first",
+                    "overall_status": "PASS",
+                    "candidate_kpis": {"U_tip": -2.0},
+                }
+            ),
+            encoding="utf-8",
+        )
+        second.write_text(
+            json.dumps(
+                {
+                    "workflow": "offline-evidence-slice",
+                    "run_id": "second",
+                    "overall_status": "PASS",
+                    "candidate_kpis": {"U_tip": -2.1},
+                }
+            ),
+            encoding="utf-8",
+        )
+        first_record = create_vault_entry(
+            kind="offline-evidence",
+            title="first",
+            files={"evidence.json": first},
+            root=vault_root,
+        )
+        second_record = create_vault_entry(
+            kind="offline-evidence",
+            title="second",
+            files={"evidence.json": second},
+            root=vault_root,
+        )
+        nested_first_record = create_vault_entry(
+            kind="offline-evidence",
+            title="nested-first",
+            files={"gallery/cantilever/evidence.json": first},
+            root=vault_root,
+        )
+        nested_second_record = create_vault_entry(
+            kind="offline-evidence",
+            title="nested-second",
+            files={"gallery/plate_hole/evidence.json": second},
+            root=vault_root,
+        )
+
+        result = asyncio.get_event_loop().run_until_complete(
+            diff_case_memory_tool(
+                baseline_vault_id=first_record["vault_id"],
+                candidate_vault_id=second_record["vault_id"],
+                diff_id="mcp-case-memory-diff",
+            )
+        )
+        data = json.loads(result)
+
+        assert data["diff_id"] == "mcp-case-memory-diff"
+        assert data["overall_status"] == "FAIL"
+        assert data["vault_id"].startswith("case-memory-diff-")
+        assert data["case_memory_diff"]["candidate_source"]["run_id"] == "second"
+        assert "Case Memory Sources" in data["report_markdown"]
+
+        nested_result = asyncio.get_event_loop().run_until_complete(
+            diff_case_memory_tool(
+                baseline_vault_id=nested_first_record["vault_id"],
+                baseline_filename="gallery/cantilever/evidence.json",
+                candidate_vault_id=nested_second_record["vault_id"],
+                candidate_filename="gallery/plate_hole/evidence.json",
+                diff_id="mcp-nested-case-memory-diff",
+            )
+        )
+        nested_data = json.loads(nested_result)
+
+        assert nested_data["diff_id"] == "mcp-nested-case-memory-diff"
+        assert nested_data["overall_status"] == "FAIL"
+        assert nested_data["case_memory_diff"]["baseline_source"]["filename"] == (
+            "gallery/cantilever/evidence.json"
+        )
+        assert nested_data["case_memory_diff"]["candidate_source"]["filename"] == (
+            "gallery/plate_hole/evidence.json"
+        )
+
+    def test_get_kpi_recipe_tool(self):
+        from mcp_server import get_kpi_recipe_tool
+
+        result = asyncio.get_event_loop().run_until_complete(
+            get_kpi_recipe_tool(recipe_id="plate-hole-stress-concentration")
+        )
+        data = json.loads(result)
+        assert data["id"] == "plate-hole-stress-concentration"
+        assert data["kpi_spec"][0]["type"] == "derived_stress_concentration"
+        assert data["real_env_verified"] is False
+
+        missing = asyncio.get_event_loop().run_until_complete(
+            get_kpi_recipe_tool(recipe_id="missing")
+        )
+        assert "error" in json.loads(missing)
+
+    def test_run_simulation_diff_tool(self):
+        from mcp_server import run_simulation_diff_tool
+
+        result = asyncio.get_event_loop().run_until_complete(
+            run_simulation_diff_tool(
+                baseline_kpis={"U_tip": -2.0, "max_mises": 100.0},
+                candidate_kpis={"U_tip": -2.4, "max_mises": 100.0},
+                tolerances={"U_tip": {"rtol": 0.05}},
+                diff_id="mcp-simdiff",
+                input_metadata='{"case":"cantilever"}',
+            )
+        )
+        data = json.loads(result)
+
+        assert data["diff_id"] == "mcp-simdiff"
+        assert data["overall_status"] == "FAIL"
+        assert data["diff"]["changed_count"] == 1
+        assert data["real_env_verified"] is False
+        assert "Simulation Diff Report" in data["report_markdown"]
+        assert Path(data["diff_path"]).exists()
+        assert Path(data["report_path"]).exists()
+
+        bad = asyncio.get_event_loop().run_until_complete(
+            run_simulation_diff_tool(
+                baseline_kpis={},
+                candidate_kpis={},
+                diff_id="../bad",
+            )
+        )
+        assert "diff_id" in json.loads(bad)["error"]
+
+    def test_diagnose_solver_logs_tool(self):
+        from mcp_server import diagnose_solver_logs_tool
+        result = asyncio.get_event_loop().run_until_complete(
+            diagnose_solver_logs_tool(
+                job_name="MCP-Doctor",
+                msg_text="***ERROR: EXCESSIVE DISTORTION OF ELEMENTS 123\n",
+                log_text="Abaqus JOB MCP-Doctor\n",
+            )
+        )
+        data = json.loads(result)
+        assert data["status"] == "FAILED"
+        assert data["primary_category"] == "ELEMENT_DISTORTION"
+        assert data["real_env_verified"] is False
+        assert "Solver Doctor: MCP-Doctor" in data["report_markdown"]
+
+        bad = asyncio.get_event_loop().run_until_complete(
+            diagnose_solver_logs_tool(job_name="../bad", msg_text="***ERROR: x")
+        )
+        assert "job_name" in json.loads(bad)["error"]
+
+    def test_get_solver_doctor_patterns_tool(self):
+        from mcp_server import get_solver_doctor_patterns_tool
+
+        result = asyncio.get_event_loop().run_until_complete(
+            get_solver_doctor_patterns_tool(category="license")
+        )
+        data = json.loads(result)
+
+        assert data["workflow"] == "solver-doctor-pattern-gallery"
+        assert data["total"] >= 1
+        assert {pattern["category"] for pattern in data["patterns"]} == {"LICENSE"}
+        assert data["real_env_verified"] is False
+
 
 # ── Resource tests ────────────────────────────────────────────────
 
@@ -397,6 +897,101 @@ class TestMCPResources:
         )
         data = json.loads(result)
         assert "features" in data
+
+    def test_offline_evidence_examples_resource(self):
+        from mcp_server import get_offline_evidence_examples_resource
+        result = asyncio.get_event_loop().run_until_complete(
+            get_offline_evidence_examples_resource()
+        )
+        data = json.loads(result)
+        assert {
+            "cantilever",
+            "custom_inp_deck",
+            "explicit_impact",
+            "modal",
+            "plate_hole",
+        }.issubset({case["case"] for case in data["cases"]})
+
+    def test_kpi_recipes_resource(self):
+        from mcp_server import get_kpi_recipes_resource
+
+        result = asyncio.get_event_loop().run_until_complete(get_kpi_recipes_resource())
+        data = json.loads(result)
+
+        assert data["workflow"] == "kpi-recipe-gallery"
+        assert "field_max" in data["supported_kpi_types"]
+        assert {"cantilever", "plate_hole", "modal", "explicit_impact"}.issubset(
+            {item["case"] for item in data["items"]}
+        )
+
+    def test_simulation_diff_example_resource(self):
+        from mcp_server import get_simulation_diff_example_resource
+
+        result = asyncio.get_event_loop().run_until_complete(
+            get_simulation_diff_example_resource()
+        )
+        data = json.loads(result)
+
+        assert data["diff_id"] == "cantilever-simdiff-example"
+        assert "U_tip_y" in data["baseline_kpis"]
+        assert data["tolerances"]["U_tip_y"]["rtol"] == 0.05
+        assert data["real_env_verified"] is False
+
+    def test_solver_doctor_patterns_resource(self):
+        from mcp_server import get_solver_doctor_patterns_resource
+
+        result = asyncio.get_event_loop().run_until_complete(
+            get_solver_doctor_patterns_resource()
+        )
+        data = json.loads(result)
+
+        assert data["workflow"] == "solver-doctor-pattern-gallery"
+        assert data["total"] >= 20
+        assert any(pattern["category"] == "CONVERGENCE" for pattern in data["patterns"])
+
+    def test_case_memory_resource(self, tmp_path, monkeypatch):
+        from evidence.vault import create_vault_entry
+        from mcp_server import get_case_memory_resource
+
+        monkeypatch.setenv("ABAQUS_AGENT_EVIDENCE_VAULT", str(tmp_path / "vault"))
+        index = tmp_path / "index.md"
+        index.write_text("# Demo Gallery\n", encoding="utf-8")
+        create_vault_entry(
+            kind="demo-gallery",
+            title="Gallery Memory",
+            files={"index.md": index},
+            summary={"overall_status": "PASS", "case_count": 4},
+        )
+
+        result = asyncio.get_event_loop().run_until_complete(get_case_memory_resource())
+        data = json.loads(result)
+
+        assert data["workflow"] == "case-memory-vault-search"
+        assert data["total"] == 1
+        assert data["items"][0]["kind"] == "demo-gallery"
+
+    def test_evidence_vault_resource(self, tmp_path, monkeypatch):
+        from evidence.vault import create_vault_entry
+        from mcp_server import get_evidence_vault_resource
+
+        monkeypatch.setenv("ABAQUS_AGENT_EVIDENCE_VAULT", str(tmp_path / "vault"))
+        index = tmp_path / "index.md"
+        index.write_text("# Demo Pack\n", encoding="utf-8")
+        create_vault_entry(
+            kind="local-demo-pack",
+            title="Vault Resource Pack",
+            files={"index.md": index},
+            summary={"overall_status": "PASS"},
+        )
+
+        result = asyncio.get_event_loop().run_until_complete(get_evidence_vault_resource())
+        data = json.loads(result)
+
+        assert data["total"] == 1
+        assert data["items"][0]["kind"] == "local-demo-pack"
+        assert data["items"][0]["vault_urls"]["index.md"].startswith(
+            "evidence-vault://entries/"
+        )
 
 
 # ── Progress notification tests ───────────────────────────────────

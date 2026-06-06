@@ -24,7 +24,7 @@ from tools.schema_validator import validate_spec
 STAGES = [
     ("validate_spec", "校验 Problem Spec",          0.3, 0.6),
     ("build_model",   "生成 CAE noGUI → .inp",      1.0, 2.0),
-    ("syntaxcheck",   "语法检查（不消耗 token）",    0.4, 0.8),
+    ("syntaxcheck",   "语法检查（求解前检查）",      0.4, 0.8),
     ("submit_job",    "提交 Abaqus 作业",            1.2, 2.5),
     ("monitor_job",   "轮询 .sta 状态",              0.8, 1.5),
     ("extract_kpis",  "从 ODB 提取 KPI",             0.6, 1.2),

@@ -30,6 +30,12 @@ class DiagnosticCategory(str, Enum):
     NUMERICAL = "NUMERICAL"
     MATERIAL = "MATERIAL"
     BOUNDARY = "BOUNDARY"
+    LICENSE = "LICENSE"
+    ODB = "ODB"
+    PATH = "PATH"
+    SYNTAX = "SYNTAX"
+    MESH = "MESH"
+    OUTPUT = "OUTPUT"
     UNKNOWN = "UNKNOWN"
 
 
@@ -133,8 +139,12 @@ def parse_job_diagnostics(workdir: str | Path, job_name: str) -> ParseResult:
 _MSG_PATTERNS = [
     (re.compile(r"(?:THE SOLUTION HAS NOT CONVERGED|NOT CONVERGED)", re.I),
      DiagnosticCategory.CONVERGENCE, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:TOO MANY ATTEMPTS MADE FOR THIS INCREMENT)", re.I),
+     DiagnosticCategory.CONVERGENCE, DiagnosticSeverity.ERROR),
     (re.compile(r"(?:EXCESSIVE DISTORTION|DISTORTED ELEMENTS?)", re.I),
      DiagnosticCategory.ELEMENT_DISTORTION, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:ZERO|NEGATIVE) (?:ELEMENT )?VOLUME", re.I),
+     DiagnosticCategory.MESH, DiagnosticSeverity.ERROR),
     (re.compile(r"(?:ZERO PIVOT|SINGULAR MATRIX|NUMERICAL SINGULARITY)", re.I),
      DiagnosticCategory.RIGID_BODY_MOTION, DiagnosticSeverity.ERROR),
     (re.compile(r"(?:CONTACT (?:OPENING|OVERCLOSURE|CHATTERING))", re.I),
@@ -143,6 +153,18 @@ _MSG_PATTERNS = [
      DiagnosticCategory.NUMERICAL, DiagnosticSeverity.WARNING),
     (re.compile(r"(?:MATERIAL FAILURE|DAMAGE INITIATION)", re.I),
      DiagnosticCategory.MATERIAL, DiagnosticSeverity.WARNING),
+    (re.compile(r"(?:BOUNDARY CONDITIONS? ARE OVER-?SPECIFIED|UNKNOWN NODE SET)", re.I),
+     DiagnosticCategory.BOUNDARY, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:LICENSE CHECKOUT FAILED|LICENSE SERVER|NO LICENSE|TOKEN)", re.I),
+     DiagnosticCategory.LICENSE, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:DATABASE WAS CREATED BY A NEWER RELEASE|ODB.*VERSION|CANNOT OPEN.*ODB)", re.I),
+     DiagnosticCategory.ODB, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:PATH TOO LONG|CANNOT FIND THE PATH|NO SUCH FILE|FILE NOT FOUND)", re.I),
+     DiagnosticCategory.PATH, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:UNKNOWN KEYWORD|INVALID KEYWORD|ERROR IN KEYWORD|Abaqus/Analysis exited with errors)", re.I),
+     DiagnosticCategory.SYNTAX, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:OUTPUT REQUEST.*NOT AVAILABLE|OUTPUT DATABASE.*NOT WRITTEN)", re.I),
+     DiagnosticCategory.OUTPUT, DiagnosticSeverity.WARNING),
     (re.compile(r"(?:TIME INCREMENT .* LESS THAN MINIMUM)", re.I),
      DiagnosticCategory.CONVERGENCE, DiagnosticSeverity.ERROR),
     (re.compile(r"(?:CONVERGENCE TOLERANCE EXCEEDED)", re.I),
@@ -166,7 +188,7 @@ def _parse_msg(path: Path, result: ParseResult) -> None:
     current_step = 0
     current_inc = 0
 
-    for line in content.splitlines():
+    for line_number, line in enumerate(content.splitlines(), start=1):
         # Track step/increment
         m = _STEP_INC_PATTERN.search(line)
         if m:
@@ -181,6 +203,7 @@ def _parse_msg(path: Path, result: ParseResult) -> None:
                     category=category,
                     message=line.strip()[:200],
                     source_file=str(path.name),
+                    line_number=line_number,
                     step=current_step,
                     increment=current_inc,
                 ))
@@ -230,10 +253,41 @@ def _parse_sta(path: Path, result: ParseResult) -> None:
 # -----------------------------------------------------------------
 
 _DAT_ERROR_PATTERNS = [
-    (re.compile(r"\*\*\*ERROR", re.I), DiagnosticSeverity.ERROR),
-    (re.compile(r"\*\*\*WARNING", re.I), DiagnosticSeverity.WARNING),
-    (re.compile(r"(?:MEMORY LIMIT|INSUFFICIENT MEMORY)", re.I), DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:MEMORY LIMIT|INSUFFICIENT MEMORY)", re.I),
+     DiagnosticCategory.MEMORY, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:LICENSE CHECKOUT FAILED|LICENSE SERVER|NO LICENSE|TOKEN)", re.I),
+     DiagnosticCategory.LICENSE, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:UNKNOWN KEYWORD|INVALID KEYWORD|ERROR IN KEYWORD)", re.I),
+     DiagnosticCategory.SYNTAX, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:PATH TOO LONG|CANNOT FIND THE PATH|NO SUCH FILE|FILE NOT FOUND)", re.I),
+     DiagnosticCategory.PATH, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:DATABASE WAS CREATED BY A NEWER RELEASE|ODB.*VERSION|CANNOT OPEN.*ODB)", re.I),
+     DiagnosticCategory.ODB, DiagnosticSeverity.ERROR),
+    (re.compile(r"(?:OUTPUT REQUEST.*NOT AVAILABLE|OUTPUT DATABASE.*NOT WRITTEN)", re.I),
+     DiagnosticCategory.OUTPUT, DiagnosticSeverity.WARNING),
+    (re.compile(r"\*\*\*ERROR", re.I), DiagnosticCategory.UNKNOWN, DiagnosticSeverity.ERROR),
+    (re.compile(r"\*\*\*WARNING", re.I), DiagnosticCategory.UNKNOWN, DiagnosticSeverity.WARNING),
 ]
+
+
+def list_diagnostic_pattern_specs() -> list[dict]:
+    """Return the deterministic log parser pattern catalog."""
+    specs = []
+    for source_file, patterns in (
+        (".msg", _MSG_PATTERNS),
+        (".dat", _DAT_ERROR_PATTERNS),
+    ):
+        for index, (pattern, category, severity) in enumerate(patterns, start=1):
+            specs.append(
+                {
+                    "id": f"{source_file[1:]}-{index:02d}-{category.value.lower()}",
+                    "source_file": source_file,
+                    "category": category.value,
+                    "severity": severity.value,
+                    "pattern": pattern.pattern,
+                }
+            )
+    return specs
 
 
 def _parse_dat(path: Path, result: ParseResult) -> None:
@@ -245,14 +299,14 @@ def _parse_dat(path: Path, result: ParseResult) -> None:
 
     result.raw_snippets["dat"] = content[-1000:]
 
-    for line in content.splitlines():
-        for pattern, severity in _DAT_ERROR_PATTERNS:
+    for line_number, line in enumerate(content.splitlines(), start=1):
+        for pattern, category, severity in _DAT_ERROR_PATTERNS:
             if pattern.search(line):
-                category = DiagnosticCategory.MEMORY if "MEMORY" in line.upper() else DiagnosticCategory.UNKNOWN
                 result.events.append(DiagnosticEvent(
                     severity=severity,
                     category=category,
                     message=line.strip()[:200],
                     source_file=str(path.name),
+                    line_number=line_number,
                 ))
                 break

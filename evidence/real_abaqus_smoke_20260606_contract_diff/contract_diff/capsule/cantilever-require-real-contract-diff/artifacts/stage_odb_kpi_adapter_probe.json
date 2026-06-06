@@ -1,0 +1,21 @@
+{
+  "artifact_path": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\stage_odb_kpi_adapter_probe.json",
+  "command": [
+    "abaqus",
+    "python",
+    "post/extract_kpis.py",
+    "--",
+    "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.odb"
+  ],
+  "evidence": [
+    "function=post.extract_kpis.extract_kpis",
+    "odb_path=D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.odb",
+    "kpis=['MISES_MAX', 'U_tip']",
+    "errors=[]"
+  ],
+  "missing_reason": null,
+  "name": "odb_kpi_adapter_probe",
+  "real_env_required": true,
+  "real_env_verified": true,
+  "status": "completed"
+}

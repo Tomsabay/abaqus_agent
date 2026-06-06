@@ -1,0 +1,39 @@
+meta:
+  abaqus_release: "2024"
+  model_name: "Cantilever"
+  units: "mm_MPa_t"
+  description: "3D linear-elastic cantilever beam under tip pressure"
+
+geometry:
+  type: cantilever_block
+  L: 100.0   # mm
+  W: 10.0
+  H: 10.0
+  seed_size: 5.0
+
+material:
+  name: Steel
+  E: 210000.0   # MPa
+  nu: 0.3
+
+analysis:
+  solver: standard
+  step_type: Static
+  cpus: 1
+
+bc_load:
+  fixed_face: "x=0"
+  load_face:  "x=L"
+  load_type:  pressure
+  value: -1.0    # MPa (negative = downward on top face)
+  direction: 2
+
+outputs:
+  kpis:
+    - name: U_tip
+      type: nodal_displacement
+      location: tip_center
+      component: U2
+    - name: MISES_MAX
+      type: field_max
+      location: whole_model

@@ -1,0 +1,141 @@
+{
+  "artifacts": [
+    {
+      "name": "real_smoke_contract_diff.json",
+      "path": "artifacts/real_smoke_contract_diff.json",
+      "sha256": "d19424ed0df97caa3c9fcc7564900891eb7a1ee449622e463a596bf4e91e9d11",
+      "size_bytes": 5550,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_contract_diff/real_smoke_contract_diff.json"
+    },
+    {
+      "name": "real_smoke_contract_diff.md",
+      "path": "artifacts/real_smoke_contract_diff.md",
+      "sha256": "828aa97ff16cb6fb31c01134bad9c1cacab5610357a84d9b8976bf684f3dd4a2",
+      "size_bytes": 2579,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_contract_diff/real_smoke_contract_diff.md"
+    },
+    {
+      "name": "real_smoke_contract_diff.html",
+      "path": "artifacts/real_smoke_contract_diff.html",
+      "sha256": "21c07cf88ef5a5b8b006cff2334eabb841df99d90587ca71925884797b7c9505",
+      "size_bytes": 4507,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_contract_diff/real_smoke_contract_diff.html"
+    },
+    {
+      "name": "stage_syntaxcheck.json",
+      "path": "artifacts/stage_syntaxcheck.json",
+      "sha256": "11cddf566a4c14c4343ba61df5fe23afffd2ff90f6043f56e4b1491695937f2b",
+      "size_bytes": 718,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/stage_syntaxcheck.json"
+    },
+    {
+      "name": "stage_submit_job.json",
+      "path": "artifacts/stage_submit_job.json",
+      "sha256": "59e840e2e9989b266302f036782e1f9a0e8edd39d9e96d48ec9b9991b2c0a990",
+      "size_bytes": 767,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/stage_submit_job.json"
+    },
+    {
+      "name": "stage_monitor_status_collection.json",
+      "path": "artifacts/stage_monitor_status_collection.json",
+      "sha256": "def87e516d8375f3ef610249b391ecdc5bdff205d469efa7759c5bfc81399237",
+      "size_bytes": 542,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/stage_monitor_status_collection.json"
+    },
+    {
+      "name": "stage_odb_kpi_adapter_probe.json",
+      "path": "artifacts/stage_odb_kpi_adapter_probe.json",
+      "sha256": "70b6f9aff50964327ba6bf0f2f94b5cbaeb8cd05c0f487398e07b7521359dbf6",
+      "size_bytes": 713,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/stage_odb_kpi_adapter_probe.json"
+    },
+    {
+      "name": "_kpi_spec.json",
+      "path": "artifacts/_kpi_spec.json",
+      "sha256": "a439b65d4bc8e71dde545da8b0b193cd32dc84ee889e50d6e8e84926be55dfb3",
+      "size_bytes": 165,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/run/_kpi_spec.json"
+    },
+    {
+      "name": "Cantilever.log",
+      "path": "artifacts/Cantilever.log",
+      "sha256": "2afa565a02928d933fc57b2fa2da29ef96359f7cc357161da3d19b16d8ebdf14",
+      "size_bytes": 657,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/run/Cantilever.log"
+    },
+    {
+      "name": "Cantilever.sta",
+      "path": "artifacts/Cantilever.sta",
+      "sha256": "f4b26783f67e214a22b02bbaef6466c3dff76c6ae004ca4dd256818b067c562c",
+      "size_bytes": 783,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/run/Cantilever.sta"
+    },
+    {
+      "name": "Cantilever.dat",
+      "path": "artifacts/Cantilever.dat",
+      "sha256": "2c9b043a78f00395a3d9883179daa7e9465d93b9637f339491d544d2ef23ebbb",
+      "size_bytes": 9942,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/run/Cantilever.dat"
+    },
+    {
+      "name": "Cantilever.odb",
+      "path": "artifacts/Cantilever.odb",
+      "sha256": "ea89c795ffb14c3b6305344b8a39b4357d77e8c7b189cd5d8a8332358c571044",
+      "size_bytes": 331932,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/run/Cantilever.odb"
+    }
+  ],
+  "capsule_hash": "3c8d0200c18351cac09d85d428982788f1982e9857527fc6878ba5815d008f47",
+  "created_at": "2026-06-05T16:20:34.405755+00:00",
+  "inputs": [
+    {
+      "name": "smoke_evidence.json",
+      "path": "inputs/smoke_evidence.json",
+      "sha256": "32f7400259b94ed743ab69c1dd27ebb5de52f21965d0457cb44d1fc829b5c085",
+      "size_bytes": 10610,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/smoke_evidence.json"
+    },
+    {
+      "name": "_kpi_result.json",
+      "path": "inputs/_kpi_result.json",
+      "sha256": "8190e08d60c9225564cd711b0d81bfa3b59acfb884024b13d737ba02be2d1bea",
+      "size_bytes": 230,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/run/_kpi_result.json"
+    },
+    {
+      "name": "expected.json",
+      "path": "inputs/expected.json",
+      "sha256": "368cc422a59e181711d1bb88fdf194e8196d38c56317e0fa17128ca0e0182f27",
+      "size_bytes": 316,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/case/expected.json"
+    },
+    {
+      "name": "cantilever.yaml",
+      "path": "inputs/cantilever.yaml",
+      "sha256": "eb2ab9b520508a17170dcaf1918f3355dc07291fac2c3d70c43a3bd5f81e7f71",
+      "size_bytes": 466,
+      "source": "/Users/owner/abaqus-agent/examples/contracts/cantilever.yaml"
+    },
+    {
+      "name": "spec.yaml",
+      "path": "inputs/spec.yaml",
+      "sha256": "76094ccb39a84f3d7bea07009ce319db227489a49b9c477c2ddbe1c4e7161535",
+      "size_bytes": 687,
+      "source": "evidence/real_abaqus_smoke_20260605/smoke_20260605_cantilever_kpi_float/case/spec.yaml"
+    }
+  ],
+  "metadata": {
+    "case": "cantilever",
+    "evidence_level": "real",
+    "evidence_source": "real-abaqus-smoke",
+    "metadata_schema_version": "1.0",
+    "overall_status": "FAIL",
+    "project": "abaqus-agent",
+    "real_env_required": true,
+    "real_env_verified": true,
+    "source_smoke_status": "real-env-verified",
+    "workflow": "real-smoke-contract-diff"
+  },
+  "run_id": "cantilever-real-smoke-contract-diff",
+  "schema_version": 1
+}

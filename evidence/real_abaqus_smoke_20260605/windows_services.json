@@ -1,0 +1,12 @@
+[
+    {
+        "Name":  "sshd",
+        "Status":  4,
+        "StartType":  2
+    },
+    {
+        "Name":  "Tailscale",
+        "Status":  4,
+        "StartType":  2
+    }
+]

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Abaqus Agent Real Smoke Contract/Diff Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #f6f7f9; color: #17191c; }
+    main { max-width: 1080px; margin: 0 auto; padding: 32px 24px 48px; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    .meta { color: #5d6673; margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 20px 0; }
+    .card { background: #fff; border: 1px solid #dfe3e8; border-radius: 8px; padding: 14px; }
+    .label { color: #687385; font-size: 12px; text-transform: uppercase; }
+    .value { margin-top: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid #dfe3e8; border-radius: 8px; padding: 18px; line-height: 1.55; }
+    .boundary { background: #fff7e6; border: 1px solid #ffd27a; border-radius: 8px; padding: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Abaqus Agent Real Smoke Contract/Diff Report</h1>
+    <div class="meta">Case: <code>cantilever</code> · Run ID: <code>cantilever-require-real-contract-diff</code></div>
+    <section class="grid">
+      <div class="card"><div class="label">Overall</div><div class="value">FAIL</div></div>
+      <div class="card"><div class="label">Contracts</div><div class="value">FAIL</div></div>
+      <div class="card"><div class="label">Diff</div><div class="value">FAIL</div></div>
+      <div class="card"><div class="label">Real Abaqus</div><div class="value">verified</div></div>
+    </section>
+    <section class="boundary">This report extends an already captured real Abaqus smoke bundle; it does not rerun Abaqus.</section>
+    <h2>Markdown Report</h2>
+    <pre># Abaqus Agent Real Smoke Contract/Diff Report
+
+## Verdict Summary
+
+| Area | Status | Detail |
+|---|---|---|
+| Overall | `FAIL` | Real smoke KPI values were checked against contracts and expected KPI baselines. |
+| Physics Contracts | `FAIL` | 1 pass / 0 warning / 3 fail. |
+| Simulation Diff | `FAIL` | 2 KPI rows; 2 changed, 0 added, 0 removed. |
+| Real Abaqus smoke | `verified` | Source smoke status: `real-env-verified`. |
+
+## Run Metadata
+
+- Project: `abaqus-agent`
+- Workflow: `real-smoke-contract-diff`
+- Case: `cantilever`
+- Run ID: `cantilever-require-real-contract-diff`
+- Generated at: `2026-06-06T02:28:45Z`
+- Real environment required: `true`
+- Real environment verified: `true`
+
+## Real Smoke Source
+
+- Smoke evidence: `D:\code\abaqus_agent_release_gate_evidence\smoke_20260606_contract_diff\smoke_evidence.json`
+- KPI result: `D:\code\abaqus_agent_release_gate_evidence\smoke_20260606_contract_diff\run\_kpi_result.json`
+- ODB artifact: `D:\code\abaqus_agent_release_gate_evidence\smoke_20260606_contract_diff\run\Cantilever.odb`
+- Source mode: `require-real`
+
+| Stage | Status | Real Verified |
+|---|---|---|
+| environment_preflight | completed | true |
+| input_job_preparation | completed | true |
+| syntaxcheck | completed | true |
+| submit_job | completed | true |
+| monitor_status_collection | completed | true |
+| odb_kpi_adapter_probe | completed | true |
+
+## KPI Values
+
+| KPI | Expected Baseline | Real ODB Candidate |
+|---|---:|---:|
+| MISES_MAX | 0.6 | 1.07003 |
+| U_tip | -0.002 | -1.08433e-05 |
+
+## Physics Contracts
+
+Status: `FAIL`
+
+| Contract | Status | Message |
+|---|---|---|
+| tip deflects downward | PASS | U_tip=-1.084326231648447e-05 satisfies &lt; 0.0 |
+| tip deflection near reference | FAIL | U_tip is outside tolerance |
+| max stress plausible range | FAIL | MISES_MAX=1.0700273513793945 is above max 1.0 |
+| max stress near reference | FAIL | MISES_MAX is outside tolerance |
+
+## Simulation Diff
+
+# Simulation Diff: KPI
+
+- Status: `FAIL`
+- Total KPIs: `2`
+- Changed: `2`
+- Added: `0`
+- Removed: `0`
+
+| KPI | Status | Baseline | Candidate | Delta | Rel Delta | Tolerance |
+|---|---|---:|---:|---:|---:|---|
+| MISES_MAX | FAIL | 0.6 | 1.07003 | 0.470027 | 0.783379 | rtol=0.2, atol=0.01 |
+| U_tip | FAIL | -0.002 | -1.08433e-05 | 0.00198916 | 0.994578 | rtol=0.1, atol=1e-06 |
+
+## Verification Boundary
+
+This report does not rerun Abaqus. It extends an already captured `require-real` smoke bundle by checking its extracted ODB KPI values against Physics Contracts and expected KPI baselines.
+</pre>
+  </main>
+</body>
+</html>

@@ -1,0 +1,22 @@
+*Heading
+** Abaqus Agent offline evidence example input deck.
+** This file is copied into Experiment Capsule demos only.
+** It is not submitted to Abaqus by the offline evidence workflow.
+*Part, name=CUSTOM_CANTILEVER
+*Node
+1, 0., 0., 0.
+2, 100., 0., 0.
+*Element, type=B31
+1, 1, 2
+*End Part
+*Assembly, name=Assembly
+*Instance, name=CUSTOM_CANTILEVER-1, part=CUSTOM_CANTILEVER
+*End Instance
+*End Assembly
+*Step, name=StaticStep, nlgeom=NO
+*Static
+1., 1., 1e-05, 1.
+*Output, field
+*Node Output
+U
+*End Step

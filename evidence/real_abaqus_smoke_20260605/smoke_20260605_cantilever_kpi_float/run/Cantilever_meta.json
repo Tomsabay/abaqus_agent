@@ -1,0 +1,10 @@
+{
+  "job_id": "5474e493",
+  "job_name": "Cantilever",
+  "workdir": "D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\run",
+  "inp_path": "D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\run\\Cantilever.inp",
+  "cpus": "1",
+  "mp_mode": "threads",
+  "cmd": "C:\\SIMULIA\\Commands\\abaqus.bat job=Cantilever input=D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\run\\Cantilever.inp cpus=1 mp_mode=threads memory=90% interactive",
+  "log_path": "D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\run\\Cantilever.log"
+}

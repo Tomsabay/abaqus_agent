@@ -12,8 +12,11 @@ import platform
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from capsule.schema import CAPSULE_SCHEMA_VERSION, validate_capsule
+
+MANIFEST_NAME = "capsule.json"
 
 
 def hash_file(path: str | Path) -> str:
@@ -26,13 +29,29 @@ def hash_file(path: str | Path) -> str:
 
 
 def create_capsule(
-    run_id: str,
+    run_id: str | Path,
     capsule_dir: str | Path,
-    inputs: dict | None = None,
-    artifacts: dict | None = None,
+    inputs: dict | list[str | Path] | None = None,
+    artifacts: dict | list[str | Path] | None = None,
     metadata: dict | None = None,
 ) -> dict:
-    """Create and persist a minimal capsule manifest."""
+    """Create and persist a capsule manifest.
+
+    Supports both the v0.2 kernel form:
+        create_capsule(run_id="...", capsule_dir=path, inputs={...}, artifacts={...})
+
+    and the evidence-bundle form:
+        create_capsule(root_dir, run_id, inputs=[paths], artifacts=[paths])
+    """
+    if not isinstance(inputs, dict) or not isinstance(artifacts, dict):
+        return _create_evidence_capsule(
+            root_dir=Path(run_id),
+            run_id=str(capsule_dir),
+            inputs=list(inputs or []),
+            artifacts=list(artifacts or []),
+            metadata=metadata or {},
+        )
+
     capsule_dir = Path(capsule_dir)
     capsule_dir.mkdir(parents=True, exist_ok=True)
 
@@ -94,7 +113,7 @@ def write_capsule(capsule: dict, capsule_dir: str | Path) -> Path:
     valid, errors = validate_capsule(capsule)
     if not valid:
         raise ValueError("; ".join(errors))
-    path = Path(capsule_dir) / "capsule.json"
+    path = Path(capsule_dir) / MANIFEST_NAME
     path.write_text(json.dumps(capsule, indent=2, ensure_ascii=False), encoding="utf-8")
     return path
 
@@ -103,9 +122,77 @@ def load_capsule(path: str | Path) -> dict:
     """Load a capsule from capsule.json or from its containing directory."""
     path = Path(path)
     if path.is_dir():
-        path = path / "capsule.json"
+        path = path / MANIFEST_NAME
     capsule = json.loads(path.read_text(encoding="utf-8"))
     valid, errors = validate_capsule(capsule)
     if not valid:
         raise ValueError("; ".join(errors))
     return capsule
+
+
+def _create_evidence_capsule(
+    *,
+    root_dir: Path,
+    run_id: str,
+    inputs: list[str | Path],
+    artifacts: list[str | Path],
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    if not run_id:
+        raise ValueError("run_id is required")
+
+    root_dir.mkdir(parents=True, exist_ok=True)
+    capsule_dir = root_dir / run_id
+    input_dir = capsule_dir / "inputs"
+    artifact_dir = capsule_dir / "artifacts"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    input_entries = _copy_manifest_files(inputs, input_dir, "inputs")
+    artifact_entries = _copy_manifest_files(artifacts, artifact_dir, "artifacts")
+    manifest: dict[str, Any] = {
+        "schema_version": 1,
+        "run_id": run_id,
+        "created_at": datetime.now().isoformat(),
+        "metadata": metadata,
+        "inputs": input_entries,
+        "artifacts": artifact_entries,
+    }
+    payload = json.dumps(manifest, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    manifest["capsule_hash"] = hashlib.sha256(payload).hexdigest()
+    (capsule_dir / MANIFEST_NAME).write_text(
+        json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return manifest
+
+
+def _copy_manifest_files(files: list[str | Path], dest_dir: Path, logical_dir: str) -> list[dict[str, Any]]:
+    used_names: dict[str, int] = {}
+    entries: list[dict[str, Any]] = []
+    for item in files:
+        src = Path(item)
+        if not src.exists():
+            raise FileNotFoundError(src)
+        dest_name = _unique_name(src.name, used_names)
+        dest = dest_dir / dest_name
+        shutil.copyfile(src, dest)
+        entries.append(
+            {
+                "name": src.name,
+                "path": f"{logical_dir}/{dest_name}",
+                "source": str(src),
+                "size_bytes": dest.stat().st_size,
+                "sha256": hash_file(dest),
+            }
+        )
+    return entries
+
+
+def _unique_name(name: str, used_names: dict[str, int]) -> str:
+    count = used_names.get(name, 0) + 1
+    used_names[name] = count
+    if count == 1:
+        return name
+    path = Path(name)
+    return f"{path.stem}-{count}{path.suffix}"

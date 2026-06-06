@@ -17,11 +17,34 @@ _OPERATORS = {
 }
 
 
-def evaluate_contracts(contracts: list[dict], kpis: dict) -> dict:
-    """Evaluate a list of deterministic contracts against KPI values."""
+def evaluate_contracts(arg1: list[dict] | dict, arg2: list[dict] | dict) -> dict:
+    """Evaluate deterministic contracts against KPI values.
+
+    The public API has used both argument orders in this repo. Accept both
+    evaluate_contracts(contracts, kpis) and evaluate_contracts(kpis, contracts)
+    so release evidence tooling can coexist with the v0.2 kernel path.
+    """
+    if isinstance(arg1, dict) and isinstance(arg2, list):
+        kpis = arg1
+        contracts = arg2
+    elif isinstance(arg1, list) and isinstance(arg2, dict):
+        contracts = arg1
+        kpis = arg2
+    else:
+        raise TypeError("evaluate_contracts expects (contracts, kpis) or (kpis, contracts)")
+
     results = [_evaluate_one(contract, kpis) for contract in contracts]
+    failed_count = sum(1 for r in results if r["status"] == "FAIL")
+    warning_count = sum(1 for r in results if r["status"] == "WARNING")
+    status = "FAIL" if failed_count else "WARNING" if warning_count else "PASS"
     return {
-        "passed": all(r["passed"] or not _is_blocking(r["severity"]) for r in results),
+        "status": status,
+        "passed": failed_count == 0,
+        "total": len(results),
+        "passed_count": sum(1 for r in results if r["passed"]),
+        "failed_count": failed_count,
+        "warning_count": warning_count,
+        "checks": results,
         "results": results,
     }
 
@@ -47,12 +70,17 @@ def _evaluate_one(contract: dict, kpis: dict) -> dict:
         else:
             passed, detail = False, f"Unsupported contract type: {kind}"
             expected = None
+        extra = {}
+        if kind == "relative_error":
+            extra["rel_error"] = _relative_error_value(actual, expected)
     except KeyError as e:
-        passed, detail = False, f"Missing KPI: {e.args[0]}"
+        passed, detail = False, f"missing KPI: {e.args[0]}"
         expected = None
+        extra = {}
     except (TypeError, ValueError) as e:
         passed, detail = False, f"Invalid contract value: {e}"
         expected = None
+        extra = {}
 
     status = _status(passed, severity)
     return {
@@ -65,6 +93,8 @@ def _evaluate_one(contract: dict, kpis: dict) -> dict:
         "actual": actual,
         "expected": expected,
         "detail": detail,
+        "message": detail,
+        **extra,
     }
 
 
@@ -97,22 +127,20 @@ def _check_range(contract: dict, kpis: dict) -> tuple[bool, str, dict]:
     minimum = contract.get("min")
     maximum = contract.get("max")
     if minimum is not None and value < float(minimum):
-        return False, f"{contract['kpi']}={value} < min {minimum}", {"min": minimum, "max": maximum}
+        return False, f"{contract['kpi']}={value} below min {minimum}", {"min": minimum, "max": maximum}
     if maximum is not None and value > float(maximum):
-        return False, f"{contract['kpi']}={value} > max {maximum}", {"min": minimum, "max": maximum}
+        return False, f"{contract['kpi']}={value} above max {maximum}", {"min": minimum, "max": maximum}
     return True, f"{contract['kpi']}={value} in range", {"min": minimum, "max": maximum}
 
 
 def _check_direction(contract: dict, kpis: dict) -> tuple[bool, str]:
     value = _require_kpi(contract, kpis)
-    op = contract.get("operator")
-    if op:
+    op = contract.get("operator") or contract.get("op")
+    if op in _OPERATORS:
         target = float(contract.get("value", 0.0))
-        if op not in _OPERATORS:
-            return False, f"Unsupported operator: {op}"
         return _OPERATORS[op](value, target), f"{contract['kpi']}={value}, expected {op} {target}"
 
-    direction = contract.get("direction", "negative")
+    direction = op or contract.get("direction", "negative")
     if direction == "negative":
         return value < 0, f"{contract['kpi']}={value}, expected negative"
     if direction == "positive":
@@ -125,7 +153,7 @@ def _check_direction(contract: dict, kpis: dict) -> tuple[bool, str]:
 
 def _check_relative_error(contract: dict, kpis: dict) -> tuple[bool, str, dict]:
     value = _require_kpi(contract, kpis)
-    expected = float(contract["expected"])
+    expected = float(contract.get("expected", contract.get("reference")))
     rtol = float(contract.get("rtol", 0.05))
     atol = float(contract.get("atol", 0.0))
     err = abs(value - expected)
@@ -155,9 +183,21 @@ def _check_order(contract: dict, kpis: dict) -> tuple[bool, str]:
 
 
 def _direction_expected(contract: dict) -> str:
-    if contract.get("operator"):
-        return f"{contract['operator']} {contract.get('value', 0.0)}"
-    return contract.get("direction", "negative")
+    op = contract.get("operator") or contract.get("op")
+    if op in _OPERATORS:
+        return f"{op} {contract.get('value', 0.0)}"
+    return op or contract.get("direction", "negative")
+
+
+def _relative_error_value(actual, expected):
+    if not isinstance(expected, dict) or actual is None:
+        return None
+    value = expected.get("value")
+    if value is None:
+        return None
+    if abs(float(value)) <= 1e-12:
+        return None
+    return abs(float(actual) - float(value)) / abs(float(value))
 
 
 def _normalize_severity(severity: str) -> str:

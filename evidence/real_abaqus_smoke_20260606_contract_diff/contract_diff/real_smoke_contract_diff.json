@@ -1,0 +1,184 @@
+{
+  "baseline_kpis": {
+    "MISES_MAX": 0.6,
+    "U_tip": -0.002
+  },
+  "candidate_kpis": {
+    "MISES_MAX": 1.0700273513793945,
+    "U_tip": -1.084326231648447e-05
+  },
+  "capsule": {
+    "artifact_count": 12,
+    "capsule_hash": "8d5735b0349c490628453666ae3ed22c7d16ec2df1d429bb0ac9ef6c6e277fe5",
+    "input_count": 5,
+    "manifest_path": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\contract_diff\\capsule\\cantilever-require-real-contract-diff\\capsule.json",
+    "run_id": "cantilever-require-real-contract-diff"
+  },
+  "case": "cantilever",
+  "contracts": {
+    "checks": [
+      {
+        "actual": -1.084326231648447e-05,
+        "contract": {
+          "kpi": "U_tip",
+          "name": "tip deflects downward",
+          "op": "<",
+          "type": "direction",
+          "value": 0.0
+        },
+        "message": "U_tip=-1.084326231648447e-05 satisfies < 0.0",
+        "name": "tip deflects downward",
+        "status": "PASS"
+      },
+      {
+        "abs_error": 0.0019891567376835156,
+        "actual": -1.084326231648447e-05,
+        "atol": 1e-06,
+        "contract": {
+          "atol": 1e-06,
+          "kpi": "U_tip",
+          "name": "tip deflection near reference",
+          "reference": -0.002,
+          "rtol": 0.1,
+          "type": "relative_error"
+        },
+        "message": "U_tip is outside tolerance",
+        "name": "tip deflection near reference",
+        "reference": -0.002,
+        "rel_error": 0.9945783688417578,
+        "rtol": 0.1,
+        "status": "FAIL"
+      },
+      {
+        "actual": 1.0700273513793945,
+        "contract": {
+          "kpi": "MISES_MAX",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "max stress plausible range",
+          "type": "range"
+        },
+        "message": "MISES_MAX=1.0700273513793945 is above max 1.0",
+        "name": "max stress plausible range",
+        "status": "FAIL"
+      },
+      {
+        "abs_error": 0.47002735137939455,
+        "actual": 1.0700273513793945,
+        "atol": 0.01,
+        "contract": {
+          "atol": 0.01,
+          "kpi": "MISES_MAX",
+          "name": "max stress near reference",
+          "reference": 0.6,
+          "rtol": 0.2,
+          "type": "relative_error"
+        },
+        "message": "MISES_MAX is outside tolerance",
+        "name": "max stress near reference",
+        "reference": 0.6,
+        "rel_error": 0.7833789189656576,
+        "rtol": 0.2,
+        "status": "FAIL"
+      }
+    ],
+    "failed_count": 3,
+    "passed": false,
+    "passed_count": 1,
+    "status": "FAIL",
+    "total": 4,
+    "warning_count": 0
+  },
+  "diff": {
+    "added_count": 0,
+    "changed_count": 2,
+    "kpis": [
+      {
+        "atol": 0.01,
+        "baseline": 0.6,
+        "candidate": 1.0700273513793945,
+        "delta": 0.47002735137939455,
+        "name": "MISES_MAX",
+        "rel_delta": 0.7833789189656576,
+        "rtol": 0.2,
+        "status": "FAIL",
+        "tolerance": "rtol=0.2, atol=0.01"
+      },
+      {
+        "atol": 1e-06,
+        "baseline": -0.002,
+        "candidate": -1.084326231648447e-05,
+        "delta": 0.0019891567376835156,
+        "name": "U_tip",
+        "rel_delta": 0.9945783688417578,
+        "rtol": 0.1,
+        "status": "FAIL",
+        "tolerance": "rtol=0.1, atol=1e-06"
+      }
+    ],
+    "passed": false,
+    "removed_count": 0,
+    "status": "FAIL",
+    "total": 2,
+    "unchanged_count": 0
+  },
+  "generated_at": "2026-06-06T02:28:45Z",
+  "html_path": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\contract_diff\\real_smoke_contract_diff.html",
+  "inputs": {
+    "contracts": "D:\\code\\abaqus_agent_release_gate_src\\examples\\contracts\\cantilever.yaml",
+    "expected": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\case\\expected.json",
+    "kpi_result": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\_kpi_result.json",
+    "odb": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.odb",
+    "smoke_evidence": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\smoke_evidence.json",
+    "spec": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\case\\spec.yaml"
+  },
+  "overall_status": "FAIL",
+  "project": "abaqus-agent",
+  "real_env_required": true,
+  "real_env_verified": true,
+  "report_path": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\contract_diff\\real_smoke_contract_diff.md",
+  "run_id": "cantilever-require-real-contract-diff",
+  "schema_version": "1.0",
+  "source_smoke": {
+    "kpi_errors": [],
+    "local_odb_path": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.odb",
+    "mode": "require-real",
+    "odb_path": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.odb",
+    "out_dir": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff",
+    "overall_status": "real-env-verified",
+    "real_env_verified": true,
+    "stages": [
+      {
+        "name": "environment_preflight",
+        "real_env_verified": true,
+        "status": "completed"
+      },
+      {
+        "name": "input_job_preparation",
+        "real_env_verified": true,
+        "status": "completed"
+      },
+      {
+        "name": "syntaxcheck",
+        "real_env_verified": true,
+        "status": "completed"
+      },
+      {
+        "name": "submit_job",
+        "real_env_verified": true,
+        "status": "completed"
+      },
+      {
+        "name": "monitor_status_collection",
+        "real_env_verified": true,
+        "status": "completed"
+      },
+      {
+        "name": "odb_kpi_adapter_probe",
+        "real_env_verified": true,
+        "status": "completed"
+      }
+    ]
+  },
+  "workflow": "real-smoke-contract-diff"
+}
