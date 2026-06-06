@@ -46,9 +46,6 @@ def build_model(spec_path: str | Path, workdir: str | Path | None = None) -> dic
 
     inp_path = workdir / f"{spec['meta']['model_name']}.inp"
 
-    if spec["geometry"]["type"] == "custom_inp":
-        return _build_custom_inp(spec, spec_path, workdir, inp_path, run_id)
-
     # Idempotency: if .inp already exists and is valid, skip re-generation
     if inp_path.exists() and inp_path.stat().st_size > 0:
         return {
@@ -58,6 +55,9 @@ def build_model(spec_path: str | Path, workdir: str | Path | None = None) -> dic
             "run_id": run_id,
             "cached": True,
         }
+
+    if spec["geometry"]["type"] == "custom_inp":
+        return _build_custom_inp(spec, spec_path, workdir, inp_path, run_id)
 
     # Generate the CAE noGUI script
     script_path = workdir / "build_model_script.py"
@@ -267,6 +267,7 @@ print('CAE_WRITTEN: ' + workdir + '/{inp_name}.cae')
 def _geo_cantilever(geo: dict, model_name: str, ana: dict = None) -> str:
     L, W, H = geo["L"], geo["W"], geo["H"]
     seed = geo.get("seed_size", min(L, W, H) / 4)
+    tip_tol = max(seed * 0.01, 1.0e-4)
     step_type = (ana or {}).get("step_type", "Static")
     solver = (ana or {}).get("solver", "standard")
     return f"""
@@ -289,16 +290,9 @@ p.Surface(name='FIXED_SURF', side1Faces=p.faces.getByBoundingBox(zMin=-0.01, zMa
     xMin=-0.01, xMax={W}+0.01, yMin=-0.01, yMax={H}+0.01))
 p.seedPart(size={seed}, deviationFactor=0.1, minSizeFactor=0.1)
 p.generateMesh()
-# TIP_NODES: pick single closest node to (L, W/2, H/2)
-tip_pt = ({W}/2.0, {H}/2.0, {L})
-def _node_dist2(n):
-    c = n.coordinates
-    return (c[0]-tip_pt[0])**2 + (c[1]-tip_pt[1])**2 + (c[2]-tip_pt[2])**2
-all_nodes = list(p.nodes)
-all_nodes.sort(key=_node_dist2)
-tip_node_label = all_nodes[0].label
-tip_seq = p.nodes.sequenceFromLabels((tip_node_label,))
-p.Set(name='TIP_NODES', nodes=tip_seq)
+p.Set(name='TIP_NODES', nodes=p.nodes.getByBoundingBox(xMin={W}/2-{tip_tol}, xMax={W}/2+{tip_tol},
+    yMin={H}/2-{tip_tol}, yMax={H}/2+{tip_tol},
+    zMin={L}-0.01, zMax={L}+0.01))
 # Use C3D8I (incompatible modes) — eliminates shear locking + hourglass for solid bending
 # Choose element type based on solver: C3D20R for Standard, C3D8R for Explicit
 import abaqusConstants as _C
@@ -428,8 +422,9 @@ p.generateMesh()
 
 def _step_static(bc: dict, model_name: str, out: dict) -> str:
     load_val = bc.get("value", -1.0)
+    load_type = str(bc.get("load_type", "pressure")).lower()
     fixed_face = bc.get("fixed_face", "x=0")
-    direction = bc.get("direction", None)  # 1=X, 2=Y, 3=Z; if set with pressure, use ConcentratedForce
+    direction = bc.get("direction", None)  # 1=X, 2=Y, 3=Z
     # BC: detect symmetry vs encastre
     if "symmetry" in fixed_face.lower():
         bc_code = (
@@ -446,9 +441,10 @@ def _step_static(bc: dict, model_name: str, out: dict) -> str:
             "    name='Fixed', createStepName='Initial',\n"
             "    region=a.instances['Part-1-1'].sets['FIXED_END'])"
         )
-    # Load: if direction is set, use ConcentratedForce on TIP_NODES; else Pressure on LOAD_SURF
-    if direction is not None:
+    # Load: explicit force requests use TIP_NODES; pressure stays on LOAD_SURF even if direction is present.
+    if load_type in {"concentrated_force", "force", "nodal_force"}:
         cf_kwargs = []
+        direction = int(direction or 2)
         for d in (1, 2, 3):
             cf_kwargs.append("cf{}={}".format(d, load_val if d == int(direction) else 0.0))
         load_code = (
@@ -462,7 +458,7 @@ def _step_static(bc: dict, model_name: str, out: dict) -> str:
             "mdb.models['" + model_name + "'].Pressure(\n"
             "    name='Load-1', createStepName='Step-1',\n"
             "    region=a.instances['Part-1-1'].surfaces['LOAD_SURF'],\n"
-            "    magnitude=" + str(load_val) + ", amplitude=UNSET,\n"
+            "    magnitude=" + str(abs(float(load_val))) + ", amplitude=UNSET,\n"
             "    distributionType=UNIFORM)"
         )
     return f"""
@@ -732,12 +728,16 @@ def _build_custom_inp(spec: dict, spec_path: Path, workdir: Path, inp_path: Path
     src = raw_src if raw_src.is_absolute() else spec_path.parent / raw_src
     src = src.resolve()
     if not src.exists():
-        raise AbaqusAgentError(ErrorCode.FILE_NOT_FOUND, f"custom_inp not found: {src}")
+        raise AbaqusAgentError(ErrorCode.FILE_NOT_FOUND, f"custom_inp source not found: {src}")
     if src.suffix.lower() != ".inp":
         raise AbaqusAgentError(ErrorCode.BUILD_FAILED, f"custom_inp must point to a .inp file: {src}")
 
     if src != inp_path.resolve():
         shutil.copyfile(src, inp_path)
+    (workdir / "build_model_script.py").write_text(
+        "# custom inp - no CAE script needed\n",
+        encoding="utf-8",
+    )
 
     return {
         "workdir": workdir,

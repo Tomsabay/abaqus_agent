@@ -26,6 +26,8 @@ from pathlib import Path
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent))
 
+from contracts.evaluator import evaluate_contracts
+from contracts.io import load_contracts
 from tools.schema_validator import validate_spec
 
 CASES_DIR    = Path(__file__).parent / "cases"
@@ -109,6 +111,17 @@ def run_case(case: dict, dry_run: bool = False) -> dict:
         result["stages"]     = orch_result["stages"]
         result["kpis"]       = orch_result.get("kpis", {})
         result["regression"] = orch_result.get("regression", {})
+        if result["kpis"] and case.get("expected"):
+            try:
+                contracts = load_contracts(case["expected"])
+                result["contracts"] = evaluate_contracts(result["kpis"], contracts)
+            except Exception as contract_error:
+                result["contracts"] = {
+                    "status": "ERROR",
+                    "passed": False,
+                    "checks": [],
+                    "error": str(contract_error),
+                }
         if "error" in orch_result:
             result["error"] = orch_result["error"]
 
@@ -177,6 +190,24 @@ def generate_report(results: list[dict]) -> str:
                 rel = f"{comp.get('rel_err', 0)*100:.1f}%" if comp.get("rel_err") is not None else "-"
                 st  = comp.get("status", "-")
                 lines.append(f"| {kpi} | {exp} | {act} | {rel} | {st} |")
+            lines.append("")
+
+    lines += ["## Physics Contracts", ""]
+    for r in results:
+        contracts = r.get("contracts", {})
+        checks = contracts.get("checks", []) if isinstance(contracts, dict) else []
+        if checks:
+            lines.append(f"### {r['case']}")
+            lines += [
+                f"Overall: {contracts.get('status', '-')}",
+                "",
+                "| Contract | Status | Message |",
+                "|----------|--------|---------|",
+            ]
+            for check in checks:
+                lines.append(
+                    f"| {check.get('name', '-')} | {check.get('status', '-')} | {check.get('message', '-')} |"
+                )
             lines.append("")
 
     lines += ["## Error Details", ""]

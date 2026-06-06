@@ -6,7 +6,7 @@ AbaqusOrchestrator: end-to-end pipeline controller.
 Pipeline stages:
   1. validate_spec    - schema + structural checks
   2. build_model      - CAE noGUI → .inp
-  3. syntaxcheck      - syntaxcheck (no license consumed)
+  3. syntaxcheck      - pre-solver syntaxcheck gate
   4. submit_job       - analysis execution
   5. monitor_job      - poll until completion
   6. extract_kpis     - ODB → KPI dict

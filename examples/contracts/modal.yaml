@@ -1,0 +1,17 @@
+contracts:
+  - name: rigid body mode near zero
+    type: relative_error
+    kpi: freq_1
+    reference: 0.0
+    atol: 1.0
+  - name: first flexible mode positive
+    type: direction
+    kpi: freq_2
+    op: ">"
+    value: 0.0
+  - name: modal frequencies ordered
+    type: order
+    kpis:
+      - freq_1
+      - freq_2
+    direction: increasing

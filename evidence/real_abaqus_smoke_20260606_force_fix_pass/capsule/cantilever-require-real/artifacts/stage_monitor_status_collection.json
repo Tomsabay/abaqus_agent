@@ -1,0 +1,15 @@
+{
+  "artifact_path": "D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\stage_monitor_status_collection.json",
+  "command": null,
+  "evidence": [
+    "function=runner.monitor_job.monitor_job",
+    "status=COMPLETED",
+    "odb_exists=True",
+    "sta_path=D:\\code\\abaqus_agent_force_fix_evidence\\smoke_20260606_force_fix_pass\\run\\Cantilever.sta"
+  ],
+  "missing_reason": null,
+  "name": "monitor_status_collection",
+  "real_env_required": true,
+  "real_env_verified": true,
+  "status": "completed"
+}

@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset='utf-8'><title>真实 Abaqus 验证报告</title><style>
+:root{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif;color:#172026;background:#f4f6f7}
+body{margin:0;padding:42px 54px;box-sizing:border-box}
+h1{font-size:34px;margin:0 0 14px}
+h2{font-size:22px;margin:0 0 14px}
+h3{font-size:15px;margin:18px 0 8px;color:#52605f}
+.status{font-size:40px;color:#0f766e;font-weight:760;margin:8px 0 18px}
+.sub{color:#52605f;line-height:1.55;margin:0 0 22px}
+.grid{display:grid;grid-template-columns:1.12fr .88fr;gap:22px}
+.card{background:white;border:1px solid #d8e0df;border-radius:8px;padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:8px;font-size:14px}
+.kv div{padding:8px 0;border-bottom:1px solid #e7eceb}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{border-bottom:1px solid #e4e9e8;text-align:left;vertical-align:top;padding:9px 8px}
+th{color:#52605f;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.pill{display:inline-block;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700;background:#d9f7e8;color:#096843}
+.pill.na{background:#edf1f2;color:#536061}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;background:#0f1720;color:#dbeafe;border-radius:8px;padding:16px;max-height:900px;overflow:hidden}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+ul{margin:0;padding-left:18px;line-height:1.6;font-size:13px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.note{font-size:13px;color:#52605f;line-height:1.6}
+</style></head><body>
+    <h1>真实 Abaqus 验证报告</h1>
+    <div class="status">验证通过：真实环境已跑通</div>
+    <p class="sub">这份中文报告只翻译展示层；原始 JSON、日志、ODB 文件保持不变，仍在同一证据目录内。</p>
+    <div class="grid">
+      <div class="card">
+        <h2>结论和环境</h2>
+        <div class="kv">
+          <div>Windows 主机</div><div><b>DESKTOP-PH97BKO</b>，通过 Tailscale SSH 连接</div>
+          <div>Abaqus 版本</div><div><b>Abaqus 2021</b>，命令 <code>C:\SIMULIA\Commands\abaqus.bat</code></div>
+          <div>验证用例</div><div>cantilever / require-real</div>
+          <div>总状态</div><div><b>real-env-verified</b></div>
+          <div>真实环境验证</div><div><b>是</b></div>
+          <div>退出码</div><div>0</div>
+          <div>证据胶囊哈希</div><div><code>275a4d234ce47266dea730bab025ba0bd6795841847f2a852451646bb284f4f5</code></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>从真实 ODB 读出的 KPI</h2>
+        <table><tr><th>指标</th><th>数值</th></tr><tr><td>U_tip</td><td>-1.08432623165e-05</td></tr><tr><td>MISES_MAX</td><td>1.07002735138</td></tr></table>
+        <h3>远端服务状态</h3>
+        <table><tr><th>服务</th><th>状态</th><th>启动方式</th></tr><tr><td>sshd</td><td>运行中</td><td>自动</td></tr><tr><td>Tailscale</td><td>运行中</td><td>自动</td></tr></table>
+      </div>
+    </div>
+    </body></html>

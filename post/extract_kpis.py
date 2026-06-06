@@ -20,6 +20,23 @@ try:
 except ImportError:
     Path = None  # Py2 (Abaqus runtime); use os.path instead
 
+NODE_SET_ALIASES = {
+    "fixed_face": "FIXED_END",
+    "load_face": "LOAD_END",
+    "tip": "TIP_NODES",
+    "tip_center": "TIP_NODES",
+    "top_face": "LOAD_END",
+}
+
+ELEMENT_SET_ALIASES = {
+    "fixed_face": "FIXED_END",
+    "hole_edge": "HOLE_EDGE",
+    "hole_edge_set": "HOLE_EDGE",
+    "load_face": "LOAD_END",
+    "top_face": "LOAD_END",
+    "whole_model": "ALL",
+}
+
 # ---------------------------------------------------------------------------
 # Outer-agent API (subprocess caller)
 # ---------------------------------------------------------------------------
@@ -60,7 +77,7 @@ def extract_kpis(odb_path, kpi_spec, workdir=None):
             cmd,
             cwd=str(workdir),
             capture_output=True,
-            text=True, errors='replace', encoding='utf-8',
+            text=True,
             timeout=300,
         )
     except FileNotFoundError:
@@ -242,8 +259,9 @@ def _extract_single_kpi(odb, kpi):
     elif kpi_type == "eigenfrequency":
         mode_str  = kpi.get("location", "mode_1")
         mode_n    = int(mode_str.split("_")[-1])
-        if mode_n < len(step.frames):
-            frq_frame = step.frames[mode_n]
+        mode_idx = max(mode_n - 1, 0)
+        if mode_idx < len(step.frames):
+            frq_frame = step.frames[mode_idx]
             return frq_frame.frequency
         raise IndexError("Mode {} not available (only {} modes)".format(mode_n, len(step.frames) - 1))
 
@@ -302,7 +320,12 @@ def _subset_field(odb, field, location, preferred):
 def _resolve_region(odb, location, preferred):
     if not location:
         return None
-    key = str(location).split(":", 1)[-1].upper()
+    raw_key = str(location).split(":", 1)[-1]
+    aliases = NODE_SET_ALIASES if preferred == "node" else ELEMENT_SET_ALIASES
+    keys = [raw_key.upper()]
+    alias = aliases.get(raw_key.lower())
+    if alias:
+        keys.append(alias.upper())
     assembly = odb.rootAssembly
     candidates = []
     if preferred == "node":
@@ -313,8 +336,9 @@ def _resolve_region(odb, location, preferred):
         candidates = [getattr(assembly, "elementSets", {}), getattr(assembly, "nodeSets", {})]
     candidates.append(getattr(assembly, "surfaces", {}))
     for mapping in candidates:
-        if key in mapping:
-            return mapping[key]
+        for key in keys:
+            if key in mapping:
+                return mapping[key]
     return None
 
 

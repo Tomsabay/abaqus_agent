@@ -1,0 +1,17 @@
+contracts:
+  - name: impact reaction force positive
+    type: direction
+    kpi: RF_Z_MAX
+    op: ">"
+    value: 0.0
+  - name: z displacement downward
+    type: direction
+    kpi: U_Z_MIN
+    op: "<"
+    value: 0.0
+  - name: z displacement near reference
+    type: relative_error
+    kpi: U_Z_MIN
+    reference: -2.0
+    rtol: 0.05
+    atol: 0.1

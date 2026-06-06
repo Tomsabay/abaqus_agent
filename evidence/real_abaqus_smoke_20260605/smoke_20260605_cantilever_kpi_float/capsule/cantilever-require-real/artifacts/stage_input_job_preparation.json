@@ -1,0 +1,19 @@
+{
+  "artifact_path": "D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\stage_input_job_preparation.json",
+  "command": [
+    "build_model",
+    "D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\case\\spec.yaml",
+    "D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\run"
+  ],
+  "evidence": [
+    "function=runner.build_model.build_model",
+    "run_id=6ad82dcf3a6fa88c",
+    "cached=False",
+    "inp_path=D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\run\\Cantilever.inp"
+  ],
+  "missing_reason": null,
+  "name": "input_job_preparation",
+  "real_env_required": true,
+  "real_env_verified": true,
+  "status": "completed"
+}

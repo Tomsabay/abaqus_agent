@@ -1,0 +1,23 @@
+contracts:
+  - name: tip deflects downward
+    type: direction
+    kpi: U_tip
+    op: "<"
+    value: 0.0
+  - name: tip deflection near reference
+    type: relative_error
+    kpi: U_tip
+    reference: -0.002
+    rtol: 0.1
+    atol: 0.000001
+  - name: max stress plausible range
+    type: range
+    kpi: MISES_MAX
+    min: 0.0
+    max: 1.0
+  - name: max stress near reference
+    type: relative_error
+    kpi: MISES_MAX
+    reference: 0.6
+    rtol: 0.2
+    atol: 0.01

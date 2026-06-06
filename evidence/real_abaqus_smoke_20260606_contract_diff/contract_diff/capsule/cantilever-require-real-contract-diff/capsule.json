@@ -1,0 +1,141 @@
+{
+  "artifacts": [
+    {
+      "name": "real_smoke_contract_diff.json",
+      "path": "artifacts\\real_smoke_contract_diff.json",
+      "sha256": "ce5a08f3abef9307cec830ab2cd2bca87898adaf1d379751c9289bbb71cbab00",
+      "size_bytes": 5671,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\contract_diff\\real_smoke_contract_diff.json"
+    },
+    {
+      "name": "real_smoke_contract_diff.md",
+      "path": "artifacts\\real_smoke_contract_diff.md",
+      "sha256": "5696d450357d387fce18cb89087ef91cb18a7b97131396ea7510acb339b6b374",
+      "size_bytes": 2603,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\contract_diff\\real_smoke_contract_diff.md"
+    },
+    {
+      "name": "real_smoke_contract_diff.html",
+      "path": "artifacts\\real_smoke_contract_diff.html",
+      "sha256": "295f315d849c8331eb19c10220b6073d4fd9017f0050ea65633c165601d41cb4",
+      "size_bytes": 4567,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\contract_diff\\real_smoke_contract_diff.html"
+    },
+    {
+      "name": "stage_syntaxcheck.json",
+      "path": "artifacts\\stage_syntaxcheck.json",
+      "sha256": "b57c9402cda8e48ed748a49b60a0392fbeebb43915cc60aa7e676b7bd6d9a3af",
+      "size_bytes": 721,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\stage_syntaxcheck.json"
+    },
+    {
+      "name": "stage_submit_job.json",
+      "path": "artifacts\\stage_submit_job.json",
+      "sha256": "3d49366261baf7bc021bd9f6eca77800f28dc231c8319d7f2d03e6cd76c6cdb0",
+      "size_bytes": 770,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\stage_submit_job.json"
+    },
+    {
+      "name": "stage_monitor_status_collection.json",
+      "path": "artifacts\\stage_monitor_status_collection.json",
+      "sha256": "c1a83450e8bdf41cb756bd6519f4a8e3cdd94eebd31764cf209db62a06e12cc5",
+      "size_bytes": 544,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\stage_monitor_status_collection.json"
+    },
+    {
+      "name": "stage_odb_kpi_adapter_probe.json",
+      "path": "artifacts\\stage_odb_kpi_adapter_probe.json",
+      "sha256": "215d8642fa597e495ad03fa8b2e4dd0d57e438d93205b1635f9098d2b490a4fa",
+      "size_bytes": 716,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\stage_odb_kpi_adapter_probe.json"
+    },
+    {
+      "name": "_kpi_spec.json",
+      "path": "artifacts\\_kpi_spec.json",
+      "sha256": "a439b65d4bc8e71dde545da8b0b193cd32dc84ee889e50d6e8e84926be55dfb3",
+      "size_bytes": 165,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\_kpi_spec.json"
+    },
+    {
+      "name": "Cantilever.log",
+      "path": "artifacts\\Cantilever.log",
+      "sha256": "c0b7e9b2a2f74415d3e4bc5be17cecdc247842d09f17f1f0a66975246ccb589a",
+      "size_bytes": 657,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.log"
+    },
+    {
+      "name": "Cantilever.sta",
+      "path": "artifacts\\Cantilever.sta",
+      "sha256": "8ca1c499d36bc170e537f27d4c76b07284c524c362a7e227b3848d57fd71789d",
+      "size_bytes": 783,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.sta"
+    },
+    {
+      "name": "Cantilever.dat",
+      "path": "artifacts\\Cantilever.dat",
+      "sha256": "c30065018cbe9db1e7ef82b2cb5525d48601b2803c478c6c9f5109e6eb5e9dec",
+      "size_bytes": 9942,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.dat"
+    },
+    {
+      "name": "Cantilever.odb",
+      "path": "artifacts\\Cantilever.odb",
+      "sha256": "bdce24ff3a8a10ebc4deca570f7e36132d6a0465231e5a38abf7958286af127f",
+      "size_bytes": 331932,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\Cantilever.odb"
+    }
+  ],
+  "capsule_hash": "8d5735b0349c490628453666ae3ed22c7d16ec2df1d429bb0ac9ef6c6e277fe5",
+  "created_at": "2026-06-06T02:28:45.068035+00:00",
+  "inputs": [
+    {
+      "name": "smoke_evidence.json",
+      "path": "inputs\\smoke_evidence.json",
+      "sha256": "5cb4c436740ac682d4e71b59df1a3a2c8e34948e2ba091daf93ea7edc5aa394a",
+      "size_bytes": 9804,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\smoke_evidence.json"
+    },
+    {
+      "name": "_kpi_result.json",
+      "path": "inputs\\_kpi_result.json",
+      "sha256": "7f67c1a51cc3bbc6944005b9e4cf46e1f6ea85ae606cbef304845f44f2612a97",
+      "size_bytes": 231,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\run\\_kpi_result.json"
+    },
+    {
+      "name": "expected.json",
+      "path": "inputs\\expected.json",
+      "sha256": "368cc422a59e181711d1bb88fdf194e8196d38c56317e0fa17128ca0e0182f27",
+      "size_bytes": 316,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\case\\expected.json"
+    },
+    {
+      "name": "cantilever.yaml",
+      "path": "inputs\\cantilever.yaml",
+      "sha256": "eb2ab9b520508a17170dcaf1918f3355dc07291fac2c3d70c43a3bd5f81e7f71",
+      "size_bytes": 466,
+      "source": "D:\\code\\abaqus_agent_release_gate_src\\examples\\contracts\\cantilever.yaml"
+    },
+    {
+      "name": "spec.yaml",
+      "path": "inputs\\spec.yaml",
+      "sha256": "76094ccb39a84f3d7bea07009ce319db227489a49b9c477c2ddbe1c4e7161535",
+      "size_bytes": 687,
+      "source": "D:\\code\\abaqus_agent_release_gate_evidence\\smoke_20260606_contract_diff\\case\\spec.yaml"
+    }
+  ],
+  "metadata": {
+    "case": "cantilever",
+    "evidence_level": "real",
+    "evidence_source": "real-abaqus-smoke",
+    "metadata_schema_version": "1.0",
+    "overall_status": "FAIL",
+    "project": "abaqus-agent",
+    "real_env_required": true,
+    "real_env_verified": true,
+    "source_smoke_status": "real-env-verified",
+    "workflow": "real-smoke-contract-diff"
+  },
+  "run_id": "cantilever-require-real-contract-diff",
+  "schema_version": 1
+}

@@ -120,9 +120,14 @@ def _parse_sta(text: str) -> tuple[str, int, float, float]:
             last_time = float(m.group(5))
 
     # Determine status
-    if "ANALYSIS COMPLETE" in text.upper() or "JOB COMPLETED" in text.upper():
+    upper = text.upper()
+    if (
+        "ANALYSIS COMPLETE" in upper
+        or "ANALYSIS HAS COMPLETED SUCCESSFULLY" in upper
+        or "JOB COMPLETED" in upper
+    ):
         return JobStatus.COMPLETED, last_inc, last_time, 100.0
-    if any(x in text.upper() for x in ["ERROR", "ABORTED", "TERMINATED"]):
+    if any(x in upper for x in ["ERROR", "ABORTED", "TERMINATED"]):
         return JobStatus.FAILED, last_inc, last_time, progress
     if last_inc > 0:
         return JobStatus.RUNNING, last_inc, last_time, progress

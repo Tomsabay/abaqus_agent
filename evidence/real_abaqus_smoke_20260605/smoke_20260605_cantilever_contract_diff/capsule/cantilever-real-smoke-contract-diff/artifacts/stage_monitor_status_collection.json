@@ -1,0 +1,15 @@
+{
+  "artifact_path": "D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\stage_monitor_status_collection.json",
+  "command": null,
+  "evidence": [
+    "function=runner.monitor_job.monitor_job",
+    "status=COMPLETED",
+    "odb_exists=True",
+    "sta_path=D:\\code\\abaqus_agent_real_evidence\\smoke_20260605_cantilever_kpi_float\\run\\Cantilever.sta"
+  ],
+  "missing_reason": null,
+  "name": "monitor_status_collection",
+  "real_env_required": true,
+  "real_env_verified": true,
+  "status": "completed"
+}

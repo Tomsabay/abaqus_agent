@@ -1,0 +1,17 @@
+contracts:
+  - name: hole stress concentration plausible range
+    type: range
+    kpi: MISES_HOLE_EDGE
+    min: 250.0
+    max: 350.0
+  - name: x displacement positive under tension
+    type: direction
+    kpi: U_X_MAX
+    op: ">"
+    value: 0.0
+  - name: x displacement near reference
+    type: relative_error
+    kpi: U_X_MAX
+    reference: 0.048
+    rtol: 0.1
+    atol: 0.005
