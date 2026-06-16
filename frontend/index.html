@@ -1502,6 +1502,286 @@ body::after {
   width: 100%;
   height: 160px;
 }
+
+/* ── CAE Copilot panel ─────────────────────────────────────────── */
+.copilot-workspace {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+  background:
+    linear-gradient(90deg, rgba(255,107,43,0.08), transparent 30%),
+    radial-gradient(circle at 80% 12%, rgba(77,142,255,0.12), transparent 28%),
+    var(--bg);
+}
+
+.copilot-left,
+.copilot-right {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.copilot-left {
+  border-right: 1px solid var(--border);
+  background: rgba(15,15,24,0.72);
+}
+
+.copilot-kicker {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.copilot-headline {
+  margin-top: 10px;
+  font-size: 32px;
+  line-height: 1.08;
+  font-weight: 600;
+  max-width: 460px;
+}
+
+.copilot-subline {
+  margin-top: 12px;
+  color: var(--text2);
+  font-size: 13px;
+  max-width: 460px;
+}
+
+.copilot-chat {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.copilot-message {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(20,20,32,0.84);
+}
+
+.copilot-message.user {
+  border-color: rgba(255,107,43,0.55);
+  background: rgba(255,107,43,0.08);
+}
+
+.copilot-message.assistant {
+  border-color: rgba(77,142,255,0.45);
+}
+
+.copilot-message-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.copilot-input {
+  min-height: 120px;
+  width: 100%;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  background: #0B0B12;
+  color: var(--text);
+  padding: 12px;
+  resize: vertical;
+  outline: none;
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+.copilot-input:focus { border-color: var(--accent); }
+
+.copilot-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.copilot-select {
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 7px 9px;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.copilot-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.copilot-status {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(15,15,24,0.76);
+  padding: 12px;
+}
+
+.copilot-status-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.copilot-status-value {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--green);
+  overflow-wrap: anywhere;
+}
+
+.copilot-plan {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.copilot-action {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(20,20,32,0.9);
+  padding: 14px;
+}
+
+.copilot-action-top {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.copilot-action-index {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  flex: 0 0 auto;
+}
+
+.copilot-action-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.copilot-action-detail {
+  margin-top: 4px;
+  color: var(--text2);
+  font-size: 12px;
+}
+
+.copilot-code {
+  margin-top: 10px;
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #A8D8A8;
+  background: #07070B;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.copilot-result {
+  margin-top: 16px;
+  border: 1px solid rgba(61,204,126,0.35);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(61,204,126,0.07);
+  color: var(--text2);
+}
+
+.copilot-guide {
+  margin-top: 12px;
+  border: 1px solid rgba(77,142,255,0.3);
+  border-radius: 8px;
+  background: rgba(77,142,255,0.06);
+  padding: 14px;
+}
+
+.copilot-guide-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.copilot-guide-steps {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.copilot-guide-step {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  color: var(--text2);
+  font-size: 12px;
+}
+
+.copilot-guide-step-index {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(77,142,255,0.22);
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.copilot-guide-code {
+  margin-top: 4px;
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .copilot-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+  .copilot-left,
+  .copilot-right {
+    overflow: visible;
+  }
+  .copilot-left {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .copilot-status-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 </style>
 </head>
 <body>
@@ -1515,7 +1795,7 @@ body::after {
       ABAQUS-AGENT
     </div>
     <span style="color:var(--border2);font-size:16px;margin:0 4px">|</span>
-    <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">v0.1.0-mvp</span>
+    <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">CAE Copilot MVP</span>
     <div class="topbar-spacer"></div>
     <div class="status-dot"></div>
     <span class="topbar-info">ABAQUS 2024 · Python 3.10.5</span>
@@ -1525,8 +1805,13 @@ body::after {
 
   <!-- ── Sidebar ────────────────────────────────────────────── -->
   <nav class="sidebar">
-    <div class="nav-section">分析</div>
-    <div class="nav-item active" data-panel="prompt">
+    <div class="nav-section">Copilot</div>
+    <div class="nav-item active" data-panel="copilot">
+      <span class="nav-icon">▣</span> CAE Copilot
+    </div>
+
+    <div class="nav-section">高级</div>
+    <div class="nav-item" data-panel="prompt">
       <span class="nav-icon">⌘</span> 输入需求
     </div>
     <div class="nav-item" data-panel="spec">
@@ -1574,10 +1859,108 @@ body::after {
   <!-- ── Main ───────────────────────────────────────────────── -->
   <main class="main">
 
-    <!-- ── Panel: Prompt ───────────────────────────────────── -->
-    <section class="panel active" id="panel-prompt">
+    <!-- ── Panel: Copilot ──────────────────────────────────── -->
+    <section class="panel active" id="panel-copilot">
       <div class="panel-header">
-        <div class="panel-title"><span>01</span>自然语言输入 → Problem Spec</div>
+        <div class="panel-title"><span>01</span>Abaqus/CAE Copilot</div>
+      </div>
+      <div class="copilot-workspace">
+        <div class="copilot-left">
+          <div class="copilot-kicker">Cursor for Abaqus/CAE</div>
+          <div class="copilot-headline">像问师兄一样，让 AI 在 Abaqus 里建模、改错、准备运行。</div>
+          <div class="copilot-subline">
+            先把自然语言变成可审核动作；你确认后再交给 Abaqus 插件桥执行。模型能力走本机 Codex app-server，不消耗 DeepSeek API。
+          </div>
+
+          <div class="copilot-chat" id="copilot-chat">
+            <div class="copilot-message assistant">
+              <div class="copilot-message-label">AbaqusAgent</div>
+              <div>告诉我你想建什么模型、边界条件和想看的结果。我会先列出操作计划，再等你确认执行。</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px">
+            <textarea class="copilot-input" id="copilot-input"
+              placeholder="例：帮我建一个 200mm 长、20mm 高的悬臂梁，左端固定，右端向下 100N，跑完告诉我最大位移怎么看。"></textarea>
+            <div class="copilot-toolbar">
+              <select id="copilot-backend" class="copilot-select">
+                <option value="codex">Codex 本机认证</option>
+                <option value="codex_strict">Codex 严格模式</option>
+                <option value="template">模板演示</option>
+              </select>
+              <button class="btn btn-primary" id="btn-copilot-plan">生成操作计划</button>
+              <button class="btn btn-secondary" id="btn-copilot-demo">填入示例</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="copilot-right">
+          <div class="copilot-status-grid">
+            <div class="copilot-status">
+              <div class="copilot-status-label">模型后端</div>
+              <div class="copilot-status-value" id="copilot-status-codex">检测中</div>
+            </div>
+            <div class="copilot-status">
+              <div class="copilot-status-label">Abaqus 会话</div>
+              <div class="copilot-status-value" id="copilot-status-abaqus">检测中</div>
+            </div>
+            <div class="copilot-status">
+              <div class="copilot-status-label">执行模式</div>
+              <div class="copilot-status-value" id="copilot-status-bridge">本地桥</div>
+            </div>
+          </div>
+
+          <div class="copilot-guide" id="copilot-release-gate">
+            <div class="copilot-guide-title">Alpha Gate</div>
+            <div class="copilot-action-detail">正在读取真实 Abaqus / 插件证据...</div>
+          </div>
+
+          <div class="copilot-guide" id="copilot-plugin-guide">
+            <div class="copilot-guide-title">CAE 内执行路径</div>
+            <div class="copilot-guide-steps">
+              <div class="copilot-guide-step">
+                <div class="copilot-guide-step-index">1</div>
+                <div>安装 AbaqusAgent Copilot 插件。<code class="copilot-guide-code">abaqus-agent-copilot-install-plugin --plugin-dir &lt;ABAQUS_PLUGIN_DIR&gt;</code></div>
+              </div>
+              <div class="copilot-guide-step">
+                <div class="copilot-guide-step-index">2</div>
+                <div>在 Abaqus/CAE 菜单打开 sidecar：<code class="copilot-guide-code">AbaqusAgent Copilot: Open Sidecar</code></div>
+              </div>
+              <div class="copilot-guide-step">
+                <div class="copilot-guide-step-index">3</div>
+                <div>生成计划后，在 CAE 里一键运行当前计划。<code class="copilot-guide-code">AbaqusAgent Copilot: Run Current Plan</code></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="copilot-plan" id="copilot-plan">
+            <div class="copilot-action">
+              <div class="copilot-action-top">
+                <div class="copilot-action-index">1</div>
+                <div>
+                  <div class="copilot-action-title">等待你的 Abaqus 需求</div>
+                  <div class="copilot-action-detail">计划会显示为可审核的 Abaqus/CAE 动作卡片。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="copilot-toolbar">
+            <button class="btn btn-primary" id="btn-copilot-execute" disabled>执行 / 生成脚本</button>
+            <button class="btn btn-secondary" id="btn-copilot-refresh" disabled>刷新插件状态</button>
+            <button class="btn btn-secondary" id="btn-copilot-package">下载 Alpha 包</button>
+            <button class="btn btn-secondary" id="btn-copilot-copy" disabled>复制计划</button>
+          </div>
+
+          <div class="copilot-result" id="copilot-result" style="display:none"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Panel: Prompt ───────────────────────────────────── -->
+    <section class="panel" id="panel-prompt">
+      <div class="panel-header">
+        <div class="panel-title"><span>02</span>自然语言输入 → Problem Spec</div>
       </div>
       <div class="prompt-area">
 
@@ -2318,6 +2701,11 @@ const state = {
   serverOnline: false,
   es: null,  // EventSource
   history: JSON.parse(localStorage.getItem('abaqus_agent_history') || '[]'),
+  copilotPlan: null,
+  copilotStatus: null,
+  copilotGuide: null,
+  copilotReleaseGate: null,
+  copilotPackageVerify: null,
 };
 let caseMemoryFilenameSuggestions = {};
 
@@ -2379,6 +2767,315 @@ let doctorPatternDetails = {};
 function prettyJson(value) {
   return JSON.stringify(value, null, 2);
 }
+
+function copilotAppendMessage(role, text) {
+  const chat = document.getElementById('copilot-chat');
+  if (!chat) return;
+  const box = document.createElement('div');
+  box.className = `copilot-message ${role}`;
+  box.innerHTML = `
+    <div class="copilot-message-label">${role === 'user' ? '你' : 'AbaqusAgent'}</div>
+    <div>${escapeHtml(text)}</div>
+  `;
+  chat.appendChild(box);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function loadCopilotStatus() {
+  if (!state.serverOnline) return;
+  try {
+    const res = await fetch(`${API}/api/copilot/status`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    state.copilotStatus = data;
+    document.getElementById('copilot-status-codex').textContent =
+      data.auth_mode === 'local_codex_app_server' ? 'Codex 本机认证' : data.codex_app_server;
+    document.getElementById('copilot-status-abaqus').textContent =
+      data.abaqus_available ? '真实 Abaqus 可用' : '未检测到，使用模拟桥';
+    document.getElementById('copilot-status-bridge').textContent =
+      data.abaqus_available ? '插件桥待连接' : 'Mock 本地执行';
+  } catch {
+    document.getElementById('copilot-status-codex').textContent = '后端离线';
+    document.getElementById('copilot-status-abaqus').textContent = '未知';
+  }
+}
+
+async function loadCopilotPluginGuide() {
+  if (!state.serverOnline) return;
+  try {
+    const res = await fetch(`${API}/api/copilot/plugin-guide`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    state.copilotGuide = data;
+    renderCopilotPluginGuide(data);
+  } catch {
+    const guide = document.getElementById('copilot-plugin-guide');
+    if (guide) {
+      guide.innerHTML = `
+        <div class="copilot-guide-title">CAE 内执行路径</div>
+        <div class="copilot-action-detail">后端离线，启动 FastAPI 后会显示插件安装和菜单动作。</div>
+      `;
+    }
+  }
+}
+
+async function loadCopilotReleaseGate() {
+  if (!state.serverOnline) return;
+  try {
+    const res = await fetch(`${API}/api/copilot/release-gate`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    state.copilotReleaseGate = data;
+    renderCopilotReleaseGate(data);
+    loadCopilotPackageVerify();
+  } catch {
+    const gate = document.getElementById('copilot-release-gate');
+    if (gate) {
+      gate.innerHTML = `
+        <div class="copilot-guide-title">Alpha Gate</div>
+        <div class="copilot-action-detail">证据门禁暂不可用。</div>
+      `;
+    }
+  }
+}
+
+async function loadCopilotPackageVerify() {
+  if (!state.serverOnline) return;
+  try {
+    const res = await fetch(`${API}/api/copilot/alpha-package/verify`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    state.copilotPackageVerify = data;
+    renderCopilotReleaseGate(state.copilotReleaseGate, data);
+  } catch {
+    state.copilotPackageVerify = {
+      verification: { overall_status: 'FAIL', error: '包自检暂不可用' },
+    };
+    renderCopilotReleaseGate(state.copilotReleaseGate, state.copilotPackageVerify);
+  }
+}
+
+function renderCopilotReleaseGate(data, packageVerify = state.copilotPackageVerify) {
+  const gate = document.getElementById('copilot-release-gate');
+  if (!gate) return;
+  if (!data) return;
+  const checks = data.checks || [];
+  const passed = checks.filter((item) => item.status === 'PASS').length;
+  const blocked = checks.filter((item) => item.status === 'BLOCKED').length;
+  const failed = checks.filter((item) => item.status === 'FAIL').length;
+  const gui = checks.find((item) => item.id === 'interactive_cae_gui_visual');
+  const statusText = data.overall_status || 'UNKNOWN';
+  const statusColor = statusText === 'RELEASE_READY'
+    ? 'var(--green)'
+    : statusText === 'ALPHA_READY_WITH_GUI_BLOCKER'
+      ? 'var(--yellow)'
+      : 'var(--red)';
+  const packageStatus = packageVerify?.verification?.overall_status || 'CHECKING';
+  const packageColor = packageStatus === 'PASS' ? 'var(--green)' : packageStatus === 'CHECKING' ? 'var(--yellow)' : 'var(--red)';
+  gate.innerHTML = `
+    <div class="copilot-guide-title">Alpha Gate</div>
+    <div style="margin-top:8px;color:${statusColor};font-family:var(--mono);font-size:12px">${escapeHtml(statusText)}</div>
+    <div class="copilot-action-detail" style="margin-top:6px">核心证据：${passed} PASS，${blocked} BLOCKED，${failed} FAIL。</div>
+    <div class="copilot-action-detail" style="margin-top:6px">Alpha 包自检：<span style="color:${packageColor};font-family:var(--mono)">${escapeHtml(packageStatus)}</span></div>
+    ${gui ? `<div class="copilot-action-detail" style="margin-top:6px">GUI 视觉证据：${escapeHtml(gui.status)} · ${escapeHtml(gui.evidence?.blocker || '')}</div>` : ''}
+    <div style="margin-top:10px"><a href="${API}/api/copilot/alpha-package.zip" style="color:var(--blue);font-family:var(--mono);font-size:11px">下载插件和证据包</a></div>
+  `;
+}
+
+function renderCopilotPluginGuide(data, sessionId = '') {
+  const guide = document.getElementById('copilot-plugin-guide');
+  if (!guide) return;
+  guide.innerHTML = `
+    <div class="copilot-guide-title">CAE 内执行路径</div>
+    <div class="copilot-guide-steps">
+      <div class="copilot-guide-step">
+        <div class="copilot-guide-step-index">1</div>
+        <div>安装插件到 Abaqus/CAE 插件目录。<code class="copilot-guide-code">${escapeHtml(data.install_command)}</code></div>
+      </div>
+      <div class="copilot-guide-step">
+        <div class="copilot-guide-step-index">2</div>
+        <div>如果 Abaqus 在另一台机器，设置 <code>ABAQUS_AGENT_SERVER_URL</code>。<code class="copilot-guide-code">${escapeHtml(data.remote_server_env)}</code></div>
+      </div>
+      <div class="copilot-guide-step">
+        <div class="copilot-guide-step-index">3</div>
+        <div>打开 Abaqus 菜单：<code class="copilot-guide-code">${escapeHtml(data.open_sidecar_action)}</code></div>
+      </div>
+      <div class="copilot-guide-step">
+        <div class="copilot-guide-step-index">4</div>
+        <div>生成计划后让 CAE 一键执行完整队列。<code class="copilot-guide-code">${escapeHtml(data.run_plan_action || data.execute_next_action)}</code>${sessionId ? `<code class="copilot-guide-code">当前 Session: ${escapeHtml(sessionId)}</code>` : ''}</div>
+      </div>
+      <div class="copilot-guide-step">
+        <div class="copilot-guide-step-index">5</div>
+        <div>需要观察每一步时再用单步/状态菜单。<code class="copilot-guide-code">${escapeHtml(data.execute_next_action)}</code><code class="copilot-guide-code">${escapeHtml(data.status_action || 'AbaqusAgent Copilot: Check Session Status')}</code></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCopilotPlan(plan) {
+  const planEl = document.getElementById('copilot-plan');
+  const actions = plan.actions || [];
+  planEl.innerHTML = actions.map((action, index) => `
+    <div class="copilot-action">
+      <div class="copilot-action-top">
+        <div class="copilot-action-index">${index + 1}</div>
+        <div>
+          <div class="copilot-action-title">${escapeHtml(action.title || action.action)}</div>
+          <div class="copilot-action-detail">${escapeHtml(action.rationale || '')}</div>
+        </div>
+      </div>
+      <div class="copilot-code">${escapeHtml(action.abaqus_python || JSON.stringify(action.params || {}, null, 2))}</div>
+    </div>
+  `).join('');
+  if (plan.safety_notes?.length) {
+    planEl.innerHTML += `
+      <div class="copilot-action">
+        <div class="copilot-action-title">执行前确认</div>
+        <div class="copilot-action-detail">${plan.safety_notes.map(escapeHtml).join('<br>')}</div>
+      </div>
+    `;
+  }
+  document.getElementById('btn-copilot-execute').disabled = !actions.length;
+  document.getElementById('btn-copilot-refresh').disabled = !actions.length;
+  document.getElementById('btn-copilot-copy').disabled = false;
+}
+
+async function activateCopilotSession(sessionId) {
+  const res = await fetch(`${API}/api/copilot/sessions/${encodeURIComponent(sessionId)}/activate`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
+
+async function loadCopilotSession(sessionId) {
+  const res = await fetch(`${API}/api/copilot/sessions/${encodeURIComponent(sessionId)}`);
+  if (!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
+
+function renderCopilotSessionStatus(data) {
+  const result = document.getElementById('copilot-result');
+  result.style.display = 'block';
+  const resultLines = (data.results || []).map((item) => `
+    <div style="margin-top:6px">
+      <code>#${item.action_index + 1}</code>
+      ${escapeHtml(item.status || '')}
+      ${item.message ? `· ${escapeHtml(item.message)}` : ''}
+    </div>
+  `).join('');
+  result.innerHTML = `
+    <div class="copilot-action-title">插件执行状态</div>
+    <div style="margin-top:8px">Session：<code>${escapeHtml(data.session_id)}</code></div>
+    <div style="margin-top:6px">动作：${data.completed_count}/${data.action_count} completed，${data.pending_count} pending</div>
+    ${resultLines || '<div style="margin-top:6px">还没有插件回写结果。</div>'}
+  `;
+}
+
+document.getElementById('btn-copilot-demo').addEventListener('click', () => {
+  document.getElementById('copilot-input').value =
+    '帮我建一个 200mm 长、20mm 高、20mm 宽的悬臂梁，材料钢，左端固定，右端向下 100N，准备运行后告诉我最大位移和最大 Mises 应力怎么看。';
+});
+
+document.getElementById('btn-copilot-plan').addEventListener('click', async () => {
+  const text = document.getElementById('copilot-input').value.trim();
+  if (!text) { toast('请先输入 Abaqus 需求', 'error'); return; }
+  if (!state.serverOnline) { toast('后端离线，先启动 FastAPI 服务', 'error'); return; }
+  const btn = document.getElementById('btn-copilot-plan');
+  btn.disabled = true;
+  btn.textContent = '规划中...';
+  copilotAppendMessage('user', text);
+  try {
+    const res = await fetch(`${API}/api/copilot/plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        backend: document.getElementById('copilot-backend').value,
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    state.copilotPlan = data;
+    copilotAppendMessage('assistant', `${data.assistant_message}（后端：${data.backend}）`);
+    renderCopilotPlan(data);
+    try {
+      const activated = await activateCopilotSession(data.session_id);
+      if (state.copilotGuide) renderCopilotPluginGuide(state.copilotGuide, activated.session_id);
+      document.getElementById('copilot-result').style.display = 'block';
+      document.getElementById('copilot-result').innerHTML = `
+        <div class="copilot-action-title">插件已指向当前会话</div>
+        <div style="margin-top:8px">Session：<code>${escapeHtml(activated.session_id)}</code></div>
+        <div style="margin-top:6px">本机文件：<code>${escapeHtml(activated.session_file)}</code></div>
+        <div style="margin-top:6px">在 Abaqus/CAE 菜单点击：${escapeHtml(activated.plugin_action)}</div>
+        <div style="margin-top:6px">调试单步：${escapeHtml(activated.debug_plugin_action || 'AbaqusAgent Copilot: Execute Next Action')}</div>
+      `;
+    } catch (activationError) {
+      toast('计划已生成，但插件 session 激活失败: ' + activationError.message, 'error');
+    }
+    toast(data.backend === 'codex_app_server' ? 'Codex 已生成操作计划' : '已使用模板生成计划', 'info');
+  } catch (e) {
+    copilotAppendMessage('assistant', `规划失败：${e.message}`);
+    toast('Copilot 规划失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '生成操作计划';
+  }
+});
+
+document.getElementById('btn-copilot-execute').addEventListener('click', async () => {
+  if (!state.copilotPlan) return;
+  const btn = document.getElementById('btn-copilot-execute');
+  btn.disabled = true;
+  btn.textContent = '执行中...';
+  try {
+    const bridgeMode = state.copilotStatus?.abaqus_available ? 'abaqus_plugin' : 'mock';
+    const res = await fetch(`${API}/api/copilot/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: state.copilotPlan.session_id,
+        bridge_mode: bridgeMode,
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    document.getElementById('copilot-result').style.display = 'block';
+    document.getElementById('copilot-result').innerHTML = `
+      <div class="copilot-action-title">${escapeHtml(data.user_visible_summary)}</div>
+      <div style="margin-top:8px">脚本：<code>${escapeHtml(data.script_path)}</code></div>
+      <div style="margin-top:6px">下一步：${escapeHtml(data.next_step)}</div>
+    `;
+    copilotAppendMessage('assistant', `${data.user_visible_summary} 脚本已生成：${data.script_path}`);
+    toast('执行准备完成', 'info');
+  } catch (e) {
+    toast('执行失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '执行 / 生成脚本';
+  }
+});
+
+document.getElementById('btn-copilot-refresh').addEventListener('click', async () => {
+  if (!state.copilotPlan) return;
+  try {
+    const data = await loadCopilotSession(state.copilotPlan.session_id);
+    renderCopilotSessionStatus(data);
+    toast('插件状态已刷新', 'info');
+  } catch (e) {
+    toast('刷新插件状态失败: ' + e.message, 'error');
+  }
+});
+
+document.getElementById('btn-copilot-copy').addEventListener('click', async () => {
+  if (!state.copilotPlan) return;
+  await navigator.clipboard.writeText(JSON.stringify(state.copilotPlan, null, 2));
+  toast('Copilot 计划已复制', 'info');
+});
+
+document.getElementById('btn-copilot-package').addEventListener('click', () => {
+  window.open(`${API}/api/copilot/alpha-package.zip`, '_blank');
+});
 
 // ── Navigation ───────────────────────────────────────────────────
 document.querySelectorAll('.nav-item').forEach(item => {
@@ -4619,10 +5316,15 @@ async function checkServer() {
     loadCaseMemory();
     loadKpiRecipes();
     loadDoctorPatterns();
+    loadCopilotStatus();
+    loadCopilotPluginGuide();
+    loadCopilotReleaseGate();
   } catch {
     state.serverOnline = false;
     document.querySelector('.status-dot').style.background = 'var(--yellow)';
     document.querySelector('.topbar-info').textContent = 'OFFLINE · simulation mode';
+    document.getElementById('copilot-status-codex').textContent = '后端离线';
+    document.getElementById('copilot-status-abaqus').textContent = '未知';
   }
 }
 

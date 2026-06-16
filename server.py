@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator
 
 import yaml
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -51,6 +51,8 @@ from case_memory import (
 from case_memory import (
     search_case_memory as search_run_case_memory,
 )
+from copilot.models import CopilotPlan
+from copilot.planner import CodexUnavailable, build_copilot_plan, execute_plan
 from core.helpers import CASES_DIR, check_abaqus, list_cases, make_run_id
 from core.pipeline import (
     run_benchmark_async,
@@ -79,8 +81,11 @@ from reporting import (
     render_run_report_html,
     render_run_report_markdown,
 )
+from scripts.package_copilot_alpha import build_copilot_alpha_package
 from scripts.run_local_cli_smoke import collect_local_cli_smoke
 from scripts.run_local_demo_pack import collect_demo_pack_vault_files, create_local_demo_pack
+from scripts.verify_copilot_alpha_package import verify_copilot_alpha_package
+from scripts.verify_copilot_alpha_release import collect_release_gate
 from scripts.verify_local_cli_smoke_bundle import verify_smoke_bundle
 from scripts.verify_local_demo_pack_bundle import verify_demo_pack_bundle
 from simdiff import diff_runs, render_run_markdown
@@ -96,6 +101,8 @@ RUNS: dict[str, dict] = {}
 EVIDENCE_ARTIFACTS: dict[str, dict[str, Any]] = {}
 EVIDENCE_ARTIFACT_SEQUENCE = 0
 DEMO_GALLERY_ARTIFACTS: dict[str, dict[str, Any]] = {}
+COPILOT_SESSIONS: dict[str, dict[str, Any]] = {}
+COPILOT_SESSION_FILE = Path.home() / ".abaqus_agent_session"
 
 # ── FastAPI app ───────────────────────────────────────────────────
 app = FastAPI(
@@ -204,6 +211,20 @@ class CaseMemoryDiffRequest(BaseModel):
     diff_id: str = "case-memory-diff"
     baseline_filename: str | None = None
     candidate_filename: str | None = None
+
+class CopilotPlanRequest(BaseModel):
+    text: str
+    backend: str = "codex"
+
+class CopilotExecuteRequest(BaseModel):
+    session_id: str
+    bridge_mode: str = "mock"
+
+class CopilotActionResultRequest(BaseModel):
+    action_index: int
+    status: str
+    message: str = ""
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 def _artifact_id(run_id: str) -> str:
@@ -439,6 +460,184 @@ def health():
         "abaqus_available": check_abaqus(),
         "cases": list_cases(),
         "version": "0.1.0",
+    }
+
+
+# ── Copilot endpoints ─────────────────────────────────────────────
+
+@app.get("/api/copilot/status")
+def get_copilot_status():
+    """Expose the user-facing Copilot runtime status."""
+    return {
+        "status": "ok",
+        "codex_app_server": "available",
+        "auth_mode": "local_codex_app_server",
+        "abaqus_available": check_abaqus(),
+        "supported_actions": [
+            "create_cantilever_model",
+            "apply_boundary_condition",
+            "submit_job_or_prepare_run",
+        ],
+        "sessions": len(COPILOT_SESSIONS),
+    }
+
+
+@app.get("/api/copilot/plugin-guide")
+def get_copilot_plugin_guide(request: Request):
+    """Return copy-paste setup details for the Abaqus/CAE Copilot plug-in."""
+    server_url = str(request.base_url).rstrip("/")
+    return {
+        "server_url": server_url,
+        "install_command": "abaqus-agent-copilot-install-plugin --plugin-dir <ABAQUS_PLUGIN_DIR>",
+        "remote_server_env": f"ABAQUS_AGENT_SERVER_URL={server_url}",
+        "session_file": str(COPILOT_SESSION_FILE),
+        "open_sidecar_action": "AbaqusAgent Copilot: Open Sidecar",
+        "run_plan_action": "AbaqusAgent Copilot: Run Current Plan",
+        "execute_next_action": "AbaqusAgent Copilot: Execute Next Action",
+        "status_action": "AbaqusAgent Copilot: Check Session Status",
+        "execution_loop": "优先点击 Run Current Plan 一键执行完整队列；需要调试时再用 Execute Next Action 单步执行。",
+    }
+
+
+@app.get("/api/copilot/release-gate")
+def get_copilot_release_gate(strict_gui: bool = False):
+    """Return current Copilot Alpha/release evidence status."""
+    return collect_release_gate(root=Path(__file__).parent, strict_gui=strict_gui)
+
+
+@app.get("/api/copilot/alpha-package.zip")
+def get_copilot_alpha_package(request: Request):
+    """Build and download the current Copilot Alpha package."""
+    server_url = str(request.base_url).rstrip("/")
+    result = build_copilot_alpha_package(root=Path(__file__).parent, server_url=server_url)
+    package_path = Path(result["package_path"])
+    if not package_path.exists():
+        raise HTTPException(status_code=404, detail="Copilot Alpha package not found")
+    return FileResponse(
+        package_path,
+        media_type="application/zip",
+        filename=result["package_name"],
+    )
+
+
+@app.get("/api/copilot/alpha-package/verify")
+def verify_copilot_alpha_package_endpoint(request: Request):
+    """Build and verify the current Copilot Alpha package."""
+    server_url = str(request.base_url).rstrip("/")
+    package = build_copilot_alpha_package(root=Path(__file__).parent, server_url=server_url)
+    verification = verify_copilot_alpha_package(package["package_path"])
+    return {
+        "package": package,
+        "verification": verification,
+    }
+
+
+@app.post("/api/copilot/plan")
+def create_copilot_plan(req: CopilotPlanRequest):
+    """Convert a beginner-friendly Abaqus request into safe CAE actions."""
+    try:
+        plan = build_copilot_plan(req.text, backend=req.backend)
+    except CodexUnavailable as e:
+        raise HTTPException(status_code=503, detail=f"Codex app-server unavailable: {e}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    plan_data = plan.model_dump()
+    COPILOT_SESSIONS[plan.session_id] = {
+        "plan": plan_data,
+        "pending_actions": plan_data["actions"].copy(),
+        "results": [],
+        "created_at": time.time(),
+    }
+    return plan_data
+
+
+@app.post("/api/copilot/execute")
+def execute_copilot_plan(req: CopilotExecuteRequest):
+    """Prepare or execute a Copilot action plan through the local bridge."""
+    record = COPILOT_SESSIONS.get(req.session_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Copilot session not found")
+    plan = CopilotPlan.model_validate(record["plan"])
+    result = execute_plan(plan, bridge_mode=req.bridge_mode)
+    result_data = result.model_dump()
+    record["execution"] = result_data
+    return result_data
+
+
+@app.get("/api/copilot/sessions/{session_id}")
+def get_copilot_session(session_id: str):
+    """Return a Copilot session summary for sidecar/plugin progress UI."""
+    record = COPILOT_SESSIONS.get(session_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Copilot session not found")
+    plan = record.get("plan") or {}
+    pending_actions = record.get("pending_actions") or []
+    results = record.get("results") or []
+    return {
+        "session_id": session_id,
+        "backend": plan.get("backend"),
+        "user_summary": plan.get("user_summary"),
+        "action_count": len(plan.get("actions") or []),
+        "pending_count": len(pending_actions),
+        "completed_count": len(results),
+        "results": results,
+        "execution": record.get("execution"),
+        "created_at": record.get("created_at"),
+    }
+
+
+@app.get("/api/copilot/sessions/{session_id}/next-action")
+def get_copilot_next_action(session_id: str):
+    """Endpoint polled by the Abaqus/CAE plugin bridge."""
+    record = COPILOT_SESSIONS.get(session_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Copilot session not found")
+    pending = record.get("pending_actions") or []
+    if not pending:
+        return {"session_id": session_id, "action": None}
+    return {
+        "session_id": session_id,
+        "action_index": len(record.get("results", [])),
+        "action": pending[0],
+    }
+
+
+@app.post("/api/copilot/sessions/{session_id}/activate")
+def activate_copilot_session(session_id: str):
+    """Make a Copilot session the default session for the local CAE plug-in."""
+    if session_id not in COPILOT_SESSIONS:
+        raise HTTPException(status_code=404, detail="Copilot session not found")
+    COPILOT_SESSION_FILE.write_text(session_id, encoding="utf-8")
+    return {
+        "session_id": session_id,
+        "session_file": str(COPILOT_SESSION_FILE),
+        "plugin_action": "AbaqusAgent Copilot: Run Current Plan",
+        "debug_plugin_action": "AbaqusAgent Copilot: Execute Next Action",
+        "message": "Copilot session activated for the local Abaqus/CAE plug-in.",
+    }
+
+
+@app.post("/api/copilot/sessions/{session_id}/action-result")
+def post_copilot_action_result(session_id: str, req: CopilotActionResultRequest):
+    """Record a result from the Abaqus/CAE plugin bridge."""
+    record = COPILOT_SESSIONS.get(session_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Copilot session not found")
+    pending = record.get("pending_actions") or []
+    if pending:
+        pending.pop(0)
+    result = {
+        "action_index": req.action_index,
+        "status": req.status,
+        "message": req.message,
+        "payload": req.payload,
+        "received_at": time.time(),
+    }
+    record.setdefault("results", []).append(result)
+    return {
+        "session_id": session_id,
+        "remaining_actions": len(record.get("pending_actions") or []),
+        "result": result,
     }
 
 

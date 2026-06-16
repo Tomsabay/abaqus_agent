@@ -27,8 +27,12 @@ build/
 *.inp.bak
 
 # Run artifacts
+artifacts/
 cases/*/runs/
 reports/*.json
+
+# Marketing drafts and social assets stay local
+marketing/
 
 # IDE
 .vscode/

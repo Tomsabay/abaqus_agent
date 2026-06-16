@@ -62,3 +62,52 @@ def test_mobile_layout_keeps_main_workspace_responsive():
 
     missing_markers = [marker for marker in required_markers if marker not in source]
     assert missing_markers == []
+
+
+def test_copilot_first_screen_and_api_contract_markers_exist():
+    source = FRONTEND_INDEX.read_text(encoding="utf-8")
+
+    required_markers = [
+        'data-panel="copilot"',
+        'id="panel-copilot"',
+        "Abaqus/CAE Copilot",
+        "Codex 本机认证",
+        "/api/copilot/status",
+        "/api/copilot/plugin-guide",
+        "/api/copilot/release-gate",
+        "/api/copilot/alpha-package.zip",
+        "/api/copilot/alpha-package/verify",
+        "/api/copilot/plan",
+        "/api/copilot/execute",
+        "/api/copilot/sessions/${encodeURIComponent(sessionId)}/activate",
+        "/api/copilot/sessions/${encodeURIComponent(sessionId)}",
+        "插件已指向当前会话",
+        "插件执行状态",
+        "CAE 内执行路径",
+        "Alpha Gate",
+        "下载 Alpha 包",
+        "下载插件和证据包",
+        "Alpha 包自检",
+        "ALPHA_READY_WITH_GUI_BLOCKER",
+        "interactive_cae_gui_visual",
+        "abaqus-agent-copilot-install-plugin --plugin-dir",
+        "ABAQUS_AGENT_SERVER_URL",
+        "AbaqusAgent Copilot: Open Sidecar",
+        "AbaqusAgent Copilot: Run Current Plan",
+        "AbaqusAgent Copilot: Execute Next Action",
+        "AbaqusAgent Copilot: Check Session Status",
+        "btn-copilot-refresh",
+        "btn-copilot-package",
+        "Abaqus/CAE 菜单点击",
+        "function loadCopilotPluginGuide()",
+        "function loadCopilotReleaseGate()",
+        "function loadCopilotPackageVerify()",
+        "function renderCopilotReleaseGate(data, packageVerify = state.copilotPackageVerify)",
+        "function renderCopilotPluginGuide(data, sessionId = '')",
+        "function renderCopilotPlan(plan)",
+        "function renderCopilotSessionStatus(data)",
+        "btn-copilot-execute",
+    ]
+
+    missing_markers = [marker for marker in required_markers if marker not in source]
+    assert missing_markers == []
