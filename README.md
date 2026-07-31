@@ -43,7 +43,6 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | Report Export | Implemented MVP | Produce Markdown, standalone/printable HTML, optional PDF, and zipped run report bundles from capsules, KPIs, contracts, evidence checklists, and visuals across CLI/API/MCP/UI. |
 | Environment Preflight | Implemented MVP | Record OS, Python, Abaqus command, release-check, expected-release match, workdir writability, license markers, and runner config evidence across CLI/API/MCP/UI before real validation. |
 
-See [docs/STRATEGY.md](docs/STRATEGY.md) for the product strategy.
 
 ## Installation
 
@@ -338,7 +337,7 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 
 ## Acknowledgments
 
-- **GLY2024 / Goulingyun** — first external contributor. Verified Abaqus 2026 compatibility and contributed Windows command-path fixes. See [docs/CASE_STUDY_GLY2024.md](docs/CASE_STUDY_GLY2024.md).
+- **GLY2024 / Goulingyun** — first external contributor. Verified Abaqus 2026 compatibility and contributed Windows command-path fixes.
 
 ## License
 
