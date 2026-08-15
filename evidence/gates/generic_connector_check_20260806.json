@@ -1,0 +1,60 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 183.6,
+  "source": "generic_connector_check_20260806",
+  "items": [
+    {
+      "id": "connector_spring_travels_exactly_f_over_k",
+      "status": "pass",
+      "note": "four axial springs at the corners, built as WirePolyLine on the assembly with ConnectorSection on the model and the elasticity from connectorBehavior. Every one of those is named by the spec.",
+      "relative_deviation": 0.00018091201782226561,
+      "predicted": 10.0,
+      "measured": 10.001809120178223,
+      "force": 1000.0,
+      "k_total": 100.0
+    },
+    {
+      "id": "connector_stiffness_sweep_is_linear",
+      "status": "pass",
+      "note": "the same deck at four stiffnesses. If the connector were not carrying the load the travel would not track F/k at all.",
+      "force": 1000.0
+    },
+    {
+      "id": "connector_refuses_a_wire_with_no_section",
+      "status": "pass",
+      "note": "checked in CAE from a.sectionAssignments against a.edges, which holds only wires (measured: 4 wires there while the instance carried 12 edges of its own)."
+    },
+    {
+      "id": "connector_unassigned_wire_solves_to_the_wrong_answer",
+      "status": "pass",
+      "note": "one spring short is a third more travel and nothing says so: measured on Abaqus 2021, the four-of-four job and the three-of-four job both COMPLETE with no error and no warning.",
+      "measured": 13.335739135742188
+    },
+    {
+      "id": "connector_asserts_the_wire_count",
+      "status": "pass"
+    },
+    {
+      "id": "connector_refuses_a_vertex_that_is_not_there",
+      "status": "pass",
+      "note": "a wire built from a bare coordinate is ACCEPTED by Abaqus, adds a real edge, takes a section assignment, and then fails in the solver with 'CONNECTOR ELEMENT 1 (ASSEMBLY) NODE NUMBERS CANNOT BE BOTH ZERO'. Nothing at build time can tell the two apart, so the spec cannot write the coordinate form: it names an instance and a corner, and the corner is counted."
+    },
+    {
+      "id": "connector_elasticity_comes_from_a_module_the_deck_now_imports",
+      "status": "pass",
+      "note": "ConnectorElasticity lives in connectorBehavior, which the generated script did not import. The runtime table is derived from the import line rather than written out again, so the host-side allowlist and the script cannot disagree."
+    },
+    {
+      "id": "connector_section_must_exist_before_it_is_assigned",
+      "status": "pass",
+      "note": "measured: a.SectionAssignment naming a section that does not exist raises ValueError. That is why model_setup exists -- interactions run after the assembly, and this cannot wait."
+    }
+  ],
+  "counts": {
+    "total": 8,
+    "pass": 8,
+    "fail": 0,
+    "skipped": 0
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 62.0,
+  "source": "geometry_import_check_20260807",
+  "items": [
+    {
+      "id": "import_step_round_trips_the_solid",
+      "status": "pass",
+      "note": "one bar written out of CAE in this format and read back through the import branch, then meshed, solved and compared with P L^3 / 3EI. The volume says the shape arrived; the displacement says it was usable.",
+      "stated_volume": 10000.0,
+      "measured_tip": -0.18944643437862396,
+      "beam_theory_tip": -0.19047619047619047,
+      "deck_lines_with_numbers": 277
+    },
+    {
+      "id": "import_acis_round_trips_the_solid",
+      "status": "pass",
+      "note": "one bar written out of CAE in this format and read back through the import branch, then meshed, solved and compared with P L^3 / 3EI. The volume says the shape arrived; the displacement says it was usable.",
+      "stated_volume": 10000.0,
+      "measured_tip": -0.18944643437862396,
+      "beam_theory_tip": -0.19047619047619047,
+      "deck_lines_with_numbers": 277
+    },
+    {
+      "id": "import_iges_comes_back_hollow_and_is_refused",
+      "status": "pass",
+      "note": "IGES has no solid entity in the flavour Abaqus writes: the same bar returns 0 cells and volume 0.0 without raising, and 6 faces either way. This is why an import must state volume or cells and why a face count is not accepted in their place.",
+      "refusal_line": "EXPECT_VOLUME: part Bar came out at 0.0, the spec says 10000.0. Off by 1.0, tolerance 0.001.",
+      "faces_only_refusal": "SpecError: [SPEC_INVALID] part 'Bar' import: an imported part must state `expect.volume` or `expect.cells`. Measured on Abaqus 2021 with one bar exported and read back: STEP and SAT return 1 cell and volume 10000.0, IGES returns 0 cells and volume 0.0 WITHOUT RAISING -- and the face count is 6 eithe"
+    },
+    {
+      "id": "import_a_missing_file_is_refused_before_abaqus_starts",
+      "status": "pass",
+      "note": "the kernel does raise on a missing file, but it costs a CAE start-up and reports it in a log rather than against the spec line.",
+      "refusal": "SpecError: [SPEC_INVALID] spec.parts[0].import.open.fileName: {file: 'not_here.step'} resolves to <path> which does not exist. Refused here rather than in the kernel, so the spec line is named and no licence is taken.\n  → Suggesti"
+    },
+    {
+      "id": "import_the_stated_volume_is_checked_against_the_real_one",
+      "status": "pass",
+      "note": "the same import as item 1 with a volume nobody's bar has.",
+      "refusal_line": "EXPECT_VOLUME: part Bar came out at 10000.0, the spec says 20000.0. Off by 0.5, tolerance 0.001.",
+      "stated_volume": 20000.0,
+      "true_volume": 10000.0
+    }
+  ],
+  "counts": {
+    "total": 5,
+    "pass": 5,
+    "fail": 0,
+    "skipped": 0
+  }
+}

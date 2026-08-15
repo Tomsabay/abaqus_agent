@@ -1,0 +1,70 @@
+{
+  "schema": "abaqus_agent.material_card/1",
+  "name": "Reinforcement-FIB-B500",
+  "upstream_name": "Reinforcement-Harry",
+  "category": "Aggregate",
+  "description": "Reinforcement inside concrete for reinforcement material examples, from fib examples, 0.84 x 0.75 x 500 MPa = 315 MPa (https://forum.freecad.org/viewtopic.php?f=18&t=33106&start=200#p311705)",
+  "license": "CC-BY-3.0",
+  "source": {
+    "project": "FreeCAD",
+    "name": "Reinforcement-FIB-B500",
+    "category": "Aggregate",
+    "path": "src/Mod/Material/Resources/Materials/Standard/Aggregate/Reinforcement-FIB-B500.FCMat",
+    "commit": "c54df69e0b699e37fb67d116ef2d6ded8ebdc64e",
+    "url": "https://github.com/FreeCAD/FreeCAD/blob/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Aggregate/Reinforcement-FIB-B500.FCMat",
+    "raw_url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Aggregate/Reinforcement-FIB-B500.FCMat",
+    "retrieved": "2026-08-06",
+    "author": "Bernd Hahnebach",
+    "uuid": "57507cd4-d22f-4d86-9794-fdb1ec8cd098"
+  },
+  "properties": {
+    "E": {
+      "fcmat_key": "YoungsModulus",
+      "raw": "210000 MPa",
+      "raw_unit": "MPa",
+      "parsed_unit": "MPa",
+      "dimension": "stress",
+      "si": 210000000000.0,
+      "si_unit": "Pa",
+      "mm_MPa_t": 210000.0,
+      "mm_MPa_t_unit": "MPa"
+    },
+    "nu": {
+      "fcmat_key": "PoissonRatio",
+      "raw": "0.3",
+      "raw_unit": "",
+      "parsed_unit": "",
+      "dimension": "dimensionless",
+      "si": 0.3,
+      "si_unit": "-",
+      "mm_MPa_t": 0.3,
+      "mm_MPa_t_unit": "-"
+    },
+    "density": {
+      "fcmat_key": "Density",
+      "raw": "7850 kg/m^3",
+      "raw_unit": "kg/m^3",
+      "parsed_unit": "kg/m^3",
+      "dimension": "density",
+      "si": 7850.0,
+      "si_unit": "kg/m^3",
+      "mm_MPa_t": 7.85e-09,
+      "mm_MPa_t_unit": "t/mm^3"
+    }
+  },
+  "plasticity": {
+    "yield": {
+      "fcmat_key": "YieldStrength",
+      "raw": "315 MPa",
+      "raw_unit": "MPa",
+      "parsed_unit": "MPa",
+      "dimension": "stress",
+      "si": 315000000.0,
+      "si_unit": "Pa",
+      "mm_MPa_t": 315.0,
+      "mm_MPa_t_unit": "MPa"
+    }
+  },
+  "unmapped": [],
+  "notes": []
+}

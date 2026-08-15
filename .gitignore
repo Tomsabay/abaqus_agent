@@ -15,10 +15,16 @@ build/
 *.jnl
 *.lck
 *.rpy
+*.rpy.*
+*.rec
 *.dat
 *.msg
 *.sta
 *.log
+# ... except under evidence/, where a refusal log IS the evidence. The
+# blanket rule above swallowed seven of them in e580a75, two of which
+# that directory's README points at by name.
+!evidence/**/*.log
 *.com
 *.sim
 *.prt
@@ -33,6 +39,15 @@ reports/*.json
 
 # Marketing drafts and social assets stay local
 marketing/
+
+# Tauri / Rust build artifacts (keep source under packaging/tauri/)
+packaging/tauri/target/
+packaging/tauri/gen/
+packaging/tauri_ui/icon/
+
+# PyInstaller build/dist
+dist/
+build/_pyi_work/
 
 # IDE
 .vscode/
@@ -53,3 +68,15 @@ AGENTS.md
 
 # uv lock file (project uses hatchling, not uv — keep local only)
 uv.lock
+
+# W1: course materials are student deliverables — re-include them even when
+# they match the Abaqus-output globs above (*.dat/*.msg/*.log/*.inp/*.key/...).
+# Keep this as the LAST rule so the negation wins; it does not affect the
+# cases/*/runs/ or artifacts/ directory ignores.
+!course/materials/**
+
+# W1 negation must not re-include python caches under course/materials
+course/materials/**/__pycache__/
+
+# Internal agent/session context — private repo only, never build a public tree from it
+CLAUDE.md

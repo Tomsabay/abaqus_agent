@@ -1,0 +1,18 @@
+{
+  "kpis": {
+    "U_TIP": {
+      "value": -0.0714285714,
+      "rtol": 0.10,
+      "atol": 1e-6,
+      "unit": "mm",
+      "note": "Euler-Bernoulli PREDICTION, not a frozen run: a uniformly loaded cantilever deflects qL^4/(8EI). q = 0.1 MPa * 10 mm = 1.0 N/mm, L = 100, E = 210000, I = 10*10^3/12 = 833.33 mm^4, so delta = 1e8 / (8*210000*833.33) = 7.143e-2 mm downward. The whole point of the case is that this only holds if the tie binds the two 5 mm halves into one 10 mm section. Untied, each half carries its own I = 10*5^3/12 and the pair deflects 4x as far (-0.286 mm), which is nowhere near this tolerance. Measured 2026-08-03 on Abaqus 2021: -0.07150482386350632, 0.11% from theory."
+    },
+    "MISES_MAX": {
+      "value": 31.234298706054688,
+      "rtol": 0.20,
+      "atol": 0.01,
+      "unit": "MPa",
+      "note": "Measured baseline (2026-08-03, Abaqus 2021, C3D20R, seed 2.5), NOT a theory value. Beam theory puts the root fibre stress at M*c/I = 5000*5/833.33 = 30.0 MPa; the measured 31.23 sits 4% above it because the encastre restrains Poisson contraction at the root and because post/extract_kpis.py takes an unaveraged ELEMENT_NODAL max, which is an extrapolated corner value rather than an integration-point one. An averaged or integration-point max is a different number; do not compare either against this."
+    }
+  }
+}

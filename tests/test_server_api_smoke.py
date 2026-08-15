@@ -23,24 +23,21 @@ ROOT = Path(__file__).resolve().parent.parent
 @pytest.fixture
 def server_app(monkeypatch, tmp_path):
     import server
-    from premium.licensing import feature_gate
 
     monkeypatch.setenv("ABAQUS_AGENT_EVIDENCE_VAULT", str(tmp_path / "vault"))
     original_runs = dict(server.RUNS)
     server.RUNS.clear()
-    server.EVIDENCE_ARTIFACTS.clear()
-    server.EVIDENCE_ARTIFACT_SEQUENCE = 0
-    server.DEMO_GALLERY_ARTIFACTS.clear()
-    feature_gate.reset()
+    # EVIDENCE.clear() and not three statements: the artifact counter used to
+    # be a module-level int here, so `server.EVIDENCE_ARTIFACT_SEQUENCE = 0`
+    # reset it. It lives in the registry now, and that assignment would just
+    # bind a name nothing reads -- a reset that silently stopped resetting.
+    server.EVIDENCE.clear()
     try:
         yield server
     finally:
         server.RUNS.clear()
         server.RUNS.update(original_runs)
-        server.EVIDENCE_ARTIFACTS.clear()
-        server.EVIDENCE_ARTIFACT_SEQUENCE = 0
-        server.DEMO_GALLERY_ARTIFACTS.clear()
-        feature_gate.reset()
+        server.EVIDENCE.clear()
 
 
 def test_api_health_spec_and_benchmark_smoke(server_app) -> None:
@@ -844,26 +841,22 @@ def test_api_solver_doctor_diagnoses_supplied_log_text(server_app) -> None:
     assert "job_name" in invalid.json()["detail"]
 
 
-def test_api_premium_endpoints_smoke(server_app) -> None:
+def test_api_feature_endpoints_smoke(server_app) -> None:
     client = TestClient(server_app.app, raise_server_exceptions=False)
 
-    features = client.get("/api/premium/features")
+    features = client.get("/api/features")
     assert features.status_code == 200
     features_data = features.json()
     assert "features" in features_data
     assert "capabilities" in features_data
     assert "coupling" in features_data["features"]
-    assert features_data["features"]["coupling"]["enabled"] is False
+    assert features_data["features"]["coupling"] == {
+        "display_name": "Multi-Physics Coupling"
+    }
+    # The licence gate is gone: no entitlement field may survive in the payload.
+    assert "enabled" not in json.dumps(features_data)
+    assert "licensed" not in json.dumps(features_data)
 
-    missing_key = client.post("/api/premium/activate")
-    assert missing_key.status_code == 200
-    assert missing_key.json() == {"valid": False, "error": "No license key provided"}
-
-    activated = client.post("/api/premium/activate?license_key=dev-api-smoke")
-    assert activated.status_code == 200
-    activated_data = activated.json()
-    assert activated_data["valid"] is True
-    assert "coupling" in activated_data["features"]
-
-    enabled_features = client.get("/api/premium/features").json()["features"]
-    assert enabled_features["coupling"]["enabled"] is True
+    # The activation endpoint is deleted outright, not stubbed to always-true.
+    assert client.post("/api/features/activate").status_code == 404
+    assert client.get("/api/premium/features").status_code == 404

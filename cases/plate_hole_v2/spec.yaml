@@ -1,0 +1,96 @@
+meta:
+  abaqus_release: "2021"
+  model_name: "PlateHoleV2"
+  units: "mm_MPa_t"
+  description: >
+    The classic stress-concentration benchmark, built from primitives rather
+    than from a hardcoded geometry builder: a rectangle is extruded, a circle
+    is cut out of it, and the hole's own wall is named by its radius.
+
+    A 60 x 240 x 5 mm plate with a d = 12 mm central hole, pulled at 1.0 MPa.
+    d/W = 0.2, so the finite-width Kt is well inside the range the Howland
+    solution is quoted for, and L/W = 4 puts both ends two widths away from the
+    hole - far enough that the clamp cannot reach it (Saint-Venant).
+
+    This case cannot fail quietly. The KPI is measured on a set built FROM the
+    hole ("Plate:face@r=6"), so a cut that missed does not produce a plain-plate
+    answer - it produces no set, and the build stops. That matters because a
+    missed cut was measured to be completely silent otherwise: same volume, same
+    element count, no warning.
+
+material:
+  name: Steel
+  E: 210000.0   # MPa
+  nu: 0.3
+
+parts:
+  - name: Plate
+    features:
+      - op: sketch
+        id: outline
+        plane: XY
+        profile:
+          rect: { corner1: [0.0, 0.0], corner2: [60.0, 240.0] }
+      - op: extrude
+        sketch: outline
+        depth: 5.0
+      - op: sketch
+        id: hole
+        plane: XY
+        profile:
+          circle: { center: [30.0, 120.0], r: 6.0 }
+      - op: cut_extrude
+        sketch: hole
+        depth: 5.0
+    section: { type: solid, material: Steel }
+    mesh:
+      seed: 5.0
+      element: C3D20R
+      local_seeds:
+        # The hole circumference is pi*12 = 37.7 mm, so a 1.2 mm seed puts ~31
+        # quadratic elements around it. Under-refining here does not fail - it
+        # returns a Kt that is simply too low, which is the whole reason the
+        # tolerance below is tight.
+        - { region: "edges@r=6", size: 1.2, expect: "=2" }
+
+assembly:
+  instances:
+    - { name: Plate, part: Plate, translate: [0.0, 0.0, 0.0] }
+
+steps:
+  - name: Pull
+    type: Static
+    bcs:
+      - { name: Root, region: "Plate:face@y=min", type: encastre }
+    loads:
+      # Negative pressure is tension: Abaqus pressure is positive INTO the face.
+      - { name: Tension, region: "Plate:face@y=max", type: pressure, value: -1.0 }
+
+outputs:
+  regions:
+    # Named by radius, not by coordinate. This is the only phrase in the spec
+    # that can find a cylindrical face: the hole's bounding box is the whole
+    # plate in x and y, so no plane can name it.
+    - { name: HoleWall, region: "Plate:face@r=6" }
+    - { name: PulledEnd, region: "Plate:face@y=max" }
+  kpis:
+    - name: HOOP_MAX
+      type: field_max
+      invariant: MISES
+      location: "REGION_HOLEWALL"
+    # The same peak read as a stress component rather than as an invariant.
+    # At the peak point (the sides of the hole on the x axis) the hoop
+    # direction is y, so S22 IS the hoop stress there, and the hole wall is
+    # traction-free, so Mises should equal it. Two numbers that must agree,
+    # arrived at differently: Mises is elevated by anything triaxial, S22 is
+    # not, so a gap between them means the peak is not where the theory says.
+    - name: HOOP_S22
+      type: field_max
+      field_variable: S
+      component: S22
+      location: "REGION_HOLEWALL"
+    - name: FAR_FIELD
+      type: field_max
+      field_variable: S
+      component: S22
+      location: "REGION_PULLEDEND"

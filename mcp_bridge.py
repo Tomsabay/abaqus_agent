@@ -16,8 +16,7 @@ Endpoints mirror server.py under /mcp prefix:
   GET  /mcp/api/benchmark        → resources/read benchmark://cases
   POST /mcp/api/benchmark/run    → tools/call run_benchmark_tool
   GET  /mcp/health               → tools/call health_check
-  GET  /mcp/api/premium/features → tools/call get_premium_features
-  POST /mcp/api/premium/activate → tools/call activate_premium
+  GET  /mcp/api/features         → tools/call get_features
 
 Run:
   python mcp_bridge.py
@@ -28,11 +27,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import time
-import uuid
-import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncGenerator
@@ -44,11 +42,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from doctor.solver_doctor import diagnose_log_texts, list_doctor_patterns, render_markdown
+from evidence.artifact_registry import ArtifactNotFound, EvidenceArtifactRegistry
 from evidence.case_memory import search_case_memory
 from evidence.demo_gallery import collect_demo_gallery
 from evidence.examples import get_example, list_examples
 from evidence.vault import (
-    create_vault_entry,
     get_vault_file_path,
     get_vault_record,
     list_vault_entries,
@@ -204,9 +202,10 @@ class MCPConnection:
 
 
 mcp_conn = MCPConnection()
-EVIDENCE_ARTIFACTS: dict[str, dict[str, Any]] = {}
-EVIDENCE_ARTIFACT_SEQUENCE = 0
-DEMO_GALLERY_ARTIFACTS: dict[str, dict[str, Any]] = {}
+EVIDENCE = EvidenceArtifactRegistry("/mcp/api/evidence")
+# Same two dicts the registry keeps, under the names they have always had here.
+EVIDENCE_ARTIFACTS = EVIDENCE.artifacts
+DEMO_GALLERY_ARTIFACTS = EVIDENCE.demo_galleries
 
 
 # ── Lifecycle ─────────────────────────────────────────────────────
@@ -233,12 +232,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Same rule as server.py: cross-origin access is opt-in, not the default.
+# `allow_origins=["*"]` on a service with no authentication that can launch
+# solver jobs meant any page in the browser could drive it.
+_cors_origins = [
+    o.strip() for o in os.environ.get("ABAQUS_AGENT_CORS_ORIGINS", "").split(",")
+    if o.strip()
+]
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
@@ -248,7 +255,8 @@ if FRONTEND_DIR.exists():
 
 class GenerateSpecRequest(BaseModel):
     text: str
-    abaqus_release: str = "2024"
+    # Empty = let the MCP tool probe the installed solver (never assume a year).
+    abaqus_release: str = ""
     llm_backend: str = "template"
     anthropic_key: str = ""
     openai_key: str = ""
@@ -340,222 +348,6 @@ class DoctorDiagnoseRequest(BaseModel):
     dat_text: str = ""
     sta_text: str = ""
     log_text: str = ""
-
-
-def _artifact_id(run_id: str) -> str:
-    return f"{run_id}-{uuid.uuid4().hex[:8]}"
-
-
-def _register_evidence_artifacts(
-    *,
-    run_id: str,
-    evidence: dict[str, Any],
-    evidence_path: Path,
-    report_path: Path,
-    html_path: Path,
-    capsule_manifest_path: Path,
-    url_prefix: str = "/mcp/api/evidence/artifacts",
-) -> dict[str, Any]:
-    global EVIDENCE_ARTIFACT_SEQUENCE
-    EVIDENCE_ARTIFACT_SEQUENCE += 1
-    artifact_id = _artifact_id(run_id)
-    generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    bundle_path = report_path.parent / f"{artifact_id}.zip"
-    _write_evidence_bundle_zip(
-        bundle_path=bundle_path,
-        artifact_id=artifact_id,
-        run_id=run_id,
-        generated_at=generated_at,
-        evidence_path=evidence_path,
-        report_path=report_path,
-        html_path=html_path,
-        capsule_manifest_path=capsule_manifest_path,
-    )
-    artifact_urls = {
-        "evidence_json": f"{url_prefix}/{artifact_id}/evidence.json",
-        "report_markdown": f"{url_prefix}/{artifact_id}/evidence.md",
-        "report_html": f"{url_prefix}/{artifact_id}/evidence.html",
-        "capsule_manifest": f"{url_prefix}/{artifact_id}/capsule.json",
-        "bundle_zip": f"{url_prefix}/{artifact_id}/bundle.zip",
-    }
-    record = _evidence_artifact_record(
-        artifact_id=artifact_id,
-        run_id=run_id,
-        generated_at=generated_at,
-        sequence=EVIDENCE_ARTIFACT_SEQUENCE,
-        artifact_urls=artifact_urls,
-        evidence=evidence,
-    )
-    EVIDENCE_ARTIFACTS[artifact_id] = {
-        "files": {
-            "evidence.json": evidence_path,
-            "evidence.md": report_path,
-            "evidence.html": html_path,
-            "capsule.json": capsule_manifest_path,
-            "bundle.zip": bundle_path,
-        },
-        "record": record,
-    }
-    return {"artifact_id": artifact_id, "artifact_urls": artifact_urls}
-
-
-def _evidence_artifact_record(
-    *,
-    artifact_id: str,
-    run_id: str,
-    generated_at: str,
-    sequence: int,
-    artifact_urls: dict[str, str],
-    evidence: dict[str, Any],
-) -> dict[str, Any]:
-    contracts = evidence.get("contracts", {})
-    diff = evidence.get("diff", {})
-    capsule = evidence.get("capsule", {})
-    return {
-        "artifact_id": artifact_id,
-        "run_id": run_id,
-        "generated_at": generated_at,
-        "sequence": sequence,
-        "overall_status": evidence.get("overall_status"),
-        "real_env_verified": evidence.get("real_env_verified"),
-        "contracts": {
-            "status": contracts.get("status"),
-            "total": contracts.get("total"),
-            "failed_count": contracts.get("failed_count"),
-            "warning_count": contracts.get("warning_count"),
-        },
-        "diff": {
-            "status": diff.get("status"),
-            "total": diff.get("total"),
-            "changed_count": diff.get("changed_count"),
-            "added_count": diff.get("added_count"),
-            "removed_count": diff.get("removed_count"),
-        },
-        "capsule": {
-            "run_id": capsule.get("run_id"),
-            "capsule_hash": capsule.get("capsule_hash"),
-            "input_count": capsule.get("input_count"),
-            "artifact_count": capsule.get("artifact_count"),
-        },
-        "artifact_urls": artifact_urls,
-    }
-
-
-def _write_evidence_bundle_zip(
-    *,
-    bundle_path: Path,
-    artifact_id: str,
-    run_id: str,
-    generated_at: str,
-    evidence_path: Path,
-    report_path: Path,
-    html_path: Path,
-    capsule_manifest_path: Path,
-) -> None:
-    manifest = {
-        "schema_version": "1.0",
-        "artifact_id": artifact_id,
-        "run_id": run_id,
-        "generated_at": generated_at,
-        "files": ["evidence.json", "evidence.md", "evidence.html", "capsule.json"],
-    }
-    with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-        bundle.write(evidence_path, "evidence.json")
-        bundle.write(report_path, "evidence.md")
-        bundle.write(html_path, "evidence.html")
-        bundle.write(capsule_manifest_path, "capsule.json")
-        bundle.writestr("bundle_manifest.json", json.dumps(manifest, indent=2, sort_keys=True))
-
-
-def _get_evidence_artifact_path(artifact_id: str, filename: str) -> Path:
-    artifact = EVIDENCE_ARTIFACTS.get(artifact_id)
-    files = artifact.get("files", {}) if artifact else {}
-    if filename not in files:
-        raise HTTPException(status_code=404, detail="Evidence artifact not found")
-    path = files[filename]
-    if not path.exists() or not path.is_file():
-        raise HTTPException(status_code=404, detail="Evidence artifact file missing")
-    return path
-
-
-def _list_evidence_artifact_records(limit: int = 20) -> dict[str, Any]:
-    safe_limit = max(1, min(limit, 100))
-    items = [
-        artifact["record"]
-        for artifact in EVIDENCE_ARTIFACTS.values()
-        if "record" in artifact
-    ]
-    items.sort(key=lambda item: item["sequence"], reverse=True)
-    return {"items": items[:safe_limit], "total": len(items)}
-
-
-def _create_vault_entry(
-    *,
-    kind: str,
-    title: str,
-    files: dict[str, Path],
-    summary: dict[str, Any],
-    url_prefix: str = "/mcp/api/evidence/vault",
-) -> dict[str, Any]:
-    record = create_vault_entry(kind=kind, title=title, files=files, summary=summary)
-    vault_urls = {
-        filename: f"{url_prefix}/{record['vault_id']}/{filename}"
-        for filename in record["files"]
-    }
-    return {"vault_id": record["vault_id"], "vault_urls": vault_urls}
-
-
-def _register_demo_gallery_artifacts(
-    *,
-    index: dict[str, Any],
-    out_dir: Path,
-    url_prefix: str = "/mcp/api/evidence/demo-gallery",
-) -> dict[str, Any]:
-    artifact_id = _artifact_id("demo-gallery")
-    artifact_urls = {
-        "index_json": f"{url_prefix}/{artifact_id}/index.json",
-        "index_markdown": f"{url_prefix}/{artifact_id}/index.md",
-        "index_html": f"{url_prefix}/{artifact_id}/index.html",
-        "gallery_zip": f"{url_prefix}/{artifact_id}/offline-demo-gallery.zip",
-    }
-    record = {
-        "artifact_id": artifact_id,
-        "generated_at": index["generated_at"],
-        "overall_status": index["overall_status"],
-        "case_count": index["case_count"],
-        "cases": [
-            {
-                "case": case["case"],
-                "overall_status": case["overall_status"],
-                "contracts_status": case["contracts_status"],
-                "diff_status": case["diff_status"],
-                "capsule_hash": case["capsule_hash"],
-            }
-            for case in index["cases"]
-        ],
-        "artifact_urls": artifact_urls,
-    }
-    DEMO_GALLERY_ARTIFACTS[artifact_id] = {
-        "files": {
-            "index.json": out_dir / "index.json",
-            "index.md": out_dir / "index.md",
-            "index.html": out_dir / "index.html",
-            "offline-demo-gallery.zip": Path(index["gallery_zip_path"]),
-        },
-        "record": record,
-    }
-    return {"artifact_id": artifact_id, "artifact_urls": artifact_urls, "record": record}
-
-
-def _get_demo_gallery_artifact_path(artifact_id: str, filename: str) -> Path:
-    artifact = DEMO_GALLERY_ARTIFACTS.get(artifact_id)
-    files = artifact.get("files", {}) if artifact else {}
-    if filename not in files:
-        raise HTTPException(status_code=404, detail="Demo gallery artifact not found")
-    path = files[filename]
-    if not path.exists() or not path.is_file():
-        raise HTTPException(status_code=404, detail="Demo gallery artifact file missing")
-    return path
 
 
 # ── Bridge endpoints ──────────────────────────────────────────────
@@ -828,7 +620,7 @@ async def bridge_offline_evidence(req: OfflineEvidenceRequest):
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
         result.update(
-            _register_evidence_artifacts(
+            EVIDENCE.register_evidence(
                 run_id=result["run_id"],
                 evidence=result,
                 evidence_path=Path(result["evidence_path"]),
@@ -837,9 +629,9 @@ async def bridge_offline_evidence(req: OfflineEvidenceRequest):
                 capsule_manifest_path=Path(result["capsule"]["manifest_path"]),
             )
         )
-        artifact_files = EVIDENCE_ARTIFACTS[result["artifact_id"]]["files"]
+        artifact_files = EVIDENCE.evidence_files(result["artifact_id"])
         result.update(
-            _create_vault_entry(
+            EVIDENCE.create_vault_entry(
                 kind="offline-evidence",
                 title=result["run_id"],
                 files={
@@ -881,8 +673,8 @@ async def bridge_get_offline_evidence_example(case_name: str):
 async def bridge_create_offline_demo_gallery():
     out_dir = Path(tempfile.mkdtemp(prefix="abaqus-agent-bridge-demo-gallery."))
     index = collect_demo_gallery(out_dir)
-    artifacts = _register_demo_gallery_artifacts(index=index, out_dir=out_dir)
-    vault = _create_vault_entry(
+    artifacts = EVIDENCE.register_demo_gallery(index=index, out_dir=out_dir)
+    vault = EVIDENCE.create_vault_entry(
         kind="demo-gallery",
         title="offline-demo-gallery",
         files={
@@ -916,18 +708,18 @@ async def bridge_get_offline_demo_gallery_artifact(artifact_id: str, filename: s
     }
     if filename not in media_types:
         raise HTTPException(status_code=404, detail="Demo gallery artifact not found")
-    return FileResponse(
-        _get_demo_gallery_artifact_path(artifact_id, filename),
-        media_type=media_types[filename],
-        filename=filename,
-    )
+    try:
+        path = EVIDENCE.demo_gallery_path(artifact_id, filename)
+    except ArtifactNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(path, media_type=media_types[filename], filename=filename)
 
 
 @app.post("/mcp/api/evidence/demo-pack")
 async def bridge_create_local_demo_pack():
     out_dir = Path(tempfile.mkdtemp(prefix="abaqus-agent-bridge-local-demo-pack."))
     index = create_local_demo_pack(out_dir)
-    vault = _create_vault_entry(
+    vault = EVIDENCE.create_vault_entry(
         kind="local-demo-pack",
         title="local-demo-pack",
         files=collect_demo_pack_vault_files(index),
@@ -971,16 +763,16 @@ async def bridge_get_offline_evidence_artifact(artifact_id: str, filename: str):
     }
     if filename not in media_types:
         raise HTTPException(status_code=404, detail="Evidence artifact not found")
-    return FileResponse(
-        _get_evidence_artifact_path(artifact_id, filename),
-        media_type=media_types[filename],
-        filename=filename,
-    )
+    try:
+        path = EVIDENCE.evidence_path(artifact_id, filename)
+    except ArtifactNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(path, media_type=media_types[filename], filename=filename)
 
 
 @app.get("/mcp/api/evidence/artifacts")
 async def bridge_list_offline_evidence_artifacts(limit: int = 20):
-    return _list_evidence_artifact_records(limit)
+    return EVIDENCE.list_evidence_records(limit)
 
 
 @app.get("/mcp/api/evidence/vault")
@@ -992,7 +784,7 @@ async def bridge_list_evidence_vault(
 ):
     data = list_vault_entries(limit=limit, query=query, kind=kind, status=status)
     for item in data["items"]:
-        _attach_vault_urls(item, url_prefix="/mcp/api/evidence/vault")
+        EVIDENCE.attach_vault_urls(item)
     return data
 
 
@@ -1059,15 +851,8 @@ async def bridge_get_evidence_vault_record(vault_id: str):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    _attach_vault_urls(record, url_prefix="/mcp/api/evidence/vault")
+    EVIDENCE.attach_vault_urls(record)
     return record
-
-
-def _attach_vault_urls(record: dict[str, Any], *, url_prefix: str) -> None:
-    record["vault_urls"] = {
-        filename: f"{url_prefix}/{record['vault_id']}/{filename}"
-        for filename in record.get("files", {})
-    }
 
 
 @app.get("/mcp/api/case-memory")
@@ -1103,7 +888,7 @@ async def bridge_create_case_memory_diff(req: CaseMemoryDiffRequest):
         )
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
-        vault = _create_vault_entry(
+        vault = EVIDENCE.create_vault_entry(
             kind="case-memory-diff",
             title=result["diff_id"],
             files={
@@ -1159,7 +944,7 @@ async def bridge_create_simulation_diff(req: SimulationDiffRequest):
         )
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
-        vault = _create_vault_entry(
+        vault = EVIDENCE.create_vault_entry(
             kind="simulation-diff",
             title=result["diff_id"],
             files={
@@ -1207,7 +992,7 @@ async def bridge_diagnose_solver_logs(req: DoctorDiagnoseRequest):
         encoding="utf-8",
     )
     report_markdown_path.write_text(render_markdown(report), encoding="utf-8")
-    vault = _create_vault_entry(
+    vault = EVIDENCE.create_vault_entry(
         kind="solver-doctor",
         title=report.job_name,
         files={
@@ -1240,18 +1025,10 @@ async def bridge_list_solver_doctor_patterns(category: str = "", severity: str =
     return list_doctor_patterns(category=category, severity=severity)
 
 
-@app.get("/mcp/api/premium/features")
-async def bridge_get_premium_features():
+@app.get("/mcp/api/features")
+async def bridge_get_features():
     try:
-        return await mcp_conn.call_tool("get_premium_features", {})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/mcp/api/premium/activate")
-async def bridge_activate_premium(license_key: str = ""):
-    try:
-        return await mcp_conn.call_tool("activate_premium", {"license_key": license_key})
+        return await mcp_conn.call_tool("get_features", {})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1260,11 +1037,20 @@ async def bridge_activate_premium(license_key: str = ""):
 
 if __name__ == "__main__":
     import uvicorn
+
+    from core import config
+
+    # Loopback, for the same reason server.py binds loopback: this service has
+    # no authentication and can launch solver jobs, so 0.0.0.0 handed the whole
+    # LAN a job submitter. ABAQUS_AGENT_HOST is how someone who wants LAN
+    # access says so and owns that decision.
+    host = config.host()
+    port = config.bridge_port()
     print("\n  Abaqus Agent MCP Bridge")
     print("  ─────────────────────────────")
-    print("  Bridge   : http://localhost:8001")
-    print("  MCP API  : http://localhost:8001/mcp/...")
-    print("  Frontend : http://localhost:8001")
+    print(f"  Bridge   : http://{host}:{port}")
+    print(f"  MCP API  : http://{host}:{port}/mcp/...")
+    print(f"  Frontend : http://{host}:{port}")
     print("  Transport: stdin/stdout → mcp_server.py")
     print()
-    uvicorn.run("mcp_bridge:app", host="0.0.0.0", port=8001, reload=False)
+    uvicorn.run("mcp_bridge:app", host=host, port=port, reload=False)

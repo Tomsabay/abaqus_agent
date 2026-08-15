@@ -7,7 +7,7 @@ contracts:
   - name: tip deflection near reference
     type: relative_error
     kpi: U_tip
-    reference: -0.0025716267991811037
+    reference: -0.0019039579201489687
     rtol: 0.1
     atol: 0.000001
   - name: max stress plausible range
@@ -18,6 +18,6 @@ contracts:
   - name: max stress near reference
     type: relative_error
     kpi: MISES_MAX
-    reference: 0.38309070467948914
+    reference: 0.6528551578521729
     rtol: 0.2
     atol: 0.01

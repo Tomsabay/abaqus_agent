@@ -64,7 +64,14 @@ def test_stage_compare_fails_values_outside_tolerance(tmp_path):
     assert progress[-1][1]["passed"] is False
 
 
-def test_stage_compare_marks_missing_and_zero_expected_info(tmp_path):
+def test_stage_compare_marks_missing_and_refuses_a_bare_zero_baseline(tmp_path):
+    """A zero baseline used to be filed as INFO, and INFO counts as passing.
+
+    That made every "this must be zero" judgement decorative: symmetry,
+    net force, residual drift. A relative tolerance cannot judge zero, so an
+    absolute one is now required and its absence is a FAIL that says why —
+    not an INFO that reads as a clean run.
+    """
     orchestrator, progress = _orchestrator_with_expected(
         tmp_path,
         {
@@ -84,12 +91,54 @@ def test_stage_compare_marks_missing_and_zero_expected_info(tmp_path):
         "expected": 1.0,
         "actual": None,
     }
-    assert comparisons["zero_reference"] == {
-        "status": "INFO",
-        "expected": 0.0,
-        "actual": 0.25,
-    }
+    assert comparisons["zero_reference"]["status"] == "FAIL"
+    assert comparisons["zero_reference"]["actual"] == 0.25
+    assert "atol" in comparisons["zero_reference"]["reason"]
     assert progress[-1] == (
         "compare_kpis",
         {"passed": False, "details": comparisons},
     )
+
+
+def test_a_zero_baseline_with_atol_is_actually_compared(tmp_path):
+    """Measured before the fix: expected 0.0 / atol 1e-6 against an actual of
+    1e9 reported passed: True."""
+    orchestrator, _ = _orchestrator_with_expected(
+        tmp_path,
+        {"kpis": {"U_SYM": {"value": 0.0, "atol": 1e-6}}},
+    )
+
+    orchestrator._stage_compare({"U_SYM": 1e9})
+
+    regression = orchestrator.result["regression"]
+    assert regression["passed"] is False
+    assert regression["comparisons"]["U_SYM"]["status"] == "FAIL"
+
+
+def test_a_zero_baseline_within_atol_passes(tmp_path):
+    orchestrator, _ = _orchestrator_with_expected(
+        tmp_path,
+        {"kpis": {"NET_FZ": {"value": 0.0, "atol": 1e-3}}},
+    )
+
+    orchestrator._stage_compare({"NET_FZ": 2.5e-4})
+
+    regression = orchestrator.result["regression"]
+    assert regression["passed"] is True
+    assert regression["comparisons"]["NET_FZ"]["status"] == "PASS"
+    assert regression["comparisons"]["NET_FZ"]["atol"] == 1e-3
+
+
+def test_a_null_baseline_is_still_informational_not_a_failure(tmp_path):
+    """`value: null` means "record it, do not judge it" — that is a different
+    statement from `value: 0.0` and must keep its old meaning."""
+    orchestrator, _ = _orchestrator_with_expected(
+        tmp_path,
+        {"kpis": {"OBSERVED": {"value": None}}},
+    )
+
+    orchestrator._stage_compare({"OBSERVED": 42.0})
+
+    regression = orchestrator.result["regression"]
+    assert regression["comparisons"]["OBSERVED"]["status"] == "INFO"
+    assert regression["passed"] is True

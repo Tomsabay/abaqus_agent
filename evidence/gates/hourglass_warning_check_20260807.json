@@ -1,0 +1,41 @@
+{
+  "schema": "gate/1",
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 59.8,
+  "source": "report",
+  "items": [
+    {
+      "id": "1_the_risky_element_warns_and_names_the_spec_key",
+      "status": "pass",
+      "note": "mesh_risks=[('parts[Bar].mesh.element', 'C3D8R')]"
+    },
+    {
+      "id": "2_the_run_is_still_completed",
+      "status": "pass",
+      "note": "status=COMPLETED"
+    },
+    {
+      "id": "3_the_safe_element_does_not_warn",
+      "status": "pass",
+      "note": "C3D8I mesh_risks=[]"
+    },
+    {
+      "id": "4_the_archived_report_carries_it",
+      "status": "pass",
+      "note": "markdown carries the section: yes"
+    },
+    {
+      "id": "5_the_two_answers_are_still_orders_of_magnitude_apart",
+      "status": "pass",
+      "note": "C3D8R -65.66674041748047 vs C3D8I -0.7126151919364929 -> ratio 92.15 (floor 10.0). A ratio that collapses means the warning now describes something that no longer happens.",
+      "measured": -65.66674041748047
+    }
+  ],
+  "counts": {
+    "total": 5,
+    "pass": 5,
+    "fail": 0,
+    "skipped": 0
+  }
+}

@@ -40,7 +40,7 @@ def build_validation_evidence_entry(
 
 
 def render_validation_matrix_row(entry: ValidationEvidenceEntry) -> str:
-    """Render a Markdown table row for docs/VALIDATION_MATRIX.md."""
+    """Render a Markdown table row for a validation matrix."""
     cells = [
         entry.date,
         entry.environment,

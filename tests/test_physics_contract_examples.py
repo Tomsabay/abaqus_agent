@@ -7,7 +7,7 @@ from contracts.io import load_contracts
 from evidence.offline import collect_evidence_from_files
 
 EXAMPLE_KPIS = {
-    "cantilever": {"U_tip": -0.0025716267991811037, "MISES_MAX": 0.38309070467948914},
+    "cantilever": {"U_tip": -0.0019039579201489687, "MISES_MAX": 0.6528551578521729},
     "plate_hole": {"MISES_HOLE_EDGE": 300.0, "U_X_MAX": 0.048},
     "modal": {"freq_1": 0.0, "freq_2": 1000.0},
     "explicit_impact": {"RF_Z_MAX": 1000.0, "U_Z_MIN": -2.0},

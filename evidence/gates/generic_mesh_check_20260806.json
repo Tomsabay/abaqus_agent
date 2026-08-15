@@ -1,0 +1,117 @@
+{
+  "schema": "generic_mesh_check/1",
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "source": "generic_mesh_check_20260806",
+  "items": [
+    {
+      "id": "generic_mesh_tets_a_part_with_no_hex_route",
+      "status": "pass",
+      "note": "every hex route on this part either refuses outright or is accepted and meshes nothing; TET/FREE meshes it completely. setMeshControls, setElementType, seedPart and generateMesh are all named by the spec, and mesh.ElemType is built with {new:}.",
+      "expected_elements": 10030,
+      "seconds": 2.8
+    },
+    {
+      "id": "generic_mesh_refuses_a_silent_zero",
+      "status": "pass",
+      "mutation": "TET/FREE -> HEX/SYSTEM_ASSIGN",
+      "note": "Abaqus ACCEPTS this combination on a shape with no hexes, generates zero elements and returns without complaint.",
+      "aborted": true,
+      "seconds": 1.2
+    },
+    {
+      "id": "generic_mesh_requires_an_expect_block",
+      "status": "pass",
+      "note": "nothing else checks a mesh built by generic call, so the truth block is not optional.",
+      "seconds": 0.0
+    },
+    {
+      "id": "generic_mesh_asserts_the_element_count",
+      "status": "pass",
+      "mutation": "expect.mesh.elements >= 10x what the seed produces",
+      "note": "a mesh far coarser than intended still solves and still reports COMPLETED.",
+      "aborted": true,
+      "seconds": 1.4
+    },
+    {
+      "id": "generic_mesh_explains_a_mixed_element_order",
+      "status": "pass",
+      "mutation": "C3D20R/C3D15/C3D10 -> C3D8R/C3D6/C3D10",
+      "note": "linear hex with quadratic tet. Abaqus says 'Default args are not fully supported', which is useless on its own.",
+      "aborted": true,
+      "seconds": 1.2
+    },
+    {
+      "id": "generic_assembly_pattern_lands_in_the_holes",
+      "status": "pass",
+      "identity": "bolt k sits at (55*sin(45k), 7.5, 55*cos(45k)) -- the housing's own measured hole centroids",
+      "note": "one instance and one RadialInstancePattern. The positions are not read back from the model, they are the hole centres the part check measured independently.",
+      "tolerance_mm": 0.01,
+      "bolts_placed": 8,
+      "seconds": 3.2
+    },
+    {
+      "id": "generic_assembly_refuses_a_wrong_instance_count",
+      "status": "pass",
+      "mutation": "expect.instances 9 -> 13",
+      "note": "a pattern that quietly produced nothing would leave one bolt instead of eight, and a stiffness wrong by a factor nobody would question.",
+      "seconds": 1.4
+    },
+    {
+      "id": "generic_assembly_refuses_a_misplaced_instance",
+      "status": "pass",
+      "mutation": "translate/rotate written in the other order",
+      "note": "the sugar translates first and rotates second; the two do not commute. Written the other way round the bolt lands at (0, 67.5, 5) instead of (0, 7.5, 55) -- floating in space above the flange, with nothing raised and every count intact. This was a real mistake made while writing the demo, not an invented one.",
+      "count_check_passed": true,
+      "position_check_aborted": true,
+      "seconds": 4.1
+    },
+    {
+      "id": "generic_assembly_refuses_a_cut_nothing_meshed",
+      "status": "pass",
+      "mutation": "InstanceFromBooleanCut with nothing meshing the result",
+      "note": "measured: the cut part comes out cells=1 elements=0 nodes=0, and before this check the .inp carried *Part, name=Cut / *End Part with a live *Instance and not one *Element in the file, with the job completing.",
+      "aborted": true,
+      "seconds": 1.1
+    },
+    {
+      "id": "generic_assembly_refuses_a_merge_nothing_instanced",
+      "status": "pass",
+      "mutation": "PartFromBooleanMerge with no instance of the result",
+      "note": "quieter than the cut, and worse: measured, PartFromBooleanMerge returns a Part, adds it to m.parts, creates no instance and suppresses nothing -- a.instances is untouched and both originals stay meshed. Every count and every position still agrees; what solves is the model from before the merge, which for two halves meant to be one solid is a different answer, not a missing one.",
+      "aborted": true,
+      "seconds": 1.1
+    },
+    {
+      "id": "generic_assembly_meshes_a_boolean_result",
+      "status": "pass",
+      "identity": "the instance carries the mesh, not the part",
+      "note": "makeIndependent then setMeshControls + seedPartInstance + generateMesh. The .inp keeps an empty *Part, name=Cut -- for an independent instance that is correct, the nodes and elements are written inside the *Instance block, which is why this layer asks the instance for its element count and never the part. The *Solid Section is inherited from the body that was cut.",
+      "elements_written": 1053,
+      "section_written": true,
+      "seconds": 1.2
+    },
+    {
+      "id": "generic_assembly_expect_measures_the_boolean_result",
+      "status": "pass",
+      "identity": "20^3 block minus a 6x6 pin through it = 7280.0, 1 cell",
+      "note": "before this, `expect:` on an operation passed jsonschema, passed validate_references, generated an 84 KB deck and appeared nowhere in it",
+      "measured": "ASM_EXPECT_OK: assembly operation 1 -- volume=7280.0, cells=1",
+      "seconds": 1.1
+    },
+    {
+      "id": "generic_assembly_expect_catches_a_wrong_number",
+      "status": "pass",
+      "mutation": "expect.volume 7280.0 -> 8000.0, the volume before the cut",
+      "aborted": true,
+      "seconds": 1.0,
+      "refusal_line": "ASM_EXPECT_VOLUME: assembly operation 1 produced instance of part Cut of volume 7280.0, the spec says 8000.0. Off by 0.09, tolerance 0.001. A boolean that joins nothing is silent: measured on Abaqus 2021, a merge of two bodies that do not touch keeps every cubic millimetre of both and the instance c"
+    }
+  ],
+  "counts": {
+    "total": 13,
+    "pass": 13,
+    "fail": 0,
+    "skipped": 0
+  }
+}

@@ -130,9 +130,11 @@ async def _run_stdio_smoke() -> None:
                 "diagnose_solver_logs_tool",
                 "run_simulation_diff_tool",
                 "get_solver_doctor_patterns_tool",
-                "get_premium_features",
-                "activate_premium",
+                "get_features",
             }.issubset(tool_names)
+            # The licence gate is gone: the activation tool must not be
+            # advertised at all.
+            assert "activate_premium" not in tool_names
 
             health = _json_from_tool_result(await session.call_tool("health_check", {}))
             assert health["status"] == "ok"
@@ -147,34 +149,18 @@ async def _run_stdio_smoke() -> None:
             )
             assert validation == {"valid": True, "errors": []}
 
-            premium_features = _json_from_tool_result(
-                await session.call_tool("get_premium_features", {})
+            feature_modules = _json_from_tool_result(
+                await session.call_tool("get_features", {})
             )
-            assert set(premium_features["features"]) >= {"coupling", "parametric"}
-            assert "capabilities" in premium_features
-
-            empty_activation = _json_from_tool_result(
-                await session.call_tool("activate_premium", {"license_key": ""})
-            )
-            assert empty_activation == {
-                "valid": False,
-                "error": "No license key provided",
-            }
-
-            dev_activation = _json_from_tool_result(
-                await session.call_tool(
-                    "activate_premium",
-                    {"license_key": "dev-stdio-smoke"},
-                )
-            )
-            assert dev_activation["valid"] is True
-            assert set(dev_activation["features"]) == set(premium_features["features"])
+            assert set(feature_modules["features"]) >= {"coupling", "parametric"}
+            assert "capabilities" in feature_modules
+            assert "enabled" not in json.dumps(feature_modules)
 
             resources = await session.list_resources()
             resource_uris = {str(resource.uri) for resource in resources.resources}
             assert {
                 "benchmark://cases",
-                "premium://features",
+                "features://capabilities",
                 "evidence://examples",
                 "evidence-vault://entries",
                 "case-memory://vault",
@@ -619,11 +605,11 @@ async def _run_stdio_smoke() -> None:
             assert {pattern["category"] for pattern in doctor_pattern_tool["patterns"]} == {"LICENSE"}
             assert {pattern["severity"] for pattern in doctor_pattern_tool["patterns"]} == {"ERROR"}
 
-            premium_resource = await session.read_resource("premium://features")
-            assert premium_resource.contents
-            premium_resource_data = json.loads(premium_resource.contents[0].text)
-            assert set(premium_resource_data["features"]) == set(
-                premium_features["features"]
+            features_resource = await session.read_resource("features://capabilities")
+            assert features_resource.contents
+            features_resource_data = json.loads(features_resource.contents[0].text)
+            assert set(features_resource_data["features"]) == set(
+                feature_modules["features"]
             )
     vault_dir_ctx.cleanup()
 

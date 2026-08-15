@@ -1,0 +1,109 @@
+meta:
+  abaqus_release: "2021"
+  model_name: "BlockFrictionSlide"
+  units: "mm_MPa_t"
+  description: >
+    Coulomb friction, measured against the one number it is defined by.
+
+    A 20x20 block sits on a larger base. Step 1 presses it down with 1.0 MPa,
+    so the normal force is N = 1.0 * 20 * 20 = 400 N exactly. Step 2 pushes the
+    block sideways by a prescribed 1.0 mm — far past the elastic stick limit —
+    and the reaction that develops on the pushed face is the friction force.
+
+    Coulomb says F = mu*N = 0.3 * 400 = 120 N. Nothing else in the model can
+    produce that number: a dropped friction coefficient gives ~0, a factor-of-
+    two slip in reading mu gives 60 or 240. Displacement control is what makes
+    it converge — a force-driven slide is rigid-body motion and would never
+    converge in a static step.
+
+material:
+  name: Steel
+  E: 210000.0   # MPa
+  nu: 0.3
+
+parts:
+  - name: Base
+    features:
+      - op: sketch
+        id: outline
+        plane: XY
+        profile:
+          rect: { corner1: [0.0, 0.0], corner2: [40.0, 10.0] }
+      - op: extrude
+        sketch: outline
+        depth: 60.0
+    section: { type: solid, material: Steel }
+    mesh: { seed: 5.0, element: C3D8I }
+
+  - name: Slider
+    features:
+      - op: sketch
+        id: outline
+        plane: XY
+        profile:
+          rect: { corner1: [0.0, 0.0], corner2: [20.0, 10.0] }
+      - op: extrude
+        sketch: outline
+        depth: 20.0
+    section: { type: solid, material: Steel }
+    mesh: { seed: 5.0, element: C3D8I }
+
+assembly:
+  instances:
+    - { name: Base, part: Base, translate: [0.0, 0.0, 0.0] }
+    # Centred on the base in x, and set back in z so there is room to slide.
+    - { name: Slider, part: Slider, translate: [10.0, 10.0, 10.0] }
+
+interactions:
+  - name: Interface
+    type: contact
+    main: "Base:face@y=max"
+    secondary: "Slider:face@y=min"
+    sliding: finite
+    property:
+      normal: hard
+      friction: 0.3
+      allow_separation: true
+
+steps:
+  - name: Clamp
+    type: Static
+    time_period: 1.0
+    initial_inc: 0.1
+    min_inc: 1.0e-6
+    max_num_inc: 200
+    bcs:
+      - { name: Ground, region: "Base:face@y=min", type: encastre }
+      # The slider needs its out-of-plane rigid body motion removed while the
+      # interface is still frictionless-soft, or increment 1 has nothing to
+      # hold it: contact pressure is zero until the pressure load bites.
+      - { name: HoldX, region: "Slider:face@x=min", type: displacement, u1: 0.0 }
+      - { name: HoldZ, region: "Slider:face@z=min", type: displacement, u3: 0.0 }
+    loads:
+      # 1.0 MPa over the 20x20 top face is exactly 400 N of normal force.
+      - { name: Press, region: "Slider:face@y=max", type: pressure, value: 1.0 }
+
+  - name: Slide
+    type: Static
+    time_period: 1.0
+    initial_inc: 0.05
+    min_inc: 1.0e-6
+    max_num_inc: 200
+    bcs:
+      # 1.0 mm is well past the elastic slip Abaqus allows before full sliding
+      # (0.005 of the characteristic surface length, ~0.1 mm here), so the whole
+      # interface is sliding and the reaction is the Coulomb limit.
+      - { name: HoldZ, region: "Slider:face@z=min", type: displacement, u3: 1.0 }
+
+outputs:
+  kpis:
+    - name: FRICTION_FORCE
+      type: reaction_force_max
+      location: "BC_HOLDZ"
+      component: RF3
+      reducer: sum
+    - name: NORMAL_FORCE
+      type: reaction_force_max
+      location: "BC_GROUND"
+      component: RF2
+      reducer: sum

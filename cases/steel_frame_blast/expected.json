@@ -1,0 +1,25 @@
+{
+  "kpis": {
+    "U2_ROOF_PEAK": {
+      "value": 115.4,
+      "rtol": 0.25,
+      "atol": 15.0,
+      "unit": "mm",
+      "note": "Peak roof-center lateral drift (abs max of U2 history, 0.2s window). Calibrated from baseline run 9197451d92416dbb (200kg TNT @ 12m, Abaqus/Explicit). SDOF impulse estimate gives the same order (~100-200mm)."
+    },
+    "PEEQ_MAX": {
+      "value": 0.062,
+      "rtol": 0.5,
+      "atol": 0.02,
+      "unit": "-",
+      "note": "Peak equivalent plastic strain, concentrated at front column bases and first-story hinges. ~6% = pronounced plastic hinging without collapse."
+    },
+    "ALLPD_MAX": {
+      "value": 4.3e9,
+      "rtol": 0.5,
+      "atol": 5.0e8,
+      "unit": "mJ",
+      "note": "Plastic dissipation ~4.3 MJ across first-story hinges (mm/MPa/t units -> mJ). Mesh-dependent; use as energy budget check."
+    }
+  }
+}

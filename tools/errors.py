@@ -25,6 +25,11 @@ class ErrorCode(str, Enum):
 
     # Execution
     ABAQUS_NOT_FOUND      = "ABAQUS_NOT_FOUND"
+    CALCULIX_NOT_FOUND    = "CALCULIX_NOT_FOUND"
+    # The chosen solver cannot do this problem faithfully — a refusal, not a
+    # crash. Distinct from UNSUPPORTED_GEOMETRY/STEP, which are about the spec
+    # being invalid for the product as a whole.
+    BACKEND_UNSUPPORTED   = "BACKEND_UNSUPPORTED"
     LICENSE_UNAVAILABLE   = "LICENSE_UNAVAILABLE"
     TIMEOUT               = "TIMEOUT"
     JOB_FAILED            = "JOB_FAILED"
@@ -41,9 +46,6 @@ class ErrorCode(str, Enum):
     SPEC_INVALID          = "SPEC_INVALID"
     LLM_GENERATION_FAILED = "LLM_GENERATION_FAILED"
 
-    # Premium / licensing
-    PREMIUM_FEATURE_REQUIRED = "PREMIUM_FEATURE_REQUIRED"
-
     # Generic
     UNKNOWN               = "UNKNOWN"
 
@@ -59,6 +61,8 @@ ERROR_SUGGESTIONS: dict[ErrorCode, str] = {
     ErrorCode.SCHEMA_VALIDATION:    "Fix spec.yaml to comply with schema/spec_schema.json",
     ErrorCode.STATIC_GUARD_BLOCKED: "Remove dangerous imports (os/subprocess/socket) from generated script",
     ErrorCode.ABAQUS_NOT_FOUND:     "Add Abaqus to PATH; verify installation with 'abaqus information=release'",
+    ErrorCode.CALCULIX_NOT_FOUND:   "Add ccx to PATH or set ABAQUS_AGENT_CCX_EXE to the full ccx.exe path",
+    ErrorCode.BACKEND_UNSUPPORTED:  "Install Abaqus for this feature, or change the spec to what the fallback solver covers",
     ErrorCode.LICENSE_UNAVAILABLE:  "Wait for license token or reduce concurrent jobs",
     ErrorCode.TIMEOUT:              "Increase timeout_seconds or reduce model size / increase cpus",
     ErrorCode.JOB_FAILED:           "Check .log/.msg files; run syntaxcheck; inspect .dat for diagnostics",
@@ -70,7 +74,6 @@ ERROR_SUGGESTIONS: dict[ErrorCode, str] = {
     ErrorCode.KPI_EXTRACTION_FAILED:"Check kpi_spec types and location set names in the model",
     ErrorCode.SPEC_INVALID:         "Validate spec against schema/spec_schema.json",
     ErrorCode.LLM_GENERATION_FAILED:"Retry with more specific constraints or use a template",
-    ErrorCode.PREMIUM_FEATURE_REQUIRED: "This feature requires a premium license. Set ABAQUS_AGENT_LICENSE_KEY or ABAQUS_AGENT_FEATURES env var",
     ErrorCode.UNKNOWN:              "Inspect logs for details",
 }
 

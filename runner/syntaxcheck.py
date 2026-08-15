@@ -56,7 +56,8 @@ def syntaxcheck_inp(inp_path: str | Path, workdir: str | Path | None = None) -> 
             cmd,
             cwd=str(workdir),
             capture_output=True,
-            text=True,
+            # Abaqus prints Windows locale messages in the system codepage.
+            text=True, encoding="utf-8", errors="replace",
             timeout=120,
         )
         combined = result.stdout + "\n" + result.stderr

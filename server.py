@@ -25,6 +25,7 @@ import hashlib
 import io
 import json
 import mimetypes
+import os
 
 # ── Project imports ──────────────────────────────────────────────
 import sys
@@ -51,22 +52,22 @@ from case_memory import (
 from case_memory import (
     search_case_memory as search_run_case_memory,
 )
-from copilot.models import CopilotPlan
-from copilot.planner import CodexUnavailable, build_copilot_plan, execute_plan
+from core import config
 from core.helpers import CASES_DIR, check_abaqus, list_cases, make_run_id
 from core.pipeline import (
     run_benchmark_async,
     run_pipeline,
 )
 from core.spec_generator import generate_spec_async
+from doctor.cae_errors import diagnose_cae_traceback, list_cae_error_patterns
 from doctor.solver_doctor import diagnose_log_texts, list_doctor_patterns, render_markdown
+from evidence.artifact_registry import ArtifactNotFound, EvidenceArtifactRegistry
 from evidence.case_memory import search_case_memory
 from evidence.case_memory_diff import collect_case_memory_diff
 from evidence.demo_gallery import collect_demo_gallery
 from evidence.examples import get_example, list_examples
 from evidence.offline import collect_evidence_from_values, validate_run_id
 from evidence.vault import (
-    create_vault_entry,
     default_vault_root,
     get_vault_file_path,
     get_vault_record,
@@ -81,11 +82,8 @@ from reporting import (
     render_run_report_html,
     render_run_report_markdown,
 )
-from scripts.package_copilot_alpha import build_copilot_alpha_package
 from scripts.run_local_cli_smoke import collect_local_cli_smoke
 from scripts.run_local_demo_pack import collect_demo_pack_vault_files, create_local_demo_pack
-from scripts.verify_copilot_alpha_package import verify_copilot_alpha_package
-from scripts.verify_copilot_alpha_release import collect_release_gate
 from scripts.verify_local_cli_smoke_bundle import verify_smoke_bundle
 from scripts.verify_local_demo_pack_bundle import verify_demo_pack_bundle
 from simdiff import diff_runs, render_run_markdown
@@ -98,11 +96,13 @@ FRONTEND_DIR = Path(__file__).parent / "frontend"
 # ── In-memory run store ───────────────────────────────────────────
 # {run_id: {status, stages, kpis, spec, ...}}
 RUNS: dict[str, dict] = {}
-EVIDENCE_ARTIFACTS: dict[str, dict[str, Any]] = {}
-EVIDENCE_ARTIFACT_SEQUENCE = 0
-DEMO_GALLERY_ARTIFACTS: dict[str, dict[str, Any]] = {}
-COPILOT_SESSIONS: dict[str, dict[str, Any]] = {}
-COPILOT_SESSION_FILE = Path.home() / ".abaqus_agent_session"
+
+EVIDENCE = EvidenceArtifactRegistry("/api/evidence")
+# The two dicts the registry keeps, under the names they have always had here.
+# They are the same objects, not copies, so clearing one clears the registry --
+# which is what the test fixtures do between cases.
+EVIDENCE_ARTIFACTS = EVIDENCE.artifacts
+DEMO_GALLERY_ARTIFACTS = EVIDENCE.demo_galleries
 
 # ── FastAPI app ───────────────────────────────────────────────────
 app = FastAPI(
@@ -115,23 +115,49 @@ app = FastAPI(
     ),
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# This server drives a real solver and reads/writes the local filesystem, and
+# it has no authentication. It also serves its own frontend, so the workbench
+# is same-origin and needs no CORS at all. A wildcard here would let any page
+# the user happens to visit script their local install through the browser.
+# Cross-origin access is therefore opt-in, explicit, and never wildcarded.
+_cors_origins = [
+    o.strip() for o in os.environ.get("ABAQUS_AGENT_CORS_ORIGINS", "").split(",") if o.strip()
+]
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Serve frontend
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+# Cursor-style workbench (chat → spec diff → accept → run)
+from workbench.routes import configure as configure_workbench  # noqa: E402
+from workbench.routes import router as workbench_router  # noqa: E402
+# The 21 /api/copilot/* routes and the session store they own.
+# COPILOT_SESSIONS is re-exported because tests and the CAE plug-in path reach
+# for it here; it is the same dict object, so mutating it through either name
+# works. Nothing else is re-exported on purpose -- rebinding a re-exported
+# Path (COPILOT_SESSION_FILE) here would leave the routes reading the old one.
+from copilot.routes import COPILOT_SESSIONS  # noqa: E402,F401
+from copilot.routes import router as copilot_router  # noqa: E402
+
+configure_workbench(RUNS)
+app.include_router(workbench_router)
+app.include_router(copilot_router)
 
 
 # ── Request / Response models ─────────────────────────────────────
 
 class GenerateSpecRequest(BaseModel):
     text: str
-    abaqus_release: str = "2024"
+    # Empty = probe the installed solver. A literal default put a release this
+    # machine may not have into every generated spec.
+    abaqus_release: str = ""
     llm_backend: str = "template"
     anthropic_key: str = ""   # Optional: override ANTHROPIC_API_KEY env var
     openai_key: str = ""      # Optional: override OPENAI_API_KEY env var
@@ -212,235 +238,6 @@ class CaseMemoryDiffRequest(BaseModel):
     baseline_filename: str | None = None
     candidate_filename: str | None = None
 
-class CopilotPlanRequest(BaseModel):
-    text: str
-    backend: str = "codex"
-
-class CopilotExecuteRequest(BaseModel):
-    session_id: str
-    bridge_mode: str = "mock"
-
-class CopilotActionResultRequest(BaseModel):
-    action_index: int
-    status: str
-    message: str = ""
-    payload: dict[str, Any] = Field(default_factory=dict)
-
-
-def _artifact_id(run_id: str) -> str:
-    return f"{run_id}-{uuid.uuid4().hex[:8]}"
-
-
-def _register_evidence_artifacts(
-    *,
-    run_id: str,
-    evidence: dict[str, Any],
-    evidence_path: Path,
-    report_path: Path,
-    html_path: Path,
-    capsule_manifest_path: Path,
-    url_prefix: str = "/api/evidence/artifacts",
-) -> dict[str, Any]:
-    global EVIDENCE_ARTIFACT_SEQUENCE
-    EVIDENCE_ARTIFACT_SEQUENCE += 1
-    artifact_id = _artifact_id(run_id)
-    generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    bundle_path = report_path.parent / f"{artifact_id}.zip"
-    _write_evidence_bundle_zip(
-        bundle_path=bundle_path,
-        artifact_id=artifact_id,
-        run_id=run_id,
-        generated_at=generated_at,
-        evidence_path=evidence_path,
-        report_path=report_path,
-        html_path=html_path,
-        capsule_manifest_path=capsule_manifest_path,
-    )
-    artifact_urls = {
-        "evidence_json": f"{url_prefix}/{artifact_id}/evidence.json",
-        "report_markdown": f"{url_prefix}/{artifact_id}/evidence.md",
-        "report_html": f"{url_prefix}/{artifact_id}/evidence.html",
-        "capsule_manifest": f"{url_prefix}/{artifact_id}/capsule.json",
-        "bundle_zip": f"{url_prefix}/{artifact_id}/bundle.zip",
-    }
-    record = _evidence_artifact_record(
-        artifact_id=artifact_id,
-        run_id=run_id,
-        generated_at=generated_at,
-        sequence=EVIDENCE_ARTIFACT_SEQUENCE,
-        artifact_urls=artifact_urls,
-        evidence=evidence,
-    )
-    EVIDENCE_ARTIFACTS[artifact_id] = {
-        "files": {
-            "evidence.json": evidence_path,
-            "evidence.md": report_path,
-            "evidence.html": html_path,
-            "capsule.json": capsule_manifest_path,
-            "bundle.zip": bundle_path,
-        },
-        "record": record,
-    }
-    return {"artifact_id": artifact_id, "artifact_urls": artifact_urls}
-
-
-def _evidence_artifact_record(
-    *,
-    artifact_id: str,
-    run_id: str,
-    generated_at: str,
-    sequence: int,
-    artifact_urls: dict[str, str],
-    evidence: dict[str, Any],
-) -> dict[str, Any]:
-    contracts = evidence.get("contracts", {})
-    diff = evidence.get("diff", {})
-    capsule = evidence.get("capsule", {})
-    return {
-        "artifact_id": artifact_id,
-        "run_id": run_id,
-        "generated_at": generated_at,
-        "sequence": sequence,
-        "overall_status": evidence.get("overall_status"),
-        "real_env_verified": evidence.get("real_env_verified"),
-        "contracts": {
-            "status": contracts.get("status"),
-            "total": contracts.get("total"),
-            "failed_count": contracts.get("failed_count"),
-            "warning_count": contracts.get("warning_count"),
-        },
-        "diff": {
-            "status": diff.get("status"),
-            "total": diff.get("total"),
-            "changed_count": diff.get("changed_count"),
-            "added_count": diff.get("added_count"),
-            "removed_count": diff.get("removed_count"),
-        },
-        "capsule": {
-            "run_id": capsule.get("run_id"),
-            "capsule_hash": capsule.get("capsule_hash"),
-            "input_count": capsule.get("input_count"),
-            "artifact_count": capsule.get("artifact_count"),
-        },
-        "artifact_urls": artifact_urls,
-    }
-
-
-def _write_evidence_bundle_zip(
-    *,
-    bundle_path: Path,
-    artifact_id: str,
-    run_id: str,
-    generated_at: str,
-    evidence_path: Path,
-    report_path: Path,
-    html_path: Path,
-    capsule_manifest_path: Path,
-) -> None:
-    manifest = {
-        "schema_version": "1.0",
-        "artifact_id": artifact_id,
-        "run_id": run_id,
-        "generated_at": generated_at,
-        "files": ["evidence.json", "evidence.md", "evidence.html", "capsule.json"],
-    }
-    with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-        bundle.write(evidence_path, "evidence.json")
-        bundle.write(report_path, "evidence.md")
-        bundle.write(html_path, "evidence.html")
-        bundle.write(capsule_manifest_path, "capsule.json")
-        bundle.writestr("bundle_manifest.json", json.dumps(manifest, indent=2, sort_keys=True))
-
-
-def _get_evidence_artifact_path(artifact_id: str, filename: str) -> Path:
-    artifact = EVIDENCE_ARTIFACTS.get(artifact_id)
-    files = artifact.get("files", {}) if artifact else {}
-    if filename not in files:
-        raise HTTPException(status_code=404, detail="Evidence artifact not found")
-    path = files[filename]
-    if not path.exists() or not path.is_file():
-        raise HTTPException(status_code=404, detail="Evidence artifact file missing")
-    return path
-
-
-def _list_evidence_artifact_records(limit: int = 20) -> dict[str, Any]:
-    safe_limit = max(1, min(limit, 100))
-    items = [
-        artifact["record"]
-        for artifact in EVIDENCE_ARTIFACTS.values()
-        if "record" in artifact
-    ]
-    items.sort(key=lambda item: item["sequence"], reverse=True)
-    return {"items": items[:safe_limit], "total": len(items)}
-
-
-def _create_vault_entry(
-    *,
-    kind: str,
-    title: str,
-    files: dict[str, Path],
-    summary: dict[str, Any],
-    url_prefix: str = "/api/evidence/vault",
-) -> dict[str, Any]:
-    record = create_vault_entry(kind=kind, title=title, files=files, summary=summary)
-    vault_urls = {
-        filename: f"{url_prefix}/{record['vault_id']}/{filename}"
-        for filename in record["files"]
-    }
-    return {"vault_id": record["vault_id"], "vault_urls": vault_urls}
-
-
-def _register_demo_gallery_artifacts(
-    *,
-    index: dict[str, Any],
-    out_dir: Path,
-    url_prefix: str = "/api/evidence/demo-gallery",
-) -> dict[str, Any]:
-    artifact_id = _artifact_id("demo-gallery")
-    artifact_urls = {
-        "index_json": f"{url_prefix}/{artifact_id}/index.json",
-        "index_markdown": f"{url_prefix}/{artifact_id}/index.md",
-        "index_html": f"{url_prefix}/{artifact_id}/index.html",
-        "gallery_zip": f"{url_prefix}/{artifact_id}/offline-demo-gallery.zip",
-    }
-    record = {
-        "artifact_id": artifact_id,
-        "generated_at": index["generated_at"],
-        "overall_status": index["overall_status"],
-        "case_count": index["case_count"],
-        "cases": [
-            {
-                "case": case["case"],
-                "overall_status": case["overall_status"],
-                "contracts_status": case["contracts_status"],
-                "diff_status": case["diff_status"],
-                "capsule_hash": case["capsule_hash"],
-            }
-            for case in index["cases"]
-        ],
-        "artifact_urls": artifact_urls,
-    }
-    DEMO_GALLERY_ARTIFACTS[artifact_id] = {
-        "files": {
-            "index.json": out_dir / "index.json",
-            "index.md": out_dir / "index.md",
-            "index.html": out_dir / "index.html",
-            "offline-demo-gallery.zip": Path(index["gallery_zip_path"]),
-        },
-        "record": record,
-    }
-    return {"artifact_id": artifact_id, "artifact_urls": artifact_urls, "record": record}
-
-
-def _get_demo_gallery_artifact_path(artifact_id: str, filename: str) -> Path:
-    artifact = DEMO_GALLERY_ARTIFACTS.get(artifact_id)
-    files = artifact.get("files", {}) if artifact else {}
-    if filename not in files:
-        raise HTTPException(status_code=404, detail="Demo gallery artifact not found")
-    path = files[filename]
-    if not path.exists() or not path.is_file():
-        raise HTTPException(status_code=404, detail="Demo gallery artifact file missing")
-    return path
 
 
 # ── Routes ───────────────────────────────────────────────────────
@@ -453,192 +250,58 @@ def root():
     return {"status": "ok", "message": "Abaqus Agent API running"}
 
 
+@app.get("/api/i18n/messages")
+def i18n_messages(lang: str = ""):
+    """The backend's own message catalogue, for the browser to render with.
+
+    Refusals travel as a key plus parameters rather than as finished prose,
+    because a refusal is written into result.json and read back later —
+    possibly by someone reading in the other language. That means whoever
+    displays it needs the catalogue, and the browser is the one displaying it.
+
+    Serving it beats duplicating it in the frontend: one wording, one place to
+    fix it, and no way for the two to end up describing the same refusal
+    differently.
+    """
+    from core import messages
+    resolved = messages.resolve_lang(lang or None)
+    return {"lang": resolved, "messages": messages.catalogue_for(resolved)}
+
+
 @app.get("/health")
 def health():
+    # The release is what the installed solver reports, never a spec field
+    # (those drift). Short timeout: the first call pays for the probe, the
+    # rest read the process cache, and an absent solver just yields None.
+    from core.backends import ENV_BACKEND, backend_label, check_calculix, select_backend
+    from tools.abaqus_cmd import detect_abaqus_release
+    from tools.ccx_cmd import detect_ccx_version
+
+    try:
+        release = detect_abaqus_release(timeout=15.0)
+    except Exception:
+        release = None
+    try:
+        ccx_version = detect_ccx_version(timeout=10.0)
+    except Exception:
+        ccx_version = None
+    # What auto-detection would pick right now, so the UI can say which solver
+    # is in charge before the user starts a run rather than after it degrades.
+    decision = select_backend({})
     return {
         "status": "ok",
         "abaqus_available": check_abaqus(),
+        "abaqus_release": release,
+        "calculix_available": check_calculix(),
+        "calculix_version": ccx_version,
+        "solver_backend": decision.backend,
+        "solver_label": backend_label(decision.backend, decision.version),
+        "solver_reason": decision.reason,
+        "backend_override": os.environ.get(ENV_BACKEND) or None,
         "cases": list_cases(),
         "version": "0.1.0",
     }
 
-
-# ── Copilot endpoints ─────────────────────────────────────────────
-
-@app.get("/api/copilot/status")
-def get_copilot_status():
-    """Expose the user-facing Copilot runtime status."""
-    return {
-        "status": "ok",
-        "codex_app_server": "available",
-        "auth_mode": "local_codex_app_server",
-        "abaqus_available": check_abaqus(),
-        "supported_actions": [
-            "create_cantilever_model",
-            "apply_boundary_condition",
-            "submit_job_or_prepare_run",
-        ],
-        "sessions": len(COPILOT_SESSIONS),
-    }
-
-
-@app.get("/api/copilot/plugin-guide")
-def get_copilot_plugin_guide(request: Request):
-    """Return copy-paste setup details for the Abaqus/CAE Copilot plug-in."""
-    server_url = str(request.base_url).rstrip("/")
-    return {
-        "server_url": server_url,
-        "install_command": "abaqus-agent-copilot-install-plugin --plugin-dir <ABAQUS_PLUGIN_DIR>",
-        "remote_server_env": f"ABAQUS_AGENT_SERVER_URL={server_url}",
-        "session_file": str(COPILOT_SESSION_FILE),
-        "open_sidecar_action": "AbaqusAgent Copilot: Open Sidecar",
-        "run_plan_action": "AbaqusAgent Copilot: Run Current Plan",
-        "execute_next_action": "AbaqusAgent Copilot: Execute Next Action",
-        "status_action": "AbaqusAgent Copilot: Check Session Status",
-        "execution_loop": "优先点击 Run Current Plan 一键执行完整队列；需要调试时再用 Execute Next Action 单步执行。",
-    }
-
-
-@app.get("/api/copilot/release-gate")
-def get_copilot_release_gate(strict_gui: bool = False):
-    """Return current Copilot Alpha/release evidence status."""
-    return collect_release_gate(root=Path(__file__).parent, strict_gui=strict_gui)
-
-
-@app.get("/api/copilot/alpha-package.zip")
-def get_copilot_alpha_package(request: Request):
-    """Build and download the current Copilot Alpha package."""
-    server_url = str(request.base_url).rstrip("/")
-    result = build_copilot_alpha_package(root=Path(__file__).parent, server_url=server_url)
-    package_path = Path(result["package_path"])
-    if not package_path.exists():
-        raise HTTPException(status_code=404, detail="Copilot Alpha package not found")
-    return FileResponse(
-        package_path,
-        media_type="application/zip",
-        filename=result["package_name"],
-    )
-
-
-@app.get("/api/copilot/alpha-package/verify")
-def verify_copilot_alpha_package_endpoint(request: Request):
-    """Build and verify the current Copilot Alpha package."""
-    server_url = str(request.base_url).rstrip("/")
-    package = build_copilot_alpha_package(root=Path(__file__).parent, server_url=server_url)
-    verification = verify_copilot_alpha_package(package["package_path"])
-    return {
-        "package": package,
-        "verification": verification,
-    }
-
-
-@app.post("/api/copilot/plan")
-def create_copilot_plan(req: CopilotPlanRequest):
-    """Convert a beginner-friendly Abaqus request into safe CAE actions."""
-    try:
-        plan = build_copilot_plan(req.text, backend=req.backend)
-    except CodexUnavailable as e:
-        raise HTTPException(status_code=503, detail=f"Codex app-server unavailable: {e}")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    plan_data = plan.model_dump()
-    COPILOT_SESSIONS[plan.session_id] = {
-        "plan": plan_data,
-        "pending_actions": plan_data["actions"].copy(),
-        "results": [],
-        "created_at": time.time(),
-    }
-    return plan_data
-
-
-@app.post("/api/copilot/execute")
-def execute_copilot_plan(req: CopilotExecuteRequest):
-    """Prepare or execute a Copilot action plan through the local bridge."""
-    record = COPILOT_SESSIONS.get(req.session_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Copilot session not found")
-    plan = CopilotPlan.model_validate(record["plan"])
-    result = execute_plan(plan, bridge_mode=req.bridge_mode)
-    result_data = result.model_dump()
-    record["execution"] = result_data
-    return result_data
-
-
-@app.get("/api/copilot/sessions/{session_id}")
-def get_copilot_session(session_id: str):
-    """Return a Copilot session summary for sidecar/plugin progress UI."""
-    record = COPILOT_SESSIONS.get(session_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Copilot session not found")
-    plan = record.get("plan") or {}
-    pending_actions = record.get("pending_actions") or []
-    results = record.get("results") or []
-    return {
-        "session_id": session_id,
-        "backend": plan.get("backend"),
-        "user_summary": plan.get("user_summary"),
-        "action_count": len(plan.get("actions") or []),
-        "pending_count": len(pending_actions),
-        "completed_count": len(results),
-        "results": results,
-        "execution": record.get("execution"),
-        "created_at": record.get("created_at"),
-    }
-
-
-@app.get("/api/copilot/sessions/{session_id}/next-action")
-def get_copilot_next_action(session_id: str):
-    """Endpoint polled by the Abaqus/CAE plugin bridge."""
-    record = COPILOT_SESSIONS.get(session_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Copilot session not found")
-    pending = record.get("pending_actions") or []
-    if not pending:
-        return {"session_id": session_id, "action": None}
-    return {
-        "session_id": session_id,
-        "action_index": len(record.get("results", [])),
-        "action": pending[0],
-    }
-
-
-@app.post("/api/copilot/sessions/{session_id}/activate")
-def activate_copilot_session(session_id: str):
-    """Make a Copilot session the default session for the local CAE plug-in."""
-    if session_id not in COPILOT_SESSIONS:
-        raise HTTPException(status_code=404, detail="Copilot session not found")
-    COPILOT_SESSION_FILE.write_text(session_id, encoding="utf-8")
-    return {
-        "session_id": session_id,
-        "session_file": str(COPILOT_SESSION_FILE),
-        "plugin_action": "AbaqusAgent Copilot: Run Current Plan",
-        "debug_plugin_action": "AbaqusAgent Copilot: Execute Next Action",
-        "message": "Copilot session activated for the local Abaqus/CAE plug-in.",
-    }
-
-
-@app.post("/api/copilot/sessions/{session_id}/action-result")
-def post_copilot_action_result(session_id: str, req: CopilotActionResultRequest):
-    """Record a result from the Abaqus/CAE plugin bridge."""
-    record = COPILOT_SESSIONS.get(session_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Copilot session not found")
-    pending = record.get("pending_actions") or []
-    if pending:
-        pending.pop(0)
-    result = {
-        "action_index": req.action_index,
-        "status": req.status,
-        "message": req.message,
-        "payload": req.payload,
-        "received_at": time.time(),
-    }
-    record.setdefault("results", []).append(result)
-    return {
-        "session_id": session_id,
-        "remaining_actions": len(record.get("pending_actions") or []),
-        "result": result,
-    }
 
 
 @app.post("/api/validate/env")
@@ -710,8 +373,10 @@ def post_offline_report_export_pdf(req: OfflineReportRequest):
 async def generate_spec(req: GenerateSpecRequest):
     """Convert natural language to Problem Spec YAML."""
     try:
+        from tools.abaqus_cmd import detect_abaqus_release
+        release = req.abaqus_release or detect_abaqus_release() or "unknown"
         spec_dict, missing = await generate_spec_async(
-            req.text, req.abaqus_release, req.llm_backend,
+            req.text, release, req.llm_backend,
             anthropic_key=req.anthropic_key,
             openai_key=req.openai_key,
         )
@@ -781,7 +446,7 @@ def create_offline_evidence(req: OfflineEvidenceRequest):
         evidence_path = out_dir / "evidence.json"
         report_path = out_dir / "evidence.md"
         html_path = out_dir / "evidence.html"
-        artifacts = _register_evidence_artifacts(
+        artifacts = EVIDENCE.register_evidence(
             run_id=run_id,
             evidence=evidence,
             evidence_path=evidence_path,
@@ -789,8 +454,8 @@ def create_offline_evidence(req: OfflineEvidenceRequest):
             html_path=html_path,
             capsule_manifest_path=Path(evidence["capsule"]["manifest_path"]),
         )
-        artifact_files = EVIDENCE_ARTIFACTS[artifacts["artifact_id"]]["files"]
-        vault = _create_vault_entry(
+        artifact_files = EVIDENCE.evidence_files(artifacts["artifact_id"])
+        vault = EVIDENCE.create_vault_entry(
             kind="offline-evidence",
             title=run_id,
             files={
@@ -843,8 +508,8 @@ def create_offline_demo_gallery():
     """Generate a downloadable offline evidence demo gallery for all examples."""
     out_dir = Path(tempfile.mkdtemp(prefix="abaqus-agent-demo-gallery."))
     index = collect_demo_gallery(out_dir)
-    artifacts = _register_demo_gallery_artifacts(index=index, out_dir=out_dir)
-    vault = _create_vault_entry(
+    artifacts = EVIDENCE.register_demo_gallery(index=index, out_dir=out_dir)
+    vault = EVIDENCE.create_vault_entry(
         kind="demo-gallery",
         title="offline-demo-gallery",
         files={
@@ -879,11 +544,11 @@ def get_offline_demo_gallery_artifact(artifact_id: str, filename: str):
     }
     if filename not in media_types:
         raise HTTPException(status_code=404, detail="Demo gallery artifact not found")
-    return FileResponse(
-        _get_demo_gallery_artifact_path(artifact_id, filename),
-        media_type=media_types[filename],
-        filename=filename,
-    )
+    try:
+        path = EVIDENCE.demo_gallery_path(artifact_id, filename)
+    except ArtifactNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(path, media_type=media_types[filename], filename=filename)
 
 
 @app.post("/api/evidence/demo-pack")
@@ -891,7 +556,7 @@ def create_local_demo_pack_endpoint():
     """Generate a downloadable local product demo pack."""
     out_dir = Path(tempfile.mkdtemp(prefix="abaqus-agent-local-demo-pack."))
     index = create_local_demo_pack(out_dir)
-    vault = _create_vault_entry(
+    vault = EVIDENCE.create_vault_entry(
         kind="local-demo-pack",
         title="local-demo-pack",
         files=collect_demo_pack_vault_files(index),
@@ -956,17 +621,17 @@ def get_offline_evidence_artifact(artifact_id: str, filename: str):
     }
     if filename not in media_types:
         raise HTTPException(status_code=404, detail="Evidence artifact not found")
-    return FileResponse(
-        _get_evidence_artifact_path(artifact_id, filename),
-        media_type=media_types[filename],
-        filename=filename,
-    )
+    try:
+        path = EVIDENCE.evidence_path(artifact_id, filename)
+    except ArtifactNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(path, media_type=media_types[filename], filename=filename)
 
 
 @app.get("/api/evidence/artifacts")
 def list_offline_evidence_artifacts(limit: int = 20):
     """List recent offline evidence artifacts registered in this server process."""
-    return _list_evidence_artifact_records(limit)
+    return EVIDENCE.list_evidence_records(limit)
 
 
 @app.get("/api/evidence/vault")
@@ -974,7 +639,7 @@ def list_evidence_vault(limit: int = 50, query: str = "", kind: str = "", status
     """List persisted local evidence vault entries."""
     data = list_vault_entries(limit=limit, query=query, kind=kind, status=status)
     for item in data["items"]:
-        _attach_vault_urls(item, url_prefix="/api/evidence/vault")
+        EVIDENCE.attach_vault_urls(item)
     return data
 
 
@@ -1043,15 +708,8 @@ def get_evidence_vault_record(vault_id: str):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    _attach_vault_urls(record, url_prefix="/api/evidence/vault")
+    EVIDENCE.attach_vault_urls(record)
     return record
-
-
-def _attach_vault_urls(record: dict[str, Any], *, url_prefix: str) -> None:
-    record["vault_urls"] = {
-        filename: f"{url_prefix}/{record['vault_id']}/{filename}"
-        for filename in record.get("files", {})
-    }
 
 
 @app.get("/api/case-memory")
@@ -1087,7 +745,7 @@ def create_case_memory_diff(req: CaseMemoryDiffRequest):
         )
         diff_json_path = out_dir / "diff.json"
         diff_markdown_path = out_dir / "diff.md"
-        vault = _create_vault_entry(
+        vault = EVIDENCE.create_vault_entry(
             kind="case-memory-diff",
             title=diff_id,
             files={"diff.json": diff_json_path, "diff.md": diff_markdown_path},
@@ -1153,7 +811,7 @@ def create_simulation_diff(req: SimulationDiffRequest):
         )
         diff_json_path = out_dir / "diff.json"
         diff_markdown_path = out_dir / "diff.md"
-        vault = _create_vault_entry(
+        vault = EVIDENCE.create_vault_entry(
             kind="simulation-diff",
             title=diff_id,
             files={
@@ -1192,6 +850,26 @@ def list_solver_doctor_patterns(category: str = "", severity: str = ""):
     return list_doctor_patterns(category=category, severity=severity)
 
 
+@app.get("/api/doctor/cae-patterns")
+def get_doctor_cae_patterns():
+    """CAE-side (plugin execution) failure pattern catalog with plain-language guidance."""
+    patterns = list_cae_error_patterns()
+    return {"total": len(patterns), "patterns": patterns}
+
+
+class CaeDiagnoseRequest(BaseModel):
+    traceback: str = Field(..., max_length=20000)
+
+
+@app.post("/api/doctor/cae-diagnose")
+def post_doctor_cae_diagnose(req: CaeDiagnoseRequest):
+    """Diagnose a pasted CAE/Abaqus-Python traceback in plain language."""
+    text = req.traceback.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="请把 CAE 报错的 traceback 贴进来")
+    return diagnose_cae_traceback(text)
+
+
 @app.post("/api/doctor/diagnose")
 def diagnose_solver_logs(req: DoctorDiagnoseRequest):
     """Diagnose supplied Abaqus log text without invoking Abaqus."""
@@ -1215,7 +893,7 @@ def diagnose_solver_logs(req: DoctorDiagnoseRequest):
         encoding="utf-8",
     )
     report_markdown_path.write_text(render_markdown(report), encoding="utf-8")
-    vault = _create_vault_entry(
+    vault = EVIDENCE.create_vault_entry(
         kind="solver-doctor",
         title=report.job_name,
         files={
@@ -1280,6 +958,70 @@ def get_run(run_id: str):
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
     run = RUNS[run_id]
     return {**run, "elapsed": time.time() - run["started_at"]}
+
+
+@app.get("/api/run/{run_id}/doctor")
+def get_run_doctor(run_id: str):
+    """Plain-language diagnosis of a run, for the panel a failed run shows.
+
+    Read-only on purpose, and deliberately NOT `POST /api/doctor/diagnose`:
+    that one writes doctor.json/doctor.md and creates an evidence-vault entry
+    as a side effect, which would litter the vault with one entry per page view.
+
+    The contract the UI depends on: `error` is echoed verbatim whether or not
+    anything matched, and `findings` is empty when no pattern fired. A
+    diagnosis is only ever something the pattern engine produced — never
+    something invented to fill the panel.
+    """
+    if run_id not in RUNS:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    run = RUNS[run_id]
+
+    payload = {
+        "run_id": run_id,
+        "status": run.get("status"),
+        "matched": False,
+        "findings": [],
+        "summary": "",
+        "error": run.get("error") or None,
+        "kpi_notice": run.get("kpi_notice") or "",
+        "limitations": run.get("limitations") or [],
+        "source": "none",
+    }
+
+    workdir = _run_workdir(run)
+    raw_job_name = (run.get("spec", {}).get("meta", {}) or {}).get("model_name") or ""
+    if not workdir or not raw_job_name:
+        return payload
+
+    # diagnose_job_logs builds paths as workdir/<job_name><suffix> and, unlike
+    # diagnose_log_texts, does NOT validate the name itself. model_name comes
+    # from a user-supplied spec and the schema puts no pattern on it, so
+    # without this the endpoint is an arbitrary-file-read scoped to
+    # .msg/.sta/.dat/.log.
+    from doctor.solver_doctor import diagnose_job_logs, validate_job_name
+    try:
+        job_name = validate_job_name(raw_job_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid model_name: {exc}")
+
+    try:
+        report = diagnose_job_logs(workdir, job_name)
+    except Exception as exc:  # a missing/unreadable log is not a server error
+        payload["source"] = "unavailable"
+        payload["summary"] = f"没有可读的求解日志，无法诊断：{exc}"
+        return payload
+
+    payload.update({
+        "matched": bool(report.findings),
+        "findings": [f.to_dict() for f in report.findings],
+        "summary": report.summary,
+        "doctor_status": report.status,
+        "primary_category": report.primary_category,
+        "evidence_files": [Path(p).name for p in report.evidence_files],
+        "source": "solver_doctor",
+    })
+    return payload
 
 
 @app.get("/api/run/{run_id}/report")
@@ -1559,39 +1301,16 @@ async def run_benchmark(background_tasks: BackgroundTasks, dry_run: bool = True)
     return {"run_id": run_id, "cases": cases, "dry_run": dry_run}
 
 
-# ── Premium feature endpoints ─────────────────────────────────────
+# ── Feature module endpoints ──────────────────────────────────────
 
-@app.get("/api/premium/features")
-def get_premium_features():
-    """Return status of all premium features."""
-    try:
-        from premium.feature_registry import list_premium_capabilities
-        from premium.licensing import PREMIUM_FEATURES, feature_gate
-        return {
-            "features": {
-                name: {
-                    "display_name": PREMIUM_FEATURES[name],
-                    "enabled": feature_gate.is_enabled(name),
-                }
-                for name in PREMIUM_FEATURES
-            },
-            "capabilities": list_premium_capabilities(),
-        }
-    except ImportError:
-        return {"features": {}, "capabilities": {}, "error": "Premium module not available"}
-
-
-@app.post("/api/premium/activate")
-def activate_premium(license_key: str = ""):
-    """Activate premium features with a license key."""
-    try:
-        from premium.licensing import feature_gate
-        if license_key:
-            valid = feature_gate.set_license_key(license_key)
-            return {"valid": valid, "features": feature_gate.enabled_features()}
-        return {"valid": False, "error": "No license key provided"}
-    except ImportError:
-        return {"valid": False, "error": "Premium module not available"}
+@app.get("/api/features")
+def get_features():
+    """Return the optional feature modules and everything they registered."""
+    from features.feature_registry import list_capabilities, list_feature_modules
+    return {
+        "features": list_feature_modules(),
+        "capabilities": list_capabilities(),
+    }
 
 
 def _build_run_report(run: dict, template: str = "standard", embed_images: bool = False) -> dict:
@@ -1609,6 +1328,10 @@ def _build_run_report(run: dict, template: str = "standard", embed_images: bool 
             "status": run.get("status"),
             "model_name": run.get("spec", {}).get("meta", {}).get("model_name"),
             "abaqus_release": run.get("spec", {}).get("meta", {}).get("abaqus_release"),
+            # A CalculiX run must never print an Abaqus release on its cover —
+            # the archived report would then itself be the false claim.
+            "solver_backend": (run.get("backend") or {}).get("backend") or "abaqus",
+            "solver_label": (run.get("backend") or {}).get("label"),
             "started_at": run.get("started_at"),
             "finished_at": run.get("finished_at"),
             "capsule_path": run.get("capsule_path"),
@@ -1619,6 +1342,23 @@ def _build_run_report(run: dict, template: str = "standard", embed_images: bool 
         "regression": run.get("regression", {}),
         "contracts": contracts,
         "stages": run.get("stages", {}),
+        # The caveats travel with the report or they do not exist. A report is
+        # the artifact that outlives the session and gets mailed to someone who
+        # never saw the screen it was rendered from.
+        #
+        # reporting/templates.py has always known how to render all four --
+        # the demo banner, the limitations table, the missing-KPI rows -- and
+        # never received any of them, so those branches were dead on the whole
+        # /api/run/{id}/report.* family. The demo case was the damaging one:
+        # core/pipeline.py sets demo_mode on the run and then finishes it as
+        # COMPLETED (line 439), not DEMO, so `_is_demo`'s status fallback did
+        # not catch it either. A run where nothing was solved exported a
+        # report that read exactly like a real one.
+        "demo_mode": bool(run.get("demo_mode")),
+        "kpi_notice": run.get("kpi_notice") or "",
+        "limitations": run.get("limitations") or [],
+        "kpis_missing": run.get("kpis_missing") or [],
+        "kpi_provenance": run.get("kpi_provenance") or {},
         "capsule": capsule,
         "artifacts": artifacts,
         "image_artifacts": image_artifacts,
@@ -1742,14 +1482,24 @@ def _parse_tolerances_json(raw: str) -> dict:
 def main():
     """Entry point for `abaqus-agent` CLI command."""
     import uvicorn
+
+    host = config.host()
+    port = config.port()
+    dev = config.is_dev()
     print("\n  Abaqus Agent API")
     print("  ─────────────────────────────")
-    print("  Frontend : http://localhost:8000")
-    print("  API docs : http://localhost:8000/docs")
+    print(f"  Frontend : http://{host}:{port}")
+    print(f"  API docs : http://{host}:{port}/docs")
+    print(f"  Mode     : {'dev (reload)' if dev else 'packaged'}")
     print(f"  Abaqus   : {'✓ found' if check_abaqus() else '✗ not found (simulation mode)'}")
     print(f"  Cases    : {list_cases()}")
     print()
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    # reload needs the import-string form and a live-reloader; packaged mode
+    # runs the app object directly so it works inside a frozen executable.
+    if dev:
+        uvicorn.run("server:app", host=host, port=port, reload=True)
+    else:
+        uvicorn.run(app, host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":

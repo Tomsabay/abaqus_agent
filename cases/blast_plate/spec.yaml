@@ -1,5 +1,5 @@
 meta:
-  abaqus_release: "2024"
+  abaqus_release: "2021"
   model_name: "BlastSteelPlate"
   units: "mm_MPa_t"
   description: "Q345 steel plate (2m x 2m x 25mm) under 10kg TNT air blast at 2m standoff. All edges clamped. Friedlander pressure-time history (Kingery-Bulmash empirical)."

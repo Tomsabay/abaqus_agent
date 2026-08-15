@@ -26,7 +26,6 @@ DEFAULT_PROMPT = (
     "帮我建一个 200mm 长、20mm 高、20mm 宽的悬臂梁，材料钢，左端固定，"
     "右端向下 100N，运行并提取最大位移和最大 Mises 应力。"
 )
-DEFAULT_REMOTE_PATH = "D:/code/abaqus_agent"
 DEFAULT_REMOTE_SCRIPT = "copilot_real_smoke.py"
 
 
@@ -36,8 +35,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--backend", default="codex_strict", choices=["codex", "codex_strict", "template"])
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--remote-host", default="")
-    parser.add_argument("--remote-user", default="ciuser")
-    parser.add_argument("--remote-path", default=DEFAULT_REMOTE_PATH)
+    # No defaults: the account and checkout path belong to whoever runs this.
+    # They used to default to the author's, which was both a privacy leak and
+    # useless to anyone else.
+    parser.add_argument("--remote-user", default="",
+                        help="SSH user on the Windows host (required unless --skip-remote)")
+    parser.add_argument("--remote-path", default="",
+                        help="Checkout path on the remote host (required unless --skip-remote)")
     parser.add_argument("--remote-script", default=DEFAULT_REMOTE_SCRIPT)
     parser.add_argument("--identity-file", default=str(Path.home() / ".ssh" / "id_ed25519"))
     parser.add_argument("--proxy-command", default="")
@@ -63,8 +67,16 @@ def main(argv: list[str] | None = None) -> int:
     job_name = _job_name_from_script(script_path)
 
     if not args.skip_remote:
-        if not args.remote_host:
-            raise SystemExit("--remote-host is required unless --skip-remote is set")
+        missing = [
+            name for name, value in (
+                ("--remote-host", args.remote_host),
+                ("--remote-user", args.remote_user),
+                ("--remote-path", args.remote_path),
+            ) if not value
+        ]
+        if missing:
+            raise SystemExit(
+                "%s required unless --skip-remote is set" % ", ".join(missing))
         result["remote"] = _run_remote_abaqus(
             script_path=script_path,
             out_dir=out_dir,

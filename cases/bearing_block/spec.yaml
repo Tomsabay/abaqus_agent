@@ -1,0 +1,201 @@
+meta:
+  abaqus_release: "2021"
+  model_name: "BearingBlock"
+  units: "mm_MPa_t"
+  description: >
+    三个零件、两种相互作用、三个分析步的装配——建这个模型是为了让通用层每一层
+    同时在场：命名简写的零件特征、派发的草图实体、按半径选面、曲面 tie、平面
+    摩擦接触、两种材料、派发的分析步与条件、测量区域。
+
+    但复杂本身不证明任何事情。这个模型真正的作用是它给出三个可以独立核对的
+    恒等式，而且三个各自会被不同的错误破坏：
+
+      1. 自重步：固定面上的竖向支反力之和 = 三个零件的重量之和 Σ ρ_i V_i g。
+         体积由 expect 从 Abaqus 自己量出来，密度写在材料里——所以这一条直接
+         验的是密度的量纲。密度错三个数量级，这一步就错三个数量级，而云图上
+         什么都看不出来。
+      2. 夹紧步：支反力之和 = 自重 + 压力乘面积（0.05 MPa × 80 × 60 = 240 N）。
+         平衡是恒等式，与网格、单元类型、求解器设置全都无关。
+      3. 推动步：被推面上的水平反力 = μ × 界面法向力。库仑摩擦只由这一个数
+         定义；摩擦系数被丢掉会得到约 0，读错一倍就是两倍或一半。
+
+    曲面 tie 这一条没有独立公式，用的是与 two_plate_tie 相同的自证结构：衬套
+    若没被绑住，它在自重下相对壳体整体下滑，位移与壳体不同；绑住了两者一致。
+
+material:
+  name: Steel
+  E: 210000.0
+  nu: 0.3
+  density: 7.85e-09
+
+materials:
+  - name: Bronze
+    E: 110000.0
+    nu: 0.34
+    density: 8.80e-09
+
+parts:
+  # 带通孔的壳体。孔用 cut_extrude 挖出来，孔壁在装配里按半径选中——
+  # 半径选面是 plate_hole_v2 建立的那条路，这里用它选一个要参与 tie 的曲面。
+  - name: Housing
+    features:
+      - op: sketch
+        id: outline
+        plane: XY
+        profile:
+          rect: { corner1: [0.0, 0.0], corner2: [80.0, 40.0] }
+      - op: extrude
+        sketch: outline
+        depth: 60.0
+      - op: sketch
+        id: bore
+        plane: XY
+        profile:
+          circle: { center: [40.0, 20.0], r: 12.0 }
+      - op: cut_extrude
+        sketch: bore
+        depth: 60.0
+    expect:
+      cells: 1
+      cylindrical_faces: 1
+    section: { type: solid, material: Steel }
+    mesh:
+      seed: 7.0
+      element: C3D10
+      technique: free
+      # 孔壁必须和衬套外圆柱面用同一个尺寸。两侧都是同一个 r=12 圆柱的网格
+      # 离散，弦高 ≈ h²/(8r)：h=7 时是 0.51 mm，是 tie 容差的十倍，于是
+      # 大量从面节点被判为"离主面太远"而不绑——作业照样收敛，恒等式照样
+      # 通过（平衡不在乎载荷由哪些节点承担）。h=1.5 时弦高 0.023 mm，两侧
+      # 相加最坏 0.047 mm，落在下面 0.1 的容差之内。
+      local_seeds:
+        - { region: "edges@r=12", size: 1.5, expect: "=2" }
+
+  # 衬套：外径与孔同径（12），内径 8。命名简写的 profile 只有 rect 和 circle，
+  # 一个圆环画不出来——所以这里走派发的草图实体形式，两个 CircleByCenterPerimeter
+  # 放进同一张草图。通用零件层存在的理由就是这种情况。
+  - name: Bushing
+    features:
+      - op: sketch
+        id: ring
+        entities:
+          - { call: CircleByCenterPerimeter, center: [40.0, 20.0], point1: [52.0, 20.0] }
+          - { call: CircleByCenterPerimeter, center: [40.0, 20.0], point1: [48.0, 20.0] }
+      - { call: BaseSolidExtrude, sketch: { sketch: ring }, depth: 60.0 }
+    expect:
+      cells: 1
+      cylindrical_faces: 2
+      # π(12²−8²)·60 = 15079.6447。真机实测 15079.6492，相对误差 3e-7，
+      # 所以这里的 1e-4 不是留余量，是留了 30 倍余量之后还能抓住半径写错。
+      volume: 15079.6447
+      volume_tol: 1.0e-4
+    section: { type: solid, material: Bronze }
+    mesh:
+      seed: 3.5
+      element: C3D10
+      technique: free
+      # 和壳体孔壁同尺寸——理由见上面那段。
+      local_seeds:
+        - { region: "edges@r=12", size: 1.5, expect: "=2" }
+
+  # 盖板：与壳体顶面之间是摩擦接触，不是 tie。
+  - name: Cap
+    features:
+      - op: sketch
+        id: outline
+        plane: XY
+        profile:
+          rect: { corner1: [0.0, 0.0], corner2: [80.0, 10.0] }
+      - op: extrude
+        sketch: outline
+        depth: 60.0
+    section: { type: solid, material: Steel }
+    mesh: { seed: 6.0, element: C3D8I, technique: structured }
+
+assembly:
+  instances:
+    - { name: Housing, part: Housing, translate: [0.0, 0.0, 0.0] }
+    - { name: Bushing, part: Bushing, translate: [0.0, 0.0, 0.0] }
+    - { name: Cap, part: Cap, translate: [0.0, 40.0, 0.0] }
+
+interactions:
+  # 曲面 tie：孔壁 ↔ 衬套外圆柱面。两者同径，间隙应当为 0。
+  - name: BoreTie
+    type: tie
+    main: "Housing:face@r=12"
+    secondary: "Bushing:face@r=12"
+    # 0.1 而不是 0.05：两侧刻面弦高相加最坏 0.047 mm，容差必须在它之上；
+    # 同时 0.1 mm 远小于任何真实错位（壁厚才 4 mm），所以装错位置照样会被
+    # 这条挡下来。放大容差本身不是解决办法——先把弦高压下去，再定容差。
+    position_tolerance: 0.1
+
+  # 平面摩擦接触：壳体顶面 ↔ 盖板底面。摩擦力就靠这里的 0.25 定义。
+  - name: CapSeat
+    type: contact
+    main: "Housing:face@y=max"
+    secondary: "Cap:face@y=min"
+    sliding: finite
+    property:
+      normal: hard
+      friction: 0.25
+      allow_separation: true
+
+steps:
+  - { call: StaticStep, name: { literal: SelfWeight },
+      previous: { literal: Initial },
+      timePeriod: 1.0, initialInc: 0.2, minInc: 1.0e-6, maxNumInc: 200 }
+  - { call: StaticStep, name: { literal: Clamp },
+      previous: { literal: SelfWeight },
+      timePeriod: 1.0, initialInc: 0.2, minInc: 1.0e-6, maxNumInc: 200 }
+  - { call: StaticStep, name: { literal: Push },
+      previous: { literal: Clamp },
+      timePeriod: 1.0, initialInc: 0.05, minInc: 1.0e-8, maxNumInc: 400 }
+
+conditions:
+  - call: EncastreBC
+    name: { literal: Ground }
+    createStepName: { literal: Initial }
+    region: { set: "Housing:face@y=min", name: GROUND, expect: "=1" }
+
+  # 盖板在第一步里必须被面外约束住，否则接触压力还是零的那一刻它是自由刚体。
+  - call: DisplacementBC
+    name: { literal: CapGuide }
+    createStepName: { literal: Initial }
+    region: { set: "Cap:face@z=min", name: CAPGUIDE, expect: "=1" }
+    u3: 0.0
+
+  - call: Gravity
+    name: { literal: Weight }
+    createStepName: { literal: SelfWeight }
+    comp2: -9810.0
+
+  - call: Pressure
+    name: { literal: Clamping }
+    createStepName: { literal: Clamp }
+    region: { surface: "Cap:face@y=max", name: CAPTOP, expect: "=1" }
+    magnitude: 0.05
+
+  # 位移控制而不是力控制：力驱动的滑动是刚体运动，静力步永远不收敛。
+  # 这一条是 block_friction_slide 用真机换来的。
+  - call: DisplacementBC
+    name: { literal: Shove }
+    createStepName: { literal: Push }
+    region: { set: "Cap:face@x=min", name: SHOVE, expect: "=1" }
+    u1: 0.4
+
+outputs:
+  field_variables: ["S", "E", "U", "RF", "CSTRESS"]
+  kpis:
+    # reducer: sum, not the default max —— 一个节点上的反力是网格划得多细的函数，
+    # 求和才是恒等式那一侧的量。求和用带符号的值，自平衡的一对会相互抵消，
+    # 逐节点取绝对值再加会把不存在的力算出来。
+    - { name: WEIGHT_TOTAL, type: reaction_force_max, component: RF2,
+        location: GROUND, step: 1, reducer: sum }
+    - { name: CLAMP_REACTION, type: reaction_force_max, component: RF2,
+        location: GROUND, step: 2, reducer: sum }
+    - { name: FRICTION_FORCE, type: reaction_force_max, component: RF1,
+        location: SHOVE, step: 3, reducer: sum }
+    - { name: BUSHING_DROP, type: field_min, component: U2,
+        location: whole_model, step: 1 }
+    - { name: CAP_MISES_MAX, type: field_max, invariant: MISES,
+        location: whole_model, step: 3 }

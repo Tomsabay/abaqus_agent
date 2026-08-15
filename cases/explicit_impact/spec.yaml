@@ -1,5 +1,5 @@
 meta:
-  abaqus_release: "2024"
+  abaqus_release: "2021"
   model_name: "ExplicitImpact"
   units: "mm_MPa_t"
   description: "Explicit dynamic: uniform axial compression of an elastic aluminum block (top face displaced -2mm in Z, smooth-step ramp)"

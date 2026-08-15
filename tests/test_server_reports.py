@@ -367,3 +367,60 @@ def test_memory_search_endpoint(tmp_path):
     assert data["query"]["sort_order"] == "asc"
     assert data["query"]["min_score"] == 0.5
     assert "Case Memory Search" in data["markdown"]
+
+
+# ── the report must carry the caveats the run carried ───────────────────────
+
+def _demo_run() -> dict:
+    """A run the way core/pipeline.py leaves one when no solver was found.
+
+    Note the status: the demo path sets demo_mode and then finishes the run as
+    COMPLETED, not DEMO. That matters below.
+    """
+    return {
+        "run_id": "demo-report",
+        "status": "COMPLETED",
+        "spec": {"meta": {"model_name": "Beam", "abaqus_release": "2021"}},
+        "kpis": {},
+        "demo_mode": True,
+        "kpi_notice": "未检测到 Abaqus，本次没有求解",
+        "limitations": ["85 tie nodes were silently left unconstrained"],
+        "kpis_missing": [{"name": "U_tip", "reason": "no odb was produced"}],
+    }
+
+
+def test_a_demo_run_cannot_export_a_report_that_looks_real():
+    """The report outlives the session; it gets mailed to someone who never
+    saw the screen. _build_run_report used to drop demo_mode, and because the
+    demo path finishes as COMPLETED rather than DEMO, the renderer's status
+    fallback did not catch it either -- so a run in which nothing was solved
+    exported markdown, HTML and PDF with no demo marking anywhere."""
+    from reporting.templates import DEMO_BANNER
+
+    report = server._build_run_report(_demo_run())
+
+    assert report["demo_mode"] is True
+    assert DEMO_BANNER in report["markdown"]
+    assert DEMO_BANNER in report["html"]
+
+
+def test_the_report_carries_the_limitations_the_run_recorded():
+    """"85 tie nodes were silently left unconstrained" is the whole reason
+    the limitations channel exists. It reached the screen and not the file."""
+    report = server._build_run_report(_demo_run())
+
+    assert report["limitations"] == [
+        "85 tie nodes were silently left unconstrained"]
+    assert "tie nodes" in report["markdown"]
+    assert "tie nodes" in report["html"]
+
+
+def test_the_report_names_the_kpis_that_were_asked_for_and_not_produced():
+    """Without the denominator, a report showing 2 KPIs looks complete when 5
+    were requested."""
+    run = dict(_demo_run(), demo_mode=False, kpis={"MISES_MAX": {"value": 1.0}})
+
+    report = server._build_run_report(run)
+
+    assert [e["name"] for e in report["kpis_missing"]] == ["U_tip"]
+    assert "U_tip" in report["markdown"]

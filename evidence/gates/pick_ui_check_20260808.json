@@ -1,0 +1,112 @@
+{
+  "overall": "pass",
+  "source": "pick_ui_check_20260808",
+  "items": [
+    {
+      "name": "assembly_builds",
+      "detail": "two squares, onPick slot present",
+      "status": "pass"
+    },
+    {
+      "name": "click_picks_the_body_under_it",
+      "detail": "picked=[{'key': 'Upper', 'z': 1.0000000000000002}] (want one hit, key Upper, on the z=1 plane)",
+      "status": "pass"
+    },
+    {
+      "name": "background_click_picks_nothing",
+      "detail": "picked=[]",
+      "status": "pass"
+    },
+    {
+      "name": "dimmed_body_stays_pickable",
+      "detail": "picked=[{'key': 'Upper', 'z': 1.0000000000000002}] with Upper dimmed to 12%",
+      "status": "pass"
+    },
+    {
+      "name": "right_click_picks_nothing",
+      "detail": "picked=[]",
+      "status": "pass"
+    },
+    {
+      "name": "drag_picks_nothing",
+      "detail": "picked=[] after a 60px left-drag",
+      "status": "pass"
+    },
+    {
+      "name": "no_page_errors",
+      "detail": "none",
+      "status": "pass"
+    },
+    {
+      "name": "page_exposes_the_pick_handler",
+      "detail": "both present",
+      "status": "pass"
+    },
+    {
+      "name": "preview_constructor_wires_the_handler",
+      "detail": "createPreviewViewport().onPick === viewportPickPart: True",
+      "status": "pass"
+    },
+    {
+      "name": "pick_lands_a_chip_via_addChatRef",
+      "detail": "refs=['inst:U'] chips=['@U×'] composer='@U '",
+      "status": "pass"
+    },
+    {
+      "name": "second_pick_removes_the_chip",
+      "detail": "refs after the second pick=[]",
+      "status": "pass"
+    },
+    {
+      "name": "unknown_key_toasts_instead_of_silence",
+      "detail": "refs=[] ghost toasts=['预览里的 Ghost 在模型树里没有对应的行，无法 @ 它']",
+      "status": "pass"
+    },
+    {
+      "name": "face_pick_generates_the_measured_selector",
+      "detail": "big face's box contains the boss's -> plural + count 2; chip={'sel': 'P:faces@box=0,0,10,100,50,10', 'note': '包围盒实测自 CAE 预览；按它在实例 P 上命中 2 个面', 'label': 'P:face#2'}",
+      "status": "pass"
+    },
+    {
+      "name": "second_face_pick_toggles_off",
+      "detail": "chips after picking the same face twice: 0",
+      "status": "pass"
+    },
+    {
+      "name": "small_face_stays_singular_and_carries_the_radius",
+      "detail": "chip={'sel': 'P:face@box=40,20,10,60,30,10', 'note': '包围盒实测自 CAE 预览；按它在实例 P 上命中 1 个面；实测半径 5.5'}",
+      "status": "pass"
+    },
+    {
+      "name": "unclaimed_triangle_toasts_instead_of_guessing",
+      "detail": "refs=0 toasts=['已提及 @P:face#7，直接说要对它做什么', '这里没有可选的几何面（此预览没带面数据，或点中的是线单元）——切回部件模式或点别处']",
+      "status": "pass"
+    },
+    {
+      "name": "no_page_errors_on_workbench",
+      "detail": "none",
+      "status": "pass"
+    },
+    {
+      "name": "selector_chip_survives_the_real_send",
+      "detail": "transcript refs=['@P:face#2'] chips left=0",
+      "status": "pass"
+    },
+    {
+      "name": "a_selector_the_build_would_refuse_is_a_400_naming_it",
+      "detail": "toast='对话失败: 400 \"视口点选生成的选择器 \\'P:face@box=1,2,3\\' 过不了解析：selector \\'P:face@box=1,2,3\\' gives 3 number(s) to `box=`; it takes six, xM' chips kept=1",
+      "status": "pass"
+    },
+    {
+      "name": "no_page_errors_on_the_round_trip",
+      "detail": "none",
+      "status": "pass"
+    }
+  ],
+  "counts": {
+    "total": 20,
+    "pass": 20,
+    "fail": 0,
+    "skipped": 0
+  }
+}

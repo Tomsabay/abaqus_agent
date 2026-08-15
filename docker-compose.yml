@@ -1,9 +1,16 @@
+# The server has no authentication and can launch solver jobs. Ports are
+# published to 127.0.0.1 only, so `docker compose up` does not put it on the
+# LAN. Drop the `127.0.0.1:` prefix deliberately, and only if you mean it.
 services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
+      # Loopback inside a container means unreachable from a published port.
+      # Set in the image too; repeated here so it is visible at the place
+      # people edit.
+      - ABAQUS_AGENT_HOST=0.0.0.0
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     volumes:
@@ -14,6 +21,8 @@ services:
     build: .
     command: python mcp_bridge.py
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
+    environment:
+      - ABAQUS_AGENT_HOST=0.0.0.0
     depends_on:
       - api

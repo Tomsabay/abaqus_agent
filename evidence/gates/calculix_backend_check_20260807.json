@@ -1,0 +1,72 @@
+{
+  "schema": "calculix_backend_check/1",
+  "ccx_version": "2.23",
+  "overall": "pass",
+  "source": "calculix_backend_check_20260807",
+  "items": [
+    {
+      "id": "calculix_cantilever_e2e",
+      "status": "pass",
+      "relative_deviation": 4.19e-08,
+      "orchestrator_status": "COMPLETED",
+      "kpis": {
+        "U_tip": -0.001903958,
+        "MISES_MAX": 0.6108512433035294
+      },
+      "measured_u_tip_mm": -0.001903958,
+      "reference_u_tip_mm": -0.0019039579201489687,
+      "tolerance_relative": 0.05
+    },
+    {
+      "id": "calculix_mises_definition_gap",
+      "status": "pass",
+      "note": "NOT an Abaqus comparison: ccx .frd stress is nodal-averaged, Abaqus ELEMENT_NODAL is unaveraged. Recorded so a ccx upgrade that changes the averaging is visible.",
+      "measured_mises_nodal_averaged": 0.6108512433035294,
+      "recorded_ccx_value": 0.6108512433035294,
+      "abaqus_element_nodal_value": 0.6528551578521729,
+      "gap_vs_abaqus_pct": -6.434
+    },
+    {
+      "id": "calculix_refuses_unsupported",
+      "status": "pass",
+      "spec_change": "bc_load.load_type=blast_conwep + analysis.step_type=Dynamic_Explicit",
+      "orchestrator_status": "REFUSED",
+      "refusals": [
+        "analysis.step_type = Dynamic_Explicit：CalculiX 的显式积分没有 Abaqus/Explicit 的沙漏控制和接触阻尼，算得出数但物理上不等价。如需这项功能请安装 Abaqus（设置 ABAQUS_AGENT_ABAQUS_CMD 指向 abaqus.bat）",
+        "bc_load.load_type = blast_conwep：CalculiX 不认识 CONWEP 爆炸载荷：实测它会静默丢掉这张卡、退出码 0、所有位移输出 0.000000E+00 —— 这是最危险的一种错，必须拒绝。如需这项功能请安装 Abaqus（设置 ABAQUS_AGENT_ABAQUS_CMD 指向 abaqus.bat）"
+      ],
+      "kpis": {}
+    },
+    {
+      "id": "calculix_refuses_custom_inp_modal",
+      "status": "pass",
+      "deck": "the deck this project generates for cases/cantilever, with *STATIC replaced by *FREQUENCY (one card, nothing else)",
+      "spec_shape": "geometry.type=custom_inp, no analysis: block at all",
+      "orchestrator_status": "REFUSED",
+      "error_code": "BACKEND_UNSUPPORTED",
+      "refusals": [
+        "*FREQUENCY 是分析步类型卡：deck 里写的是哪个过程，ccx 就算哪个过程，spec 的 analysis.step_type 管不到它（custom_inp 的模型就是 deck 本身）。这个过程在 CalculiX 上还没有跟 Abaqus 对过基准值 —— analysis.step_type=Frequency 在 core/backends.py 的能力矩阵里就是拒的。ccx 会照常算完、退出码 0、一张卡都不丢，结果会被当成验证过的数报出去：实测一份只有 *FREQUENCY、没有任何载荷卡的 deck，位移 KPI 报出 -110.9003（模型总长 200mm），那是第 6 阶质量归一化特征向量的分量，把请求模态数改成 3 就换一个数。出路：在 scripts/run_calculix_backend_check.py 里加一条与 Abaqus 比对的通过项，再把这张卡挪回 _ALLOWED_KEYWORDS；在那之前请用 Abaqus 后端跑这个模型"
+      ],
+      "kpis": {}
+    },
+    {
+      "id": "calculix_custom_inp_static_e2e",
+      "status": "pass",
+      "note": "the counterexample to the item above: without this, a passing refusal proves nothing except that the gate can say no",
+      "relative_deviation": 4.19e-08,
+      "deck": "the same generated deck, unmodified",
+      "orchestrator_status": "COMPLETED",
+      "kpis": {
+        "U_tip": -0.001903958
+      },
+      "measured_u_tip_mm": -0.001903958,
+      "reference_u_tip_mm": -0.0019039579201489687
+    }
+  ],
+  "counts": {
+    "total": 5,
+    "pass": 5,
+    "fail": 0,
+    "skipped": 0
+  }
+}

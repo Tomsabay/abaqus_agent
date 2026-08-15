@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -17,12 +18,23 @@ from tools.errors import AbaqusAgentError, ErrorCode
 REPO_ROOT = Path(__file__).parent.parent
 
 
-def _write_spec(tmp_path: Path) -> Path:
+@pytest.fixture(autouse=True)
+def _simulate_abaqus_present(monkeypatch):
+    """These tests unit-test the REAL pipeline flow with every solver stage
+    mocked out. The G2 demo-mode guard in run() keys off check_abaqus(), so
+    force it True here to take the real-flow branch. No real solver can
+    launch: the solver stages are replaced inside the tests below, and any
+    残留 subprocess still fails on the hidden PATH exactly as before."""
+    import core.helpers
+    monkeypatch.setattr(core.helpers, "check_abaqus", lambda: True)
+
+
+def _write_spec(tmp_path: Path, step_type: str = "Static") -> Path:
     spec = {
         "meta": {"abaqus_release": "2024", "model_name": "CapsuleModel"},
         "geometry": {"type": "custom_inp", "inp_path": "model.inp"},
         "material": {"name": "Steel", "E": 210000, "nu": 0.3},
-        "analysis": {"solver": "standard", "step_type": "Static"},
+        "analysis": {"solver": "standard", "step_type": step_type},
         "bc_load": {},
         "outputs": {"kpis": [{"name": "U_tip", "type": "nodal_displacement"}]},
     }
@@ -98,6 +110,81 @@ def test_orchestrator_collects_exported_odb_images(tmp_path, monkeypatch):
     assert result["status"] == "COMPLETED"
     assert result["visuals"][0]["path"] == "u_magnitude.png"
     assert "u_magnitude.png" in capsule["artifacts"]
+
+
+def test_orchestrator_exports_animation_for_dynamic_step(tmp_path, monkeypatch):
+    workdir = tmp_path / "run"
+    spec_path = _write_spec(tmp_path, step_type="Dynamic_Explicit")
+    orch = AbaqusOrchestrator(spec_path=spec_path, workdir=workdir)
+
+    def fake_build():
+        workdir.mkdir(parents=True, exist_ok=True)
+        inp = workdir / "CapsuleModel.inp"
+        inp.write_text("*Heading\nmodel\n", encoding="utf-8")
+        odb = workdir / "CapsuleModel.odb"
+        odb.write_text("fake odb marker\n", encoding="utf-8")
+        orch.workdir = workdir
+        orch._build_result = {"workdir": workdir, "inp_path": inp, "run_id": "anim123"}
+        return orch._build_result
+
+    anim_calls = []
+
+    def fake_anim(odb_path, anim_workdir):
+        anim_calls.append(str(odb_path))
+        return {"frames": 5, "video": "anim.mp4",
+                "out_dir": str(Path(anim_workdir) / "anim"), "errors": []}
+
+    monkeypatch.setattr("agent.orchestrator.export_odb_images",
+                        lambda *_a, **_k: {"images": [], "errors": []})
+    monkeypatch.setattr("agent.orchestrator.export_odb_mesh",
+                        lambda *_a, **_k: {"mesh_file": None, "errors": []})
+    monkeypatch.setattr("agent.orchestrator.export_odb_animation", fake_anim)
+    orch._stage_build = fake_build
+    orch._stage_syntaxcheck = lambda _inp, _workdir: None
+    orch._stage_submit = lambda _inp, _workdir: {"job_name": "CapsuleModel", "workdir": str(workdir), "status": "completed"}
+    orch._stage_monitor = lambda _submit: None
+    orch._stage_extract = lambda _odb: {"kpis": {"U_tip": -0.002}, "errors": []}
+
+    result = orch.run()
+
+    assert result["status"] == "COMPLETED"
+    assert anim_calls and anim_calls[0].endswith("CapsuleModel.odb")
+    assert result["animation"] == {"frames": 5, "video": "anim.mp4"}
+    assert result["stages"]["export_odb_animation"]["video"] == "anim.mp4"
+
+
+def test_orchestrator_skips_animation_for_static_step(tmp_path, monkeypatch):
+    workdir = tmp_path / "run"
+    spec_path = _write_spec(tmp_path)
+    orch = AbaqusOrchestrator(spec_path=spec_path, workdir=workdir)
+
+    def fake_build():
+        workdir.mkdir(parents=True, exist_ok=True)
+        inp = workdir / "CapsuleModel.inp"
+        inp.write_text("*Heading\nmodel\n", encoding="utf-8")
+        orch.workdir = workdir
+        orch._build_result = {"workdir": workdir, "inp_path": inp, "run_id": "static123"}
+        return orch._build_result
+
+    anim_calls = []
+    monkeypatch.setattr("agent.orchestrator.export_odb_animation",
+                        lambda *a, **k: anim_calls.append(a))
+    monkeypatch.setattr("agent.orchestrator.export_odb_images",
+                        lambda *_a, **_k: {"images": [], "errors": []})
+    monkeypatch.setattr("agent.orchestrator.export_odb_mesh",
+                        lambda *_a, **_k: {"mesh_file": None, "errors": []})
+    orch._stage_build = fake_build
+    orch._stage_syntaxcheck = lambda _inp, _workdir: None
+    orch._stage_submit = lambda _inp, _workdir: {"job_name": "CapsuleModel", "workdir": str(workdir), "status": "completed"}
+    orch._stage_monitor = lambda _submit: None
+    orch._stage_extract = lambda _odb: {"kpis": {"U_tip": -0.002}, "errors": []}
+
+    result = orch.run()
+
+    assert result["status"] == "COMPLETED"
+    assert anim_calls == []
+    assert "animation" not in result
+    assert "export_odb_animation" not in result["stages"]
 
 
 def test_orchestrator_evaluates_contracts_and_persists_capsule(tmp_path):

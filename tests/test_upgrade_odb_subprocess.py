@@ -25,7 +25,7 @@ def test_upgrade_odb_invokes_abaqus_python_and_reads_result(tmp_path, monkeypatc
     def fake_write_inner_script(path):
         writer_calls.append(path)
 
-    def fake_run(cmd, capture_output, text, timeout):
+    def fake_run(cmd, capture_output, text, timeout, **kwargs):
         run_calls.append(
             {
                 "cmd": cmd,

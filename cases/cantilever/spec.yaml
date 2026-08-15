@@ -1,5 +1,5 @@
 meta:
-  abaqus_release: "2024"
+  abaqus_release: "2021"
   model_name: "Cantilever"
   units: "mm_MPa_t"
   description: "3D linear-elastic cantilever beam under downward tip force"

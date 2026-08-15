@@ -11,16 +11,28 @@ from pathlib import Path
 
 import yaml
 
+# Held against post/extract_kpis.py's dispatch chain AND the schema's enum by
+# tests/test_kpi_type_closed.py. Three copies of one list is two too many, and
+# they were already out of step when the third was added: this set had no
+# `eigenvalue`, so a *BUCKLE spec validated, built, meshed and SOLVED, and was
+# then refused here -- after the expensive part, by the layer that was supposed
+# to be the cheap gate.
 SUPPORTED_TYPES = {
+    "contour_integral_j",
     "derived_stress_concentration",
     "eigenfrequency",
+    "eigenvalue",
     "field_max",
     "field_min",
     "history_output_max",
     "nodal_displacement",
     "reaction_force_max",
 }
-SUPPORTED_REDUCERS = {"abs_max", "last", "max", "min"}
+# Kept in step with post/extract_kpis.py:_reduce_values by
+# tests/test_kpi_reducers.py. This list is the gate a user hits first, and
+# the extractor is what actually computes; a reducer accepted here and unknown
+# there used to come back as a silent max, so the two are held together.
+SUPPORTED_REDUCERS = {"abs_max", "last", "max", "mean", "min", "sum"}
 SUPPORTED_PLOT_FIELDS = {"S", "U", "PEEQ", "RF"}
 
 
@@ -197,6 +209,10 @@ def _infer_plots_from_kpis(kpis: list[dict]) -> list[dict]:
             plots.append({"name": "u_magnitude", "field_variable": "U", "invariant": "MAGNITUDE", "deformed": True})
         if field == "PEEQ" or "PEEQ" in name:
             plots.append({"name": "peeq_contour", "field_variable": "PEEQ"})
+        if kind == "eigenfrequency":
+            # Frame 1 = first real mode (frame 0 is the base state).
+            plots.append({"name": "mode_shape", "field_variable": "U",
+                          "invariant": "MAGNITUDE", "deformed": True, "frame": 1})
     return [_normalize_plot(plot) for plot in plots]
 
 
@@ -263,3 +279,42 @@ def _query_summary(spec: dict) -> str:
         if spec.get(key):
             parts.append(f"{key}={spec[key]}")
     return ", ".join(parts) or "-"
+
+
+def missing_kpis(requested: list[dict], delivered: dict,
+                 errors: list | None = None) -> list[dict]:
+    """The KPIs a spec asked for that are not in the result.
+
+    Computed by DIFFING the request against what came back, not by reading the
+    extractor's error list. Those are two different questions and the second
+    one has been the wrong one to ask: a KPI whose `location` named a surface
+    used to vanish from `result["kpis"]` while the run reported COMPLETED,
+    because the failure was recorded in `stages.extract_kpis.errors` and
+    nothing compared the two collections. Diffing catches a KPI that goes
+    missing for a reason nobody has written an error message for yet.
+
+    The error text is attached where it can be matched by name, because "SCF is
+    missing" and "SCF is missing because a surface is not a region" are very
+    different amounts of help. An error that names no KPI stays unattributed --
+    it is still in `stages.extract_kpis.errors`, and guessing which row it
+    belongs to would print a precise-looking sentence about the wrong KPI.
+
+    #73(b), decided 2026-08-07: this is reported prominently and does NOT
+    change the run's verdict. Marking the run FAILED would change the pass/fail
+    reading of every shipped case and every frozen baseline, which is a
+    separate decision from making the shortfall visible.
+    """
+    delivered = delivered or {}
+    rows = []
+    for kpi in requested or []:
+        name = str(kpi.get("name", ""))
+        if not name or name in delivered:
+            continue
+        reason = ""
+        for err in errors or []:
+            if name in str(err):
+                reason = str(err)
+                break
+        rows.append({"name": name, "type": str(kpi.get("type", "")),
+                     "reason": reason})
+    return rows

@@ -1,5 +1,5 @@
 meta:
-  abaqus_release: "2024"
+  abaqus_release: "2021"
   model_name: "PlateWithHole"
   units: "mm_MPa_t"
   description: "2D plane-stress plate with central hole under uniaxial tension"

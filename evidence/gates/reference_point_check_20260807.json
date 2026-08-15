@@ -1,0 +1,65 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 93.6,
+  "source": "reference_point_check_20260807",
+  "items": [
+    {
+      "id": "coupling_carries_the_load_through_a_reference_point",
+      "status": "pass",
+      "note": "100 N on the reference point, which reaches the bar only through the coupling. The deck's `ref node=` names the set this form built.",
+      "placed_line": "REFERENCE_POINT_OK: condition 2 RP at (5, 5, 100)",
+      "measured_tip": -0.1894412487745285,
+      "beam_theory_tip": -0.19047619047619047,
+      "measured_bar_tip": -0.1894412487745285,
+      "named_set_line": "NAMED_SET_OK: condition 3 -> RP"
+    },
+    {
+      "id": "coupling_placed_at_a_selector_needs_no_coordinates",
+      "status": "pass",
+      "note": "the same answer with the point put at the centroid of the face it controls, so no coordinate is typed and the arithmetic that item 3 shows is silent cannot be got wrong.",
+      "placed_line": "REFERENCE_POINT_OK: condition 2 RP at (5, 5, 100) at the centroid of Bar:face@z=max",
+      "measured_tip": -0.1894412487745285,
+      "beam_theory_tip": -0.19047619047619047,
+      "measured_bar_tip": -0.1894412487745285,
+      "named_set_line": "NAMED_SET_OK: condition 3 -> RP"
+    },
+    {
+      "id": "a_control_point_in_the_wrong_place_is_silent",
+      "status": "pass",
+      "note": "the point 50 mm past the end of the bar. Nothing refuses it, because that is also how a moment is applied -- so what ships is the position in the log and a `{at:}` form that needs no coordinate at all.",
+      "placed_line": "REFERENCE_POINT_OK: condition 2 RP at (5, 5, 150)",
+      "measured_tip": -0.614719033241272,
+      "beam_theory_tip": -0.19047619047619047,
+      "offset_mm": 50.0,
+      "dat_errors": 0,
+      "dat_warnings": 0,
+      "measured_bar_tip": -0.331200510263443
+    },
+    {
+      "id": "rigid_body_and_mpc_take_the_same_control_point",
+      "status": "pass",
+      "note": "the same `{reference_point:}` through refPointRegion and through controlPoint -- three constraints, one form. Built rather than solved: a RigidBody tying the whole tip makes a different model, not a better test.",
+      "rigid_body_card": true,
+      "mpc_card": true
+    },
+    {
+      "id": "a_coupling_onto_an_empty_surface_is_caught_before_the_solve",
+      "status": "pass",
+      "note": "not a new guard: the count assertion on `{surface:}` is what catches it, and this pins that the reference point form did not route around it.",
+      "refusal_line": "SELECTOR_MISMATCH: Bar:face@z=max matched 1 faces, expected =2. The build stops here rather than applying it to the wrong region."
+    },
+    {
+      "id": "a_load_on_a_set_nothing_created_aborts_the_build",
+      "status": "pass",
+      "note": "the other direction. Item 1 shows the form can say yes; without this one, that is all it shows.",
+      "refusal_line": "NAMED_SET_MISSING: condition 3 names set NOSUCHSET, which no earlier call in this spec created. A set is created by the call that first uses it, so a name can only be reused AFTER that call, never before. Sets on the assembly at this point: FIX, RP"
+    }
+  ],
+  "counts": {
+    "total": 6,
+    "pass": 6,
+    "fail": 0,
+    "skipped": 0
+  }
+}

@@ -166,7 +166,7 @@ def _release_check(command_path: Path | None, timeout_seconds: float, check_rele
             command,
             cwd=os.getcwd(),
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=timeout_seconds,
             check=False,
         )

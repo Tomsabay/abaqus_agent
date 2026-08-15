@@ -76,6 +76,16 @@ def monitor_job(job_name: str, workdir: str | Path) -> dict:
     errors   = list(dict.fromkeys(errors))[:20]
     warnings = list(dict.fromkeys(warnings))[:20]
 
+    # A job with fatal ***ERROR lines and no sign of progress is not "waiting
+    # to start" — it is dead. RUNNING is deliberately left alone: a .sta that
+    # is still emitting increments means the solver is alive, and it will write
+    # its own verdict a moment later (which _parse_sta now reads).
+    # An .odb on disk proves nothing either way: an aborted analysis leaves a
+    # partial one behind, which is exactly what let a diverged run reach KPI
+    # extraction and get graded.
+    if errors and status in (JobStatus.UNKNOWN, JobStatus.PENDING):
+        status = JobStatus.FAILED
+
     # If ODB exists and no error → completed
     if odb_exists and status == JobStatus.UNKNOWN:
         status = JobStatus.COMPLETED
@@ -121,6 +131,13 @@ def _parse_sta(text: str) -> tuple[str, int, float, float]:
 
     # Determine status
     upper = text.upper()
+    # Check the explicit NEGATIVE verdict first. "THE ANALYSIS HAS NOT BEEN
+    # COMPLETED" carries none of ERROR/ABORTED/TERMINATED, and its increment
+    # rows have no percentage column to match, so it used to fall through to
+    # PENDING — reported as "waiting to start" for an analysis the solver had
+    # already given up on (measured on cantilever_plastic).
+    if "HAS NOT BEEN COMPLETED" in upper or "NOT BEEN COMPLETED" in upper:
+        return JobStatus.FAILED, last_inc, last_time, progress
     if (
         "ANALYSIS COMPLETE" in upper
         or "ANALYSIS HAS COMPLETED SUCCESSFULLY" in upper

@@ -1,0 +1,18 @@
+{
+  "kpis": {
+    "FRICTION_FORCE": {
+      "value": 120.0,
+      "rtol": 0.05,
+      "atol": 1.0,
+      "unit": "N",
+      "note": "Coulomb PREDICTION, not a frozen run: F = mu*N. The clamping pressure is 1.0 MPa over the slider's 20x20 mm top face, so N = 400 N exactly, and mu = 0.3 gives 120 N. Summed (not maxed) over the pushed face's reaction forces, because a prescribed displacement is resisted at every node and the largest single nodal share is a mesh artefact. A dropped friction coefficient reads ~0 here; a misread mu scales this linearly."
+    },
+    "NORMAL_FORCE": {
+      "value": 400.0,
+      "rtol": 0.02,
+      "atol": 1.0,
+      "unit": "N",
+      "note": "The load path, checked independently of friction: the whole clamping force reaches the ground through the contact interface, so the base's fixed face must react the full 1.0 MPa * 20 * 20 = 400 N. If contact failed to transmit pressure this would come out near zero and the slider would be floating."
+    }
+  }
+}

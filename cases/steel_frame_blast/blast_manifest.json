@@ -1,0 +1,61 @@
+{
+  "tnt_kg": 200.0,
+  "standoff_mm": 12000.0,
+  "charge_position_mm": [
+    9000.0,
+    -12000.0,
+    1000.0
+  ],
+  "stories": 3,
+  "bays": [
+    3,
+    2
+  ],
+  "mesh_mm": 600.0,
+  "time_period_s": 0.2,
+  "field_intervals": 150,
+  "front_columns": [
+    {
+      "column_x_mm": 0.0,
+      "standoff_m": 15.0,
+      "scaled_distance": 2.565,
+      "p_reflected_mpa": 0.4755,
+      "td_ms": 8.58,
+      "arrival_ms": 6.346,
+      "node_force_peak_n": 855982.0
+    },
+    {
+      "column_x_mm": 6000.0,
+      "standoff_m": 12.369,
+      "scaled_distance": 2.115,
+      "p_reflected_mpa": 0.8692,
+      "td_ms": 7.208,
+      "arrival_ms": 0.5,
+      "node_force_peak_n": 3129169.3
+    },
+    {
+      "column_x_mm": 12000.0,
+      "standoff_m": 12.369,
+      "scaled_distance": 2.115,
+      "p_reflected_mpa": 0.8692,
+      "td_ms": 7.208,
+      "arrival_ms": 0.5,
+      "node_force_peak_n": 3129169.3
+    },
+    {
+      "column_x_mm": 18000.0,
+      "standoff_m": 15.0,
+      "scaled_distance": 2.565,
+      "p_reflected_mpa": 0.4755,
+      "td_ms": 8.58,
+      "arrival_ms": 6.346,
+      "node_force_peak_n": 855982.0
+    }
+  ],
+  "assumptions": [
+    "cladding not modeled: front columns take tributary facade pressure",
+    "gravity not applied (blast response only)",
+    "slab composite action ignored (shared nodes = rigid connection)",
+    "concrete slab elastic; plasticity concentrated in steel frame"
+  ]
+}

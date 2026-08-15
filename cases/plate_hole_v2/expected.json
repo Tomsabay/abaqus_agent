@@ -1,0 +1,25 @@
+{
+  "kpis": {
+    "HOOP_MAX": {
+      "value": 3.14,
+      "rtol": 0.08,
+      "atol": 0.01,
+      "unit": "MPa",
+      "note": "Howland's 1930 solution for a central circular hole in a finite-width strip under uniaxial tension, via Heywood's closed form Ktn = 2 + (1 - d/W)^3 on the NET section. Here d/W = 12/60 = 0.2 gives Ktn = 2.512; the applied gross stress is 1.0 MPa so sigma_net = 1.0 * 60/(60-12) = 1.25 MPa and sigma_max = 2.512 * 1.25 = 3.140 MPa. Cross-checked against Peterson's polynomial fit Ktn = 3.00 - 3.13(d/W) + 3.66(d/W)^2 - 1.53(d/W)^3, which gives 3.1352 - the two agree to 0.15% here and exactly at both endpoints (3.00 at d/W=0, which is Kirsch's infinite plate, and 2.00 at d/W=1). That 0.15% spread is the real uncertainty in the target and is quoted rather than hidden by picking one. Net vs gross is the classic mistake: 3.140 against the applied 1.0 MPa is the same number seen from the other side, but mixing the conventions moves the answer by 25%. The 8% band is discretisation, not physics: a plate whose hole did not get cut cannot reach this KPI at all (the measurement set is built FROM the hole), and an under-refined hole reads LOW - measured on this machine at 3.0403 with no local refinement against 3.0966 with it."
+    },
+    "HOOP_S22": {
+      "value": 3.14,
+      "rtol": 0.08,
+      "atol": 0.01,
+      "unit": "MPa",
+      "note": "The same peak read as a component instead of an invariant. At the peak point - the sides of the hole on the x axis - the hoop direction is y, and the hole wall is traction-free, so the state there is uniaxial and S22 must equal the Mises above. They are computed from different things: Mises is raised by any triaxial state, S22 is not. If HOOP_MAX and HOOP_S22 disagree, the peak Mises is not the hoop peak and neither number means what the case says it means. This is the guard against reporting a plane-strain-depressed mid-thickness value as if it were the surface hoop stress."
+    },
+    "FAR_FIELD": {
+      "value": 1.0,
+      "rtol": 0.05,
+      "atol": 0.02,
+      "unit": "MPa",
+      "note": "S22 on the loaded face, i.e. the applied gross stress read back out of the ODB. Checks the load path independently of the hole: a sign error puts this at -1.0, and a pressure applied to the wrong face or to nothing puts it at 0. Without it, HOOP_MAX alone cannot distinguish 'the concentration is right' from 'the load happened to be off by the same factor'."
+    }
+  }
+}

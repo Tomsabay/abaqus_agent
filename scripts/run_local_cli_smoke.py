@@ -196,7 +196,9 @@ def collect_local_cli_smoke(out_dir: str | Path, vault_root: str | Path | None =
             [
                 "scripts/inspect_solver_doctor_patterns.py",
                 "detail",
-                "msg-10-license",
+                # Was "msg-10-license". The id used to carry the pattern's row
+                # number, so inserting a row above it renamed this one.
+                "msg-license",
             ],
             lambda data: (data["pattern"]["category"] == "LICENSE", "license pattern detail loaded"),
         ),
@@ -254,9 +256,13 @@ def collect_local_cli_smoke(out_dir: str | Path, vault_root: str | Path | None =
 
 def _run_json_step(name: str, args: list[str], check: CheckFn) -> dict[str, Any]:
     command = [sys.executable, str(ROOT / args[0]), *args[1:]]
+    # stdin=DEVNULL: without it the child inherits the parent's stdin; under the
+    # MCP stdio server that handle is the protocol pipe under Windows overlapped
+    # I/O, and the child blocks until the client disconnects.
     proc = subprocess.run(
         command,
         cwd=ROOT,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
     )

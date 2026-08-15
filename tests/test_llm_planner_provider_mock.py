@@ -97,8 +97,17 @@ async def _run_generate_spec_async_env_restore(
             assert backend == "openai"
             seen_keys.append(os.environ.get("OPENAI_API_KEY"))
 
-        def generate(self, text: str):
+        # `call` is the half the key has to be in place for, and `parse` is the
+        # half whose refusals must NOT fall through to the template
+        # (core/spec_generator.py). Split here the same way so this pins the
+        # boundary rather than only the restore.
+        def call(self, text: str) -> str:
             assert text == "mock prompt"
+            assert os.environ.get("OPENAI_API_KEY") == "temporary-key"
+            return "raw yaml the backend returned"
+
+        def parse(self, raw: str):
+            assert raw == "raw yaml the backend returned"
             return spec, []
 
     monkeypatch.setenv("OPENAI_API_KEY", "original-key")

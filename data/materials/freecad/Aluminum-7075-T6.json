@@ -1,0 +1,114 @@
+{
+  "schema": "abaqus_agent.material_card/1",
+  "name": "Aluminum-7075-T6",
+  "upstream_name": "Aluminum 7075-T6",
+  "category": "Aluminum",
+  "description": "Precipitation-hardened, Nonferrous Aluminum alloy",
+  "license": "CC-BY-4.0",
+  "source": {
+    "project": "FreeCAD",
+    "name": "Aluminum-7075-T6",
+    "category": "Aluminum",
+    "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/Aluminum-7075-T6.FCMat",
+    "commit": "c54df69e0b699e37fb67d116ef2d6ded8ebdc64e",
+    "url": "https://github.com/FreeCAD/FreeCAD/blob/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/Aluminum-7075-T6.FCMat",
+    "raw_url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/Aluminum-7075-T6.FCMat",
+    "retrieved": "2026-08-06",
+    "author": "FreeCAD",
+    "uuid": "9e53ebad-3e8a-464e-8c6d-1540a08ce5a6"
+  },
+  "properties": {
+    "E": {
+      "fcmat_key": "YoungsModulus",
+      "raw": "71700 MPa",
+      "raw_unit": "MPa",
+      "parsed_unit": "MPa",
+      "dimension": "stress",
+      "si": 71700000000.0,
+      "si_unit": "Pa",
+      "mm_MPa_t": 71700.0,
+      "mm_MPa_t_unit": "MPa"
+    },
+    "nu": {
+      "fcmat_key": "PoissonRatio",
+      "raw": "0.33",
+      "raw_unit": "",
+      "parsed_unit": "",
+      "dimension": "dimensionless",
+      "si": 0.33,
+      "si_unit": "-",
+      "mm_MPa_t": 0.33,
+      "mm_MPa_t_unit": "-"
+    },
+    "density": {
+      "fcmat_key": "Density",
+      "raw": "2810 kg/m^3",
+      "raw_unit": "kg/m^3",
+      "parsed_unit": "kg/m^3",
+      "dimension": "density",
+      "si": 2810.0,
+      "si_unit": "kg/m^3",
+      "mm_MPa_t": 2.81e-09,
+      "mm_MPa_t_unit": "t/mm^3"
+    },
+    "conductivity": {
+      "fcmat_key": "ThermalConductivity",
+      "raw": "130 W/m/K",
+      "raw_unit": "W/m/K",
+      "parsed_unit": "W/m/K",
+      "dimension": "thermal_conductivity",
+      "si": 130.0,
+      "si_unit": "W/(m*K)",
+      "mm_MPa_t": 130.0,
+      "mm_MPa_t_unit": "mW/(mm*K)"
+    },
+    "specific_heat": {
+      "fcmat_key": "SpecificHeat",
+      "raw": "960 J/kg/K",
+      "raw_unit": "J/kg/K",
+      "parsed_unit": "J/kg/K",
+      "dimension": "specific_heat",
+      "si": 960.0,
+      "si_unit": "J/(kg*K)",
+      "mm_MPa_t": 960000000.0,
+      "mm_MPa_t_unit": "mJ/(t*K)"
+    },
+    "expansion_coeff": {
+      "fcmat_key": "ThermalExpansionCoefficient",
+      "raw": "0.0000236 m/m/K",
+      "raw_unit": "m/m/K",
+      "parsed_unit": "m/m/K",
+      "dimension": "thermal_expansion",
+      "si": 2.36e-05,
+      "si_unit": "1/K",
+      "mm_MPa_t": 2.36e-05,
+      "mm_MPa_t_unit": "1/K"
+    }
+  },
+  "plasticity": {
+    "yield": {
+      "fcmat_key": "YieldStrength",
+      "raw": "503 MPa",
+      "raw_unit": "MPa",
+      "parsed_unit": "MPa",
+      "dimension": "stress",
+      "si": 503000000.0,
+      "si_unit": "Pa",
+      "mm_MPa_t": 503.0,
+      "mm_MPa_t_unit": "MPa"
+    }
+  },
+  "unmapped": [
+    {
+      "fcmat_key": "ShearModulus",
+      "raw": "26.9 GPa",
+      "reason": "各向同性材料的剪切模量由 E 和 ν 决定，spec 只在 materials[] 的复合材料条目里有独立的 G12。这里保留原始值供人工核对，不写进 material 块。"
+    },
+    {
+      "fcmat_key": "UltimateTensileStrength",
+      "raw": "572 MPa",
+      "reason": "抗拉强度是失效判据，不是本构。spec 的 material 块只描述本构，没有这个键；要用它做校核请写进 expected.json 的判据里。"
+    }
+  ],
+  "notes": []
+}

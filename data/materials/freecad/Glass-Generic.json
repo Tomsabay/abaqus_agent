@@ -1,0 +1,69 @@
+{
+  "schema": "abaqus_agent.material_card/1",
+  "name": "Glass-Generic",
+  "upstream_name": "Glass",
+  "category": "Glass",
+  "description": "Generic soda-lime glass",
+  "license": "CC-BY-3.0",
+  "source": {
+    "project": "FreeCAD",
+    "name": "Glass-Generic",
+    "category": "Glass",
+    "path": "src/Mod/Material/Resources/Materials/Standard/Glass/Glass-Generic.FCMat",
+    "commit": "c54df69e0b699e37fb67d116ef2d6ded8ebdc64e",
+    "url": "https://github.com/FreeCAD/FreeCAD/blob/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Glass/Glass-Generic.FCMat",
+    "raw_url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Glass/Glass-Generic.FCMat",
+    "retrieved": "2026-08-06",
+    "author": "Przemo Firszt",
+    "uuid": "3e3a3e13-04a4-410e-8e36-bbd83ca66847"
+  },
+  "properties": {
+    "E": {
+      "fcmat_key": "YoungsModulus",
+      "raw": "72000 MPa",
+      "raw_unit": "MPa",
+      "parsed_unit": "MPa",
+      "dimension": "stress",
+      "si": 72000000000.0,
+      "si_unit": "Pa",
+      "mm_MPa_t": 72000.0,
+      "mm_MPa_t_unit": "MPa"
+    },
+    "nu": {
+      "fcmat_key": "PoissonRatio",
+      "raw": "0.22",
+      "raw_unit": "",
+      "parsed_unit": "",
+      "dimension": "dimensionless",
+      "si": 0.22,
+      "si_unit": "-",
+      "mm_MPa_t": 0.22,
+      "mm_MPa_t_unit": "-"
+    },
+    "density": {
+      "fcmat_key": "Density",
+      "raw": "2520 kg/m^3",
+      "raw_unit": "kg/m^3",
+      "parsed_unit": "kg/m^3",
+      "dimension": "density",
+      "si": 2520.0,
+      "si_unit": "kg/m^3",
+      "mm_MPa_t": 2.52e-09,
+      "mm_MPa_t_unit": "t/mm^3"
+    },
+    "expansion_coeff": {
+      "fcmat_key": "ThermalExpansionCoefficient",
+      "raw": "0.000009 m/m/K",
+      "raw_unit": "m/m/K",
+      "parsed_unit": "m/m/K",
+      "dimension": "thermal_expansion",
+      "si": 9e-06,
+      "si_unit": "1/K",
+      "mm_MPa_t": 9e-06,
+      "mm_MPa_t_unit": "1/K"
+    }
+  },
+  "plasticity": null,
+  "unmapped": [],
+  "notes": []
+}

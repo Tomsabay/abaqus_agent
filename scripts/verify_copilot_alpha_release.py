@@ -21,6 +21,19 @@ PLUGIN_RUN_PLAN_RESULT = Path("artifacts/copilot/plugin_run_plan_codex/Cantileve
 PLUGIN_MANIFEST = Path("artifacts/copilot/plugin_manifest/abaqus_agent_plugin_manifest.json")
 GUI_SCREENSHOT = Path("artifacts/copilot/desktop_before_cae.png")
 
+# artifacts/ is gitignored, so a fresh clone loses regenerated evidence; the
+# original real-run artifacts are tracked here so the gate stays truthful.
+TRACKED_EVIDENCE_DIR = Path("evidence/copilot_alpha")
+
+
+def resolve_evidence_path(root: Path, primary: Path) -> Path:
+    """Prefer the artifacts copy; fall back to the tracked evidence snapshot."""
+    candidate = root / primary
+    if candidate.exists():
+        return candidate
+    fallback = root / TRACKED_EVIDENCE_DIR / primary.name
+    return fallback if fallback.exists() else candidate
+
 REQUIRED_MENU_ENTRIES = [
     "AbaqusAgent Copilot: Open Sidecar",
     "AbaqusAgent Copilot: Run Current Plan",
@@ -93,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _check_codex_real_smoke(root: Path) -> dict[str, Any]:
-    path = root / REAL_SMOKE_RESULT
+    path = resolve_evidence_path(root, REAL_SMOKE_RESULT)
     data = _read_json(path)
     passed = data.get("status") == "COMPLETED"
     return {
@@ -110,8 +123,8 @@ def _check_codex_real_smoke(root: Path) -> dict[str, Any]:
 
 
 def _check_plugin_run_plan(root: Path) -> dict[str, Any]:
-    trace_path = root / PLUGIN_RUN_PLAN_TRACE
-    result_path = root / PLUGIN_RUN_PLAN_RESULT
+    trace_path = resolve_evidence_path(root, PLUGIN_RUN_PLAN_TRACE)
+    result_path = resolve_evidence_path(root, PLUGIN_RUN_PLAN_RESULT)
     trace = _read_json(trace_path)
     result = _read_json(result_path)
     executed = [item.get("action") for item in trace.get("executed", [])]
@@ -136,7 +149,7 @@ def _check_plugin_run_plan(root: Path) -> dict[str, Any]:
 
 
 def _check_plugin_manifest(root: Path) -> dict[str, Any]:
-    path = root / PLUGIN_MANIFEST
+    path = resolve_evidence_path(root, PLUGIN_MANIFEST)
     data = _read_json(path)
     menu_entries = data.get("menu_entries") or []
     missing = [entry for entry in REQUIRED_MENU_ENTRIES if entry not in menu_entries]

@@ -1,0 +1,258 @@
+/* ============================================================================
+   Abaqus Agent - design system
+   ----------------------------------------------------------------------------
+   ONE source of truth for both surfaces (/ and /workbench). They used to carry
+   separate token blocks that had drifted into different products: the tools
+   page was near-black #09090E with purple-tinted greys and Google-hosted
+   JetBrains Mono + IBM Plex Sans; the workbench was cool graphite with system
+   Cascadia + Segoe UI Variable. Same application, two skins - and a page that
+   phoned out to fonts.googleapis.com on every load, which is both a leak and a
+   failure on the air-gapped workstations this is meant to run on.
+
+   The workbench vocabulary won because it is the one grounded in the domain:
+
+   * The palette is a MEASURING INSTRUMENT, not a brand. Cool graphite grounds
+     recede so the only saturated things on screen are data - a contour, a
+     status, a number that moved. Anything competing with the viewport is wrong.
+   * --ramp is the classic FEA contour scale (blue -> cyan -> green -> yellow ->
+     orange -> red). Not decoration: an engineer already reads that gradient as
+     magnitude. Every semantic colour below is a stop ON that ramp, so chrome
+     and results speak one language.
+   * Type is dense and technical, numerals tabular, because columns of KPIs
+     that jitter as digits change are unreadable.
+   * Hairlines and value steps, not shadows. This is a tool, not a card deck.
+
+   Editing rule: change a token HERE. If a page needs something this file does
+   not have, add it here rather than starting a second vocabulary.
+   ========================================================================== */
+
+:root {
+    /* ── Surfaces: cool graphite, viewport-first ───────────────── */
+    --bg0: #0E1217;   /* deepest: canvas / viewport well */
+    --bg1: #141A21;   /* application ground              */
+    --bg2: #1A212A;   /* panels                          */
+    --bg3: #212A35;   /* raised rows, inputs             */
+    --bg4: #2A3542;   /* hover / active                  */
+    --bd:  #28313C;   /* hairline divider                */
+    --bd2: #384454;   /* emphasised border               */
+    --bd3: #4A5869;   /* focus / selected                */
+
+    --tx1: #E7ECF3;   /* primary   */
+    --tx2: #99A6B6;   /* secondary */
+    --tx3: #677484;   /* tertiary  */
+
+    /* Legacy aliases — every pre-existing rule keeps resolving. */
+    --bg:      var(--bg1);
+    --bg2-l:   var(--bg2);
+    --bg3-l:   var(--bg3);
+    --border:  var(--bd);
+    --border2: var(--bd2);
+    --text:    var(--tx1);
+    --text2:   var(--tx2);
+    --text3:   var(--tx3);
+
+    /* ── Semantics = ramp stops, unmodified on dark ────────────── */
+    --blue:    #3B8EF0;
+    --cyan:    #23AEE3;
+    --green:   #3DCC7E;
+    --yellow:  #FFB830;
+    --accent:  #FF6B2B;
+    --accent2: #FF8B54;
+    --red:     #FF4560;
+
+    --blue-bg:   rgba(59,142,240,.13);  --blue-bd:   rgba(59,142,240,.36);
+    --green-bg:  rgba(61,204,126,.12);  --green-bd:  rgba(61,204,126,.34);
+    --yellow-bg: rgba(255,184,48,.12);  --yellow-bd: rgba(255,184,48,.34);
+    --accent-bg: rgba(255,107,43,.13);  --accent-bd: rgba(255,107,43,.38);
+    --red-bg:    rgba(255,69,96,.12);   --red-bd:    rgba(255,69,96,.34);
+
+    --ramp: linear-gradient(90deg, #2437C8, #23AEE3, #3DCC7E, #FFB830, #FF6B2B, #FF4560);
+    --ramp-v: linear-gradient(0deg, #2437C8, #23AEE3, #3DCC7E, #FFB830, #FF6B2B, #FF4560);
+
+    /* ── Type: dense, technical ────────────────────────────────── */
+    --mono: 'Cascadia Mono', 'Cascadia Code', ui-monospace, 'JetBrains Mono', Consolas, monospace;
+    --sans: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI',
+            'Microsoft YaHei UI', system-ui, sans-serif;
+    --display: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI',
+               'Microsoft YaHei UI', system-ui, sans-serif;
+
+    --fs-2xs: 10px; --fs-xs: 11px; --fs-sm: 11.5px; --fs-base: 12px;
+    --fs-md: 13px;  --fs-lg: 15px; --fs-xl: 20px;   --fs-2xl: 26px;
+    --tracking-cap: .12em;
+
+    --s1: 4px; --s2: 6px; --s3: 10px; --s4: 14px;
+    --s5: 18px; --s6: 22px; --s8: 30px; --s10: 38px;
+
+    /* Desktop software barely rounds anything. */
+    --r-xs: 2px; --r-sm: 3px; --r-md: 4px; --r-lg: 6px; --r-full: 999px;
+
+    /* Depth comes from value steps and hairlines; shadows only for
+       things that genuinely float above the app (toasts, popovers). */
+    --sh1: none;
+    --sh2: 0 2px 6px rgba(0,0,0,.35);
+    --sh3: 0 8px 28px rgba(0,0,0,.55);
+    --ring-accent: 0 0 0 1px var(--accent);
+    --ring-blue:   0 0 0 1px var(--blue);
+
+    --t-fast: 90ms; --t-base: 140ms; --t-slow: 240ms;
+    --ease: cubic-bezier(.3,.7,.4,1);
+    --ease-out: cubic-bezier(.16,1,.3,1);
+
+    --h-topbar: 38px;
+    --h-status: 24px;
+  }
+
+/* Respect the OS setting rather than animating regardless. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-fast: 1ms; --t-base: 1ms; --t-slow: 1ms; }
+  *, *::before, *::after { animation-duration: .01ms !important; }
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+.ds * { margin: 0; padding: 0; box-sizing: border-box; }
+
+.ds {
+  background: var(--bg1);
+  color: var(--tx1);
+  font-family: var(--sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  /* Tabular figures everywhere: KPI columns must not jitter as digits change. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ds ::selection { background: var(--accent-bg); color: var(--tx1); }
+
+/* Focus is visible and consistent. Keyboard users are engineers too. */
+.ds :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--r-sm);
+}
+
+.ds ::-webkit-scrollbar { width: 9px; height: 9px; }
+.ds ::-webkit-scrollbar-track { background: transparent; }
+.ds ::-webkit-scrollbar-thumb {
+  background: var(--bd2); border-radius: 5px;
+  border: 2px solid transparent; background-clip: content-box;
+}
+.ds ::-webkit-scrollbar-thumb:hover { background-clip: content-box; background-color: var(--bd3); }
+
+/* ── Primitives ────────────────────────────────────────────────────────── */
+
+/* Section label: the small all-caps rule that heads a pane. */
+.ds-label {
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--tx3);
+}
+
+.ds-btn {
+  font-family: var(--sans);
+  font-size: var(--fs-base);
+  color: var(--tx1);
+  background: var(--bg3);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r-md);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.ds-btn:hover { background: var(--bg4); border-color: var(--bd3); }
+.ds-btn:active { transform: translateY(.5px); }
+.ds-btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+.ds-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #14100C;
+  font-weight: 600;
+}
+.ds-btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+
+/* Language toggle. It lives in the top bar of BOTH surfaces and shows the
+   language you would switch TO, so it has to look like the same control on
+   both — a user who has just switched on one page and followed a link to the
+   other should not have to hunt for a differently-shaped button. The two pages
+   had grown their own: the tools page used its 8x18px mono .btn-secondary, the
+   workbench its 24px sans element-default. min-width keeps "EN" and "中文" the
+   same footprint so the top bar does not reflow when you press it. */
+.ds-lang-toggle {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  letter-spacing: .04em;
+  color: var(--tx2);
+  background: var(--bg3);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r-sm);
+  height: 24px;
+  min-width: 44px;
+  padding: 0 10px;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease);
+}
+.ds-lang-toggle:hover { color: var(--tx1); background: var(--bg4); border-color: var(--accent-bd); }
+.ds-lang-toggle:active { background: var(--bg2); }
+
+.ds-input, .ds-select, .ds-textarea {
+  font-family: var(--sans);
+  font-size: var(--fs-base);
+  color: var(--tx1);
+  background: var(--bg3);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r-md);
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.ds-input:focus, .ds-select:focus, .ds-textarea:focus { border-color: var(--bd3); }
+
+/* Status dot. Colour comes from a modifier so state reads at a glance. */
+.ds-dot {
+  width: 7px; height: 7px; border-radius: var(--r-full);
+  background: var(--tx3);
+  display: inline-block; flex: none;
+}
+.ds-dot.ok      { background: var(--green); }
+.ds-dot.warn    { background: var(--yellow); }
+.ds-dot.err     { background: var(--red); }
+.ds-dot.busy    { background: var(--accent); animation: ds-pulse 1.4s infinite; }
+@keyframes ds-pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+
+/* Chip: a compact labelled value. */
+.ds-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: var(--fs-xs);
+  color: var(--tx2);
+  background: var(--bg3);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-full);
+  padding: 3px 10px;
+}
+
+/* The ramp as a 2px rule — used to mark the app's top edge and section
+   boundaries. It is the one piece of pure ornament here, and it earns its
+   place by being the same scale the contour plots use. */
+.ds-ramp-rule { height: 2px; background: var(--ramp); border: 0; }
+
+/* Panels are separated by hairlines, never by shadow or card elevation. */
+.ds-panel {
+  background: var(--bg2);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-lg);
+}
+
+/* Empty states must say what to do next, not just that there is nothing. */
+.ds-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s3);
+  padding: var(--s10) var(--s6);
+  color: var(--tx3);
+  text-align: center;
+}
+.ds-empty .ds-empty-title { color: var(--tx2); font-size: var(--fs-md); }
+.ds-empty .ds-empty-hint { font-size: var(--fs-base); max-width: 44ch; line-height: 1.65; }

@@ -1,0 +1,64 @@
+{
+  "schema": "grading_ui_check/1",
+  "overall": "pass",
+  "seconds": 27.6,
+  "source": "grading_ui_check_20260809",
+  "items": [
+    {
+      "name": "a_graded_run_says_pass_in_green",
+      "detail": "classes: g-pass",
+      "status": "pass"
+    },
+    {
+      "name": "a_failed_run_says_fail_in_red",
+      "detail": "classes: g-fail",
+      "status": "pass"
+    },
+    {
+      "name": "an_integrity_block_shows_the_reason_not_just_the_verdict",
+      "detail": "withdrawn-verdict note reaches the card: yes",
+      "status": "pass"
+    },
+    {
+      "name": "a_run_with_no_baseline_says_not_graded",
+      "detail": "classes: g-none",
+      "status": "pass"
+    },
+    {
+      "name": "not_graded_says_which_input_was_missing",
+      "detail": "both reasons present: yes",
+      "status": "pass"
+    },
+    {
+      "name": "the_three_states_are_distinguishable_on_screen",
+      "detail": "3 distinct renders from 3 payloads",
+      "status": "pass"
+    },
+    {
+      "name": "a_pre_fix_run_record_asserts_nothing",
+      "detail": "empty regression/contracts -> no section (cannot claim NOT GRADED about a record that predates the field)",
+      "status": "pass"
+    },
+    {
+      "name": "a_demo_run_does_not_compete_with_its_own_banner",
+      "detail": "demo_mode -> no verdict section",
+      "status": "pass"
+    },
+    {
+      "name": "a_reason_string_is_escaped_not_rendered",
+      "detail": "payload markup arrives escaped",
+      "status": "pass"
+    },
+    {
+      "name": "no_page_errors",
+      "detail": "page errors: none",
+      "status": "pass"
+    }
+  ],
+  "counts": {
+    "total": 10,
+    "pass": 10,
+    "fail": 0,
+    "skipped": 0
+  }
+}

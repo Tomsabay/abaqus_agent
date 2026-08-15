@@ -1,0 +1,56 @@
+{
+  "schema": "assembly_position_check/1",
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 6.4,
+  "source": "assembly_position_check_20260806",
+  "items": [
+    {
+      "id": "position_one_moves_the_instance",
+      "status": "pass",
+      "identity": "two 10 mm cubes, Mover parked at x=40.0, joined by FaceToFace(clearance=0) written with {one:}",
+      "expected_centroid": [
+        5.0,
+        5.0,
+        5.0
+      ],
+      "placed_line": "EXPECT_OK: Mover at (5.0, 5.0, 5.0), off by 8.88178e-16 of 0.01 allowed"
+    },
+    {
+      "id": "position_expect_at_is_not_vacuous",
+      "status": "pass",
+      "identity": "same spec, expect.at stating the pre-constraint centroid [45.0, 5.0, 5.0] instead of [5.0, 5.0, 5.0]",
+      "refusal_line": "EXPECT_PLACED: instance Mover sits at (5.0, 5.0, 5.0), the spec says (45.0, 5.0, 5.0) within 0.01. Off by (40.0, 8.88178419700125e-16, 0.0)."
+    },
+    {
+      "id": "position_a_sequence_is_refused",
+      "status": "pass",
+      "identity": "the same spec with {select: \"Mover:face@x=min\"}, which compiles to a sequence of exactly one",
+      "refusal_line": "CALL_RECORDED_NOTHING: assembly operation 1 was handed movablePlane as a SEQUENCE of exactly one -- select: always compiles to a sequence -- and the call returned nothing and recorded nothing, so nothing downstream can see that it did nothing. Measured on Abaqus 2021: a positioning constraint given that sequence leaves the instance where it was and the deck still goes green. Pass the entity itself"
+    },
+    {
+      "id": "position_a_set_from_one_face_still_builds",
+      "status": "pass",
+      "identity": "FaceToFace via {one:} plus a.Set(faces={select: one face})",
+      "note": "an earlier generation-time version of the guard refused this; the repo's own suite caught it, which is why the guard reads the return value instead"
+    },
+    {
+      "id": "position_default_tolerance_is_derived_from_the_instance",
+      "status": "pass",
+      "identity": "10 mm cubes -> span 10 -> max(1e-3, 10*2e-3) = 0.02 mm, computed in the kernel because the span does not exist until the assembly does",
+      "expected_centroid": [
+        5.0,
+        5.0,
+        5.0
+      ],
+      "placed_line": "EXPECT_OK: Mover at (5.0, 5.0, 5.0), off by 8.88178e-16 of 0.02 allowed",
+      "refusal_line": "EXPECT_PLACED: instance Mover sits at (5.0, 5.0, 5.0), the spec says (45.0, 5.0, 5.0) within 0.02 (default, from a span of 10.0). Off by (40.0, 8.88178419700125e-16, 0.0)."
+    }
+  ],
+  "counts": {
+    "total": 5,
+    "pass": 5,
+    "fail": 0,
+    "skipped": 0
+  }
+}

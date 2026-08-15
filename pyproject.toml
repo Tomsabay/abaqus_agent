@@ -7,7 +7,10 @@ name = "abaqus-agent"
 version = "0.2.0.dev0"
 description = "Local simulation QA and regression framework for Abaqus FEA"
 readme = "README.md"
-license = "Apache-2.0"
+# Machine-readable, and the one PyPI / SBOM scanners / the GitHub
+# dependency graph actually read. It said Apache-2.0 while LICENSE
+# was AGPL, which quietly voided the dual-licence position.
+license = "AGPL-3.0-or-later"
 requires-python = ">=3.10"
 authors = [{ name = "Abaqus Agent Contributors" }]
 keywords = ["abaqus", "fea", "simulation", "qa", "regression-testing", "devops", "mcp", "odb"]
@@ -29,11 +32,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.0"]
+# Upper bound is not caution, it is measured: a clean install today resolves
+# mcp 2.0.0, where `mcp.server.fastmcp` has moved and mcp_server.py fails to
+# import outright. Raise the bound only after the import path is ported.
+mcp = ["mcp>=1.0,<2"]
 llm = ["anthropic>=0.36", "openai>=1.0"]
 pdf = ["playwright>=1.45"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1", "httpx>=0.24", "mcp>=1.0"]
-all = ["abaqus-agent[mcp,llm,pdf,dev]"]
+report = ["python-docx>=1.1", "openpyxl>=3.1"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1", "httpx>=0.24", "mcp>=1.0,<2"]
+all = ["abaqus-agent[mcp,llm,pdf,report,dev]"]
 
 [project.scripts]
 abaqus-agent = "cli:main"
@@ -61,6 +68,12 @@ target-version = "py310"
 line-length = 100
 extend-exclude = ["artifacts", "evidence/real_abaqus_smoke_*"]
 
+[tool.ruff.lint.per-file-ignores]
+# Compact one-line lookup tables. Expanding them to ten lines each would make
+# a colour map and a token dispatch harder to read, not easier. This file also
+# has to stay parseable by the Abaqus 2.7 kernel, where terse is idiomatic.
+"post/parse_inp.py" = ["E701", "E702"]
+
 [tool.hatch.build.targets.wheel]
 packages = [
     "agent",
@@ -76,7 +89,7 @@ packages = [
     "post",
     "simdiff",
     "tools",
-    "premium",
+    "features",
     "reporting",
     "validation",
     "evidence",
@@ -89,6 +102,10 @@ packages = [
 
 [tool.hatch.build.targets.wheel.force-include]
 "copilot/codex_app_server_client.mjs" = "copilot/codex_app_server_client.mjs"
+# core/material_library.py reads these at run time. Data, not a package, so
+# `packages` above would not carry them -- and a wheel with the loader but not
+# the cards raises on the first list_materials() call.
+"data/materials" = "data/materials"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

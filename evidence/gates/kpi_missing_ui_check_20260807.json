@@ -1,0 +1,57 @@
+{
+  "overall": "pass",
+  "source": "result",
+  "items": [
+    {
+      "id": "1_api_carries_the_field",
+      "status": "pass",
+      "note": "GET /api/run/short returns kpis_missing=['MISES_AT_ROOT']"
+    },
+    {
+      "id": "2_the_grid_has_a_tile_for_it",
+      "status": "pass",
+      "note": "2 delivered + 1 missing -> 3 tiles, 1 of them flagged (want 3 and 1)"
+    },
+    {
+      "id": "3_the_tile_names_the_kpi_and_the_reason",
+      "status": "pass",
+      "note": "MISES_AT_ROOT\n没抽出来\nMISES_AT_ROOT: location u'NO_SUCH_SET_EXISTS' not found in ODB (available sets: ALL, FIXED_END, LOAD_END, TIP_NODES)"
+    },
+    {
+      "id": "4_the_heading_carries_the_denominator",
+      "status": "pass",
+      "note": "KPI · 真实求解提取 · 本次 2/3 条 KPI 有数值"
+    },
+    {
+      "id": "5_a_complete_run_is_left_alone",
+      "status": "pass",
+      "note": "2 tiles, 0 flagged, label 'KPI · 真实求解提取'"
+    },
+    {
+      "id": "6_the_verdict_is_unchanged",
+      "status": "pass",
+      "note": "✓ COMPLETED run short · 耗时 0s"
+    },
+    {
+      "id": "7_string_limitation_is_not_a_blank_card",
+      "status": "pass",
+      "note": "诊断 Tie 约束有 85 个节点没绑上（85 处） 处理办法：放宽 position_tolerance"
+    },
+    {
+      "id": "8_english_says_it_too",
+      "status": "pass",
+      "note": "MISES_AT_ROOT\nnot extracted\nMISES_AT_ROOT: location u'NO_SUCH_SET_EXISTS' not found in ODB (available sets: ALL, FIXED_END, LOAD_END, TIP_NODES)"
+    },
+    {
+      "id": "9_no_page_errors",
+      "status": "pass",
+      "note": "none"
+    }
+  ],
+  "counts": {
+    "total": 9,
+    "pass": 9,
+    "fail": 0,
+    "skipped": 0
+  }
+}

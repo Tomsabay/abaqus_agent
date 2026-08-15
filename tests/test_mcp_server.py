@@ -33,11 +33,9 @@ def clean_mcp_server_state():
     _drain_pending_tasks()
 
     from mcp_server import RUNS, _progress_queues
-    from premium.licensing import feature_gate
 
     RUNS.clear()
     _progress_queues.clear()
-    feature_gate.reset()
 
 
 # ── Tool tests ────────────────────────────────────────────────────
@@ -356,47 +354,22 @@ class TestMCPTools:
         assert data["dry_run"] is True
         assert len(data["cases"]) >= 4
 
-    def test_get_premium_features(self):
-        from mcp_server import get_premium_features
+    def test_get_features(self):
+        from mcp_server import get_features
         result = asyncio.get_event_loop().run_until_complete(
-            get_premium_features()
+            get_features()
         )
         data = json.loads(result)
         assert "features" in data
-        # Premium module should be importable
+        assert "capabilities" in data
         assert len(data["features"]) >= 5
-
-    def test_activate_premium_dev_key(self):
-        from mcp_server import activate_premium
-        result = asyncio.get_event_loop().run_until_complete(
-            activate_premium(license_key="dev-test-key")
-        )
-        data = json.loads(result)
-        assert data["valid"] is True
-        assert len(data["features"]) >= 5
-
-        # Reset after test
-        from premium.licensing import feature_gate
-        feature_gate.reset()
-
-    def test_activate_premium_empty_key(self):
-        from mcp_server import activate_premium
-        result = asyncio.get_event_loop().run_until_complete(
-            activate_premium(license_key="")
-        )
-        data = json.loads(result)
-        assert data["valid"] is False
-
-    def test_activate_premium_invalid_key(self):
-        from mcp_server import activate_premium
-        result = asyncio.get_event_loop().run_until_complete(
-            activate_premium(license_key="invalid-key-xyz")
-        )
-        data = json.loads(result)
-        assert data["valid"] is False
-
-        from premium.licensing import feature_gate
-        feature_gate.reset()
+        # The licence gate is gone: no entitlement field may survive anywhere
+        # in the payload.
+        assert "enabled" not in json.dumps(data)
+        assert "licensed" not in json.dumps(data)
+        assert set(data["capabilities"]) == {
+            "geometry_types", "step_types", "kpi_types", "hooks"
+        }
 
     def test_get_offline_evidence_example_tool(self):
         from mcp_server import get_offline_evidence_example_tool
@@ -871,6 +844,22 @@ class TestMCPTools:
         assert {pattern["category"] for pattern in data["patterns"]} == {"LICENSE"}
         assert data["real_env_verified"] is False
 
+    def test_diagnose_cae_error_tool(self):
+        from mcp_server import diagnose_cae_error_tool
+
+        result = asyncio.get_event_loop().run_until_complete(
+            diagnose_cae_error_tool(
+                "IOError: D:/x/Copilot_Cantilever_Job.cae: Permission denied (.lck)"
+            )
+        )
+        data = json.loads(result)
+        assert data["matched"] is True
+        assert data["pattern_id"] == "stale_lock_or_readonly_cae"
+        assert data["title"] == "模型数据库被锁定或无法写入"
+
+        empty = asyncio.get_event_loop().run_until_complete(diagnose_cae_error_tool("  "))
+        assert "error" in json.loads(empty)
+
 
 # ── Resource tests ────────────────────────────────────────────────
 
@@ -890,13 +879,15 @@ class TestMCPResources:
         assert "cantilever" in case_names
         assert "plate_hole" in case_names
 
-    def test_premium_features_resource(self):
-        from mcp_server import get_premium_features_resource
+    def test_features_resource(self):
+        from mcp_server import get_features_resource
         result = asyncio.get_event_loop().run_until_complete(
-            get_premium_features_resource()
+            get_features_resource()
         )
         data = json.loads(result)
         assert "features" in data
+        assert "capabilities" in data
+        assert "enabled" not in json.dumps(data)
 
     def test_offline_evidence_examples_resource(self):
         from mcp_server import get_offline_evidence_examples_resource

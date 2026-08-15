@@ -1,0 +1,85 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 83.8,
+  "source": "crack_check_20260807",
+  "items": [
+    {
+      "id": "decks_written",
+      "status": "pass",
+      "note": "three decks: v_baseline, v_noseam, v_backwards_q"
+    },
+    {
+      "id": "deck_carries_the_contour_card",
+      "status": "pass",
+      "note": "`*Contour Integral` present in v_baseline.inp"
+    },
+    {
+      "id": "j_read_back",
+      "status": "pass",
+      "note": "read J from 3 odb(s)"
+    },
+    {
+      "id": "baseline_matches_the_handbook",
+      "status": "pass",
+      "note": "J = 2.5033 vs handbook 2.5576 (-2.12%), contours 2.4685 2.5013 2.5032 2.5033 2.5033 2.5033",
+      "measured_j": 2.503265619277954,
+      "handbook_j": 2.557608007347708,
+      "error_fraction": -0.02124734826980306
+    },
+    {
+      "id": "baseline_is_path_independent",
+      "status": "pass",
+      "note": "contours 2..6 spread 7.74e-04 of their mean",
+      "spread": 0.0007739750660193587
+    },
+    {
+      "id": "extractor_returns_the_outermost_contour",
+      "status": "pass",
+      "note": "contour_integral_j -> 2.503266, the outermost contour"
+    },
+    {
+      "id": "unseparated_crack_is_nothing_and_refused",
+      "status": "pass",
+      "note": "J = -1.4e-16 -3.8e-16 -2.1e-15 -1.6e-15 -4.2e-15 -1.3e-14 -- round-off, not a crack. Job COMPLETED with no warning; extractor refuses and names the missing SEAM rather than the sign, though every value is negative",
+      "contours": [
+        -1.3530843112619095e-16,
+        -3.8337388819087437e-16,
+        -2.105954299835844e-15,
+        -1.56472057533108e-15,
+        -4.165071065820314e-15,
+        -1.3298390166838203e-14
+      ]
+    },
+    {
+      "id": "reversed_q_is_negative_and_refused",
+      "status": "pass",
+      "note": "J = -2.5033 (right magnitude, wrong sign), job COMPLETED with no warning; extractor refuses on the sign",
+      "contours": [
+        -2.4684836864471436,
+        -2.501328468322754,
+        -2.503185272216797,
+        -2.503253698348999,
+        -2.503265142440796,
+        -2.503265619277954
+      ]
+    },
+    {
+      "id": "path_independence_alone_would_have_passed_it",
+      "status": "pass",
+      "note": "the reversed-q run is as path-independent as the correct one (7.74e-04 vs 7.74e-04), so convergence cannot distinguish them -- the sign is the only tell"
+    },
+    {
+      "id": "spec_authoring_unproven",
+      "status": "pass",
+      "note": "this gate builds its models with its own CAE script. `type: contour_integral_j` is reachable from a spec and is what refuses above, but authoring the ContourIntegral through the v2 dialect is NOT tested here and is not claimed. No shipped case authors one, which is what makes that disclaimer accurate",
+      "cases_authoring_contour_integral": []
+    }
+  ],
+  "counts": {
+    "total": 10,
+    "pass": 10,
+    "fail": 0,
+    "skipped": 0
+  }
+}

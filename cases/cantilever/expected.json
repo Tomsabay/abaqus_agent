@@ -1,18 +1,18 @@
 {
   "kpis": {
     "U_tip": {
-      "value": -2.5716267991811037e-3,
+      "value": -0.0019039579201489687,
       "rtol": 0.10,
       "atol": 1e-6,
       "unit": "mm",
-      "note": "Real Abaqus smoke baseline for generated C3D8R solid model with a -1 N U2 tip-center load. Euler-Bernoulli estimate is ~1.9e-3 mm and is used only as a sanity check."
+      "note": "Frozen W3 baseline (2026-07-26): real Abaqus 2021 solve, element type C3D20R (Standard, quadratic reduced-integration hex), producing run_id dd6ec1145b8de62f. Euler-Bernoulli PL^3/3EI = 1.9048e-3 mm; measured deviates 0.04% from theory. -1 N U2 load at tip-center node."
     },
     "MISES_MAX": {
-      "value": 0.38309070467948914,
+      "value": 0.6528551578521729,
       "rtol": 0.20,
       "atol": 0.01,
       "unit": "MPa",
-      "note": "Real ODB KPI baseline from integration-point Mises values for the generated coarse solid mesh, not an extrapolated surface stress."
+      "note": "Frozen W3 baseline (2026-07-26): unaveraged ELEMENT_NODAL Mises max from the same C3D20R solve, producing run_id dd6ec1145b8de62f. Extrapolated to element corner nodes and NOT averaged across elements, which is what post/extract_kpis.py requests for any MISES field_max. An integration-point max, or a nodal-averaged one, is a different number; do not compare either against this baseline."
     }
   }
 }

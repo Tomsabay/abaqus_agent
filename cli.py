@@ -66,8 +66,11 @@ def _build_parser() -> argparse.ArgumentParser:
     validate_env.add_argument("--out", help="Write Markdown report to this path")
     validate_env.set_defaults(func=_cmd_validate_env)
 
-    validate_record = validate_sub.add_parser("record", help="Append an evidence row to docs/VALIDATION_MATRIX.md")
-    validate_record.add_argument("--matrix", default="docs/VALIDATION_MATRIX.md", help="Validation matrix Markdown path")
+    validate_record = validate_sub.add_parser("record", help="Append an evidence row to a validation matrix")
+    # Defaults to a file in the working directory, not to one inside the repo:
+    # the matrix belongs to whoever is doing the validating, and a default
+    # pointing at a repo path breaks the moment someone installs the package.
+    validate_record.add_argument("--matrix", default="VALIDATION_MATRIX.md", help="Validation matrix Markdown path")
     validate_record.add_argument("--date", default="", help="Evidence date, defaults to today")
     validate_record.add_argument("--environment", required=True, help="Environment label")
     validate_record.add_argument("--abaqus", required=True, help="Abaqus release/license label")

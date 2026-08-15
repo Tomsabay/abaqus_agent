@@ -1,15 +1,69 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AbaqusAgentProblemSpec",
-  "description": "Abaqus automation agent problem specification schema",
+  "description": "Abaqus automation agent problem specification schema. Two dialects share this file. v1 (`geometry` + `analysis` + `bc_load`) names one of a closed list of shapes and can express exactly one part, one instance, one step, one BC and one load. v2 (`parts` + `assembly` + `steps`) builds parts from a feature grammar and assembles any number of them. The `allOf` block below makes them mutually exclusive rather than merely both-allowed: a spec carrying both would leave which one wins up to the builder, and a silently ignored `interactions` block is a missing contact pair in a model that still solves.",
   "type": "object",
   "required": [
     "meta",
-    "geometry",
     "material",
-    "analysis",
-    "bc_load",
     "outputs"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "parts"
+        ]
+      },
+      "then": {
+        "required": [
+          "assembly",
+          "steps"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "geometry"
+              ]
+            },
+            {
+              "required": [
+                "bc_load"
+              ]
+            }
+          ]
+        },
+        "properties": {
+          "analysis": {
+            "required": [
+              "solver"
+            ],
+            "not": {
+              "required": [
+                "step_type"
+              ]
+            },
+            "description": "In v2 `analysis` carries only job-level settings (solver, cpus, memory). `step_type` is forbidden here because steps[].type already says it, and two places to say the same thing is two places to disagree."
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "geometry",
+          "analysis",
+          "bc_load"
+        ],
+        "properties": {
+          "analysis": {
+            "required": [
+              "solver",
+              "step_type"
+            ]
+          }
+        }
+      }
+    }
   ],
   "properties": {
     "meta": {
@@ -21,7 +75,12 @@
       "properties": {
         "abaqus_release": {
           "type": "string",
+          "description": "Abaqus release the spec targets. Must cover releases users actually run — an enum narrower than the installed base forces people to state a release they do not have, which is how this repo ended up claiming 2024 on a 2021 machine. Note 2023 and earlier embed Python 2.7 while 2024+ embed Python 3.10, so scripts are not interchangeable across that boundary.",
           "enum": [
+            "2019",
+            "2020",
+            "2021",
+            "2022",
             "2023",
             "2024",
             "2025",
@@ -98,7 +157,7 @@
         },
         "profile": {
           "type": "object",
-          "description": "Beam cross-section profile (premium: beam_frame)",
+          "description": "Beam cross-section profile (features.geometry: beam_frame)",
           "properties": {
             "type": {
               "type": "string",
@@ -141,7 +200,7 @@
         },
         "layup": {
           "type": "array",
-          "description": "Composite layup definition (premium: composite_plate)",
+          "description": "Composite layup definition (features.geometry: composite_plate)",
           "items": {
             "type": "object",
             "required": [
@@ -199,11 +258,6 @@
     },
     "material": {
       "type": "object",
-      "required": [
-        "name",
-        "E",
-        "nu"
-      ],
       "properties": {
         "name": {
           "type": "string"
@@ -228,31 +282,31 @@
         "conductivity": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Thermal conductivity (premium: coupling)"
+          "description": "Thermal conductivity (features.coupling)"
         },
         "specific_heat": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Specific heat (premium: coupling)"
+          "description": "Specific heat (features.coupling)"
         },
         "expansion_coeff": {
           "type": "number",
-          "description": "Thermal expansion coefficient (premium: coupling)"
+          "description": "Thermal expansion coefficient (features.coupling)"
         },
         "electrical_conductivity": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Electrical conductivity (premium: coupling)"
+          "description": "Electrical conductivity (features.coupling)"
         },
         "fracture_energy": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Fracture energy Gc (premium: cohesive)"
+          "description": "Fracture energy Gc (features.geometry: cohesive_layer)"
         },
         "max_traction": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Max traction for cohesive (premium: cohesive)"
+          "description": "Max traction for cohesive (features.geometry: cohesive_layer)"
         },
         "yield": {
           "type": "number",
@@ -263,20 +317,40 @@
           "type": "number",
           "minimum": 0,
           "description": "Bilinear plastic hardening modulus (MPa)"
+        },
+        "library": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Take this material's properties from the built-in library instead of writing them out. The name is a card in data/materials/freecad/; core.material_library.list_materials() lists them and an unknown name is refused with the closest matches, never approximated. Resolved at load time, before this schema runs and before the run id is taken, so the deck a library material produces is byte-identical to the deck the same numbers typed by hand produce. Any other key written alongside it OVERRIDES the card, and the override is recorded in the run's materials provenance with both values."
+        },
+        "plasticity": {
+          "type": "boolean",
+          "default": false,
+          "description": "Take the card's yield strength too. Off by default because several cards carry one and emitting it would turn a linear-elastic study into an elastoplastic one without the spec asking. When it is left off the value is still reported, under provenance.not_included."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Material properties. In the v2 dialect every key here is emitted or the spec is refused — nothing is dropped in silence. `yield` (+ optional `hardening`, a modulus) becomes a bilinear *Plastic table, spelled exactly as the v1 generator spells it so a spec means the same model in both dialects; `density`, `conductivity`, `specific_heat`, `expansion_coeff` and `electrical_conductivity` each become their one-row Abaqus table. This block used to emit only Elastic and Density: measured on Abaqus 2021, a spec declaring `yield: 250` came back COMPLETED with a peak Mises of 917.4 MPa, no *Plastic card in the input file and nothing in the log.",
+      "anyOf": [
+        {
+          "required": [
+            "library"
+          ]
+        },
+        {
+          "required": [
+            "name",
+            "E",
+            "nu"
+          ]
+        }
+      ]
     },
     "materials": {
       "type": "array",
-      "description": "Multiple materials for composite layup (premium: composite_plate)",
+      "description": "Multiple materials for composite layup (features.geometry: composite_plate)",
       "items": {
         "type": "object",
-        "required": [
-          "name",
-          "E",
-          "nu"
-        ],
         "properties": {
           "name": {
             "type": "string"
@@ -313,16 +387,44 @@
           "density": {
             "type": "number",
             "exclusiveMinimum": 0
+          },
+          "library": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Take this material's properties from the built-in library instead of writing them out. The name is a card in data/materials/freecad/; core.material_library.list_materials() lists them and an unknown name is refused with the closest matches, never approximated. Resolved at load time, before this schema runs and before the run id is taken, so the deck a library material produces is byte-identical to the deck the same numbers typed by hand produce. Any other key written alongside it OVERRIDES the card, and the override is recorded in the run's materials provenance with both values."
+          },
+          "plasticity": {
+            "type": "boolean",
+            "default": false,
+            "description": "Take the card's yield strength too. Off by default because several cards carry one and emitting it would turn a linear-elastic study into an elastoplastic one without the spec asking. When it is left off the value is still reported, under provenance.not_included."
           }
-        }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "library"
+            ]
+          },
+          {
+            "required": [
+              "name",
+              "E",
+              "nu"
+            ]
+          }
+        ]
+      }
+    },
+    "model_setup": {
+      "type": "array",
+      "description": "Model-level calls that have to happen before anything is built. `interactions:` runs after the assembly because a tie needs instances to make surfaces from; a ConnectorSection does not, and it cannot wait — the SectionAssignment that names it lives in assembly.operations and runs first. Measured on Abaqus 2021, assigning a section that does not exist yet raises `ValueError: The section \"Spring\" does not exist in the model.`, so the ordering has to be stated rather than hoped for. Nothing is built at this point, so a selector here is refused.",
+      "items": {
+        "$ref": "#/definitions/generic_call"
       }
     },
     "analysis": {
       "type": "object",
-      "required": [
-        "solver",
-        "step_type"
-      ],
+      "description": "`solver` and `step_type` are required here in the v1 dialect and applied from the top-level allOf, not from this object, because v2 forbids step_type.",
       "properties": {
         "solver": {
           "type": "string",
@@ -373,15 +475,15 @@
         },
         "initial_temperature": {
           "type": "number",
-          "description": "Initial temperature for coupled analysis (premium: coupling)"
+          "description": "Initial temperature for coupled analysis (features.coupling)"
         },
         "steady_state": {
           "type": "boolean",
-          "description": "Steady-state coupled analysis (premium: coupling)"
+          "description": "Steady-state coupled analysis (features.coupling)"
         },
         "adaptive_mesh": {
           "type": "object",
-          "description": "Adaptive mesh controls (premium: adaptivity)",
+          "description": "Adaptive mesh controls (features.adaptivity)",
           "properties": {
             "enabled": {
               "type": "boolean",
@@ -426,7 +528,7 @@
           "minimum": 0,
           "maximum": 5,
           "default": 0,
-          "description": "Auto-repair retry count (premium: autorepair)"
+          "description": "Auto-repair retry count (features.autorepair)"
         }
       },
       "additionalProperties": false
@@ -465,7 +567,7 @@
         },
         "thermal_bc": {
           "type": "object",
-          "description": "Thermal boundary conditions (premium: coupling)",
+          "description": "Thermal boundary conditions (features.coupling)",
           "properties": {
             "type": {
               "type": "string",
@@ -509,6 +611,29 @@
         "kpis"
       ],
       "properties": {
+        "regions": {
+          "type": "array",
+          "description": "v2 dialect. Named sets that exist only to be measured, not to carry a condition. Without them every KPI location has to be a boundary-condition set, a load set, or `whole_model` — and `whole_model` is the trap: on a plate clamped at one end the largest Mises in the model is at the clamp, so a KPI called HOOP_MAX would quietly report the clamp instead of the hole. Creates a set named REGION_<NAME> in upper case.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "region"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/definitions/identifier"
+              },
+              "region": {
+                "$ref": "#/definitions/selector"
+              },
+              "expect": {
+                "$ref": "#/definitions/expect"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
         "kpis": {
           "type": "array",
           "minItems": 1,
@@ -523,7 +648,19 @@
                 "type": "string"
               },
               "type": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "nodal_displacement",
+                  "field_max",
+                  "field_min",
+                  "reaction_force_max",
+                  "history_output_max",
+                  "eigenfrequency",
+                  "eigenvalue",
+                  "derived_stress_concentration",
+                  "contour_integral_j"
+                ],
+                "description": "Which extractor reads the ODB. This list is closed and it mirrors the if/elif chain in post/extract_kpis.py exactly -- not a guess about what Abaqus offers, but a statement about what THIS project can read, which is why an enum is right here and wrong for an Abaqus method name. It is here at all because the type used to be an unconstrained string: an unknown one validated, built, meshed, solved, and only then raised \"Unknown kpi type\" inside the Abaqus kernel, so a typo cost a full solve. `eigenvalue` reads a *BUCKLE step's load multiplier, whose value Abaqus 2021 publishes only as text in the frame description and only to five significant figures. `derived_stress_concentration` is the one name here that promises something the code does not do: it returns a STRESS, in the model's stress unit, not a dimensionless factor -- there is no division by a nominal stress in that branch. It also reads at the integration point where `field_max` extrapolates to the element nodes, which on the shipped plate_hole case is an 8.2% difference, so it is not `field_max` in other units either. Kept as it is on purpose (#32): the name lives in a spec, run_id = sha256(spec), and renaming it would invalidate a frozen baseline that cannot be recomputed. Pinned by tests/test_scf_returns_a_stress.py."
               },
               "location": {
                 "type": "string"
@@ -538,15 +675,579 @@
               "variable": {
                 "type": "string",
                 "description": "History variable name for history_output_max kpi type"
+              },
+              "contour_tolerance": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "How far contours 2..N of a contour_integral_j KPI may spread, as a fraction of their mean, before the J is refused as not path-independent. Default 0.05. Measured on Abaqus 2021 (artifacts/probe_crack) a converged single-edge-notched plate gives 7.7e-04, so the default is two orders of magnitude of headroom. Contour 1 is excluded because it hugs the crack-tip singularity and is expected to differ (2.4685 against 2.5033)."
+              },
+              "zero_tolerance": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Below this magnitude on every contour, a contour_integral_j is refused as no crack at all rather than reported as a very small J. Default 1e-12. This is a statement about double-precision round-off, not about physics: measured on Abaqus 2021, a crack whose line was never separated by a seam returns -1.4e-16 to -1.3e-14 -- round-off either side of nothing, NOT clean zeros -- while the job completes and warns about nothing. Raise it for a unit system whose noise floor is higher; the check runs before the sign check, because every one of those measured values is negative and testing the sign first reports a missing seam as a reversed crack-extension direction."
+              },
+              "invariant": {
+                "type": "string",
+                "enum": [
+                  "MISES",
+                  "MAX_PRINCIPAL",
+                  "MID_PRINCIPAL",
+                  "MIN_PRINCIPAL",
+                  "TRESCA",
+                  "PRESS",
+                  "INV3"
+                ],
+                "description": "Tensor invariant to read. Listed because the extractor now refuses a name it cannot compute: it used to compare against the single string MISES and let everything else fall through to the vector magnitude, so TRESCA and MAX_PRINCIPAL came back as the same number and neither was the one asked for. Give this OR component, never both."
+              },
+              "step": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "description": "Which step to read: its name, or its 1-based ordinal. Steps are counted from 1 because that is how the .dat and the .sta count them."
+              },
+              "frame": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "description": "Which frame within the step. 'last' (the default), 'first', or a 0-based index. There is no time-based selector and no envelope over frames: a `time:` key used to be accepted here and silently ignored, which is why this list is closed."
+              },
+              "reducer": {
+                "type": "string",
+                "enum": [
+                  "min",
+                  "max",
+                  "abs_max",
+                  "last",
+                  "sum",
+                  "mean"
+                ],
+                "description": "How the selected values collapse to one number. Defaults per KPI type."
+              },
+              "note": {
+                "type": "string",
+                "description": "Free text for the reader. Ignored by the extractor, and the only key here that is allowed to be."
+              }
+            },
+            "additionalProperties": false,
+            "description": "Closed on purpose. This object used to accept any key and the generator read six of them, so `time:`, `envelope:` and `nominal:` passed validation and then evaporated — the spec said one thing and the number answered another question. A key that cannot be honoured is refused here rather than dropped later."
+          }
+        },
+        "field_variables": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "v2 dialect. What the field output request asks for. Defaults to ['S','E','U','RF'], which is what a stress analysis wants and what every spec used to get whether it was one or not — S, E and RF do not exist in a heat transfer step, so Abaqus refuses the whole request (\"Invalid variables are specified in an output request\") and no input file is written at all. Measured on Abaqus 2021: a dispatched HeatTransferStep with two TemperatureBCs builds both conditions and then dies on this one line. Not validated here on purpose — a variable this release does not have is refused by Abaqus itself, by name, and a second list would only be one more thing to keep in step with the release."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Closed on purpose. The generator reads exactly `field_variables`, `kpis` and `regions` from this object; everything else used to validate and then be dropped without a word — `numIntervals`, `time_points` and `paths` all passed and none of them reached the deck. Output-request settings this block cannot express are still writable through `conditions:`, which dispatches straight at the model: `{call: FieldOutputRequest, name: {literal: F-Dense}, createStepName: {literal: Push}, numIntervals: 200}`."
+    },
+    "parts": {
+      "type": "array",
+      "description": "v2 dialect. Parts built from an ordered feature list rather than picked from geometry.type's closed enum. Only the operations listed under features.op are implemented; the enum grows when a generator and a real solved case land together, never before, so that this file stays an honest statement of what the builder can do.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "section"
+        ],
+        "oneOf": [
+          {
+            "required": [
+              "features"
+            ]
+          },
+          {
+            "required": [
+              "import"
+            ]
+          }
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/definitions/identifier"
+          },
+          "dimensionality": {
+            "type": "string",
+            "enum": [
+              "THREE_D",
+              "TWO_D_PLANAR",
+              "AXISYMMETRIC"
+            ],
+            "default": "THREE_D",
+            "description": "What the part IS, not a label on it. It decides whether the section assignment, the element type and the mesh controls act on the part's cells or on its faces — a planar part is a face, and `Set(cells=p.cells)` on one builds a set of zero cells and assigns a section to nothing, in silence, which is the same shape as the IGES shell and the orphan mesh. It also decides which element codes are legal: a TWO_D_PLANAR part meshed with a hex element meshes NOTHING without raising, because elemShape defaults to HEX. TWO_D_PLANAR and AXISYMMETRIC both build the body out of faces; a plane-strain part is what a contour integral around a crack is normally done on."
+          },
+          "features": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/feature"
+            }
+          },
+          "import": {
+            "$ref": "#/definitions/part_import"
+          },
+          "section": {
+            "type": "object",
+            "required": [
+              "type",
+              "material"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "solid"
+                ]
+              },
+              "material": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Must name material.name or an entry of materials[]. Checked by the builder, not here — JSON Schema cannot cross-reference."
+              },
+              "thickness": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Out-of-plane thickness, for a TWO_D_PLANAR or AXISYMMETRIC part only; refused on a THREE_D part, where the geometry is the thickness. Left out, Abaqus assumes 1.0 and says nothing, so a plane-stress part that meant 5 mm gets a fifth of the stiffness with no warning."
+              }
+            },
+            "additionalProperties": false
+          },
+          "mesh": {
+            "$ref": "#/definitions/part_mesh"
+          },
+          "expect": {
+            "$ref": "#/definitions/part_expect"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "assembly": {
+      "type": "object",
+      "description": "v2 dialect. Any number of instances of the declared parts.",
+      "required": [
+        "instances"
+      ],
+      "properties": {
+        "instances": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "part"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/definitions/identifier"
+              },
+              "part": {
+                "$ref": "#/definitions/identifier"
+              },
+              "translate": {
+                "$ref": "#/definitions/vec3",
+                "description": "Applied BEFORE rotate. The order is not a choice here and the two do not commute: a bolt translated to (0, -55, -5) and then turned -90 degrees about x lands at (0, 7.5, 55), while the same pair the other way round lands at (0, 67.5, 5). Both are legal models and neither raises. Use assembly.operations if you need the other order, and assembly.expect.at to state where the thing should end up — that is what caught this the first time it was written down wrong."
+              },
+              "rotate": {
+                "type": "object",
+                "required": [
+                  "axis",
+                  "angle"
+                ],
+                "properties": {
+                  "axis": {
+                    "$ref": "#/definitions/vec3"
+                  },
+                  "origin": {
+                    "$ref": "#/definitions/vec3"
+                  },
+                  "angle": {
+                    "type": "number",
+                    "description": "Degrees, right-hand rule about axis."
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "operations": {
+          "type": "array",
+          "description": "Generic dispatch against the root assembly, run after every instance is placed. `instances` positions by arithmetic, which means every position is a number somebody worked out by hand; this is where the rest of the assembly API lives — LinearInstancePattern, RadialInstancePattern, InstanceFromBooleanCut, PartFromBooleanMerge, and the positioning CONSTRAINTS (FaceToFace, ParallelFace, CoincidentPoint, EdgeToEdge) that let a spec say \"this face against that face\" instead of computing the vector. Same grammar as a part feature, with one difference: a selector here MUST name its instance, because a part instanced twice has one set of faces and the two become distinct only after the instance transform.",
+          "items": {
+            "$ref": "#/definitions/assembly_operation"
+          }
+        },
+        "expect": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "What the finished assembly should be, checked before anything uses it. The failures it catches all leave a model that meshes, solves and reports COMPLETED: a pattern that produces nothing (instances), a positioning constraint that moves nothing (at), a wire nothing was assigned to (wires). NOT a boolean that removes nothing, which this used to claim: measured, the instance count and every centroid come out the same whether the cut removed material or not, and nothing in this layer reads a volume.",
+          "properties": {
+            "instances": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "How many instances exist once every operation has run. RadialInstancePattern(number=8) that quietly produced nothing leaves one bolt instead of eight, and a stiffness wrong by a factor nobody would question."
+            },
+            "at": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Where named instances actually ended up, in assembly space. Positioning by constraint has no return value to check and raises nothing when it achieves nothing, so the only honest test is to ask afterwards where the thing is.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "instance",
+                  "centroid"
+                ],
+                "properties": {
+                  "instance": {
+                    "$ref": "#/definitions/identifier"
+                  },
+                  "centroid": {
+                    "$ref": "#/definitions/vec3",
+                    "description": "Centre of the instance's bounding box, measured in ASSEMBLY space (after the transform), not in part space."
+                  },
+                  "tol": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Absolute, in model units. Omit it and the default follows the instance's own size: max(1e-3, span * 2e-3), computed when the assembly exists because that is the first moment the span is knowable."
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "wires": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many wires (assembly-level edges) the assembly should have. Wires only come from WirePolyLine in assembly.operations. Independently of this number, every wire is checked to carry a section assignment — measured on Abaqus 2021, four corner springs of k=25 under 1000 N give U3 = 10.0018, and assigning only three of them gives 13.3357 with the job COMPLETED, no error and no warning."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "interactions": {
+      "type": "array",
+      "description": "v2 dialect. How instances are connected. Absent means the instances are mechanically independent — which is a legitimate model, so absence is never repaired into a guess.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "main",
+              "secondary"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/definitions/identifier"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "tie",
+                  "contact"
+                ],
+                "description": "`tie` welds the pair: the surfaces move together and transmit tension. `contact` lets them press, slip and separate. The difference is not cosmetic — a two-layer beam tied behaves as one section, and in frictionless contact each layer carries its own bending and the tip deflects four times as far."
+              },
+              "main": {
+                "$ref": "#/definitions/selector"
+              },
+              "secondary": {
+                "$ref": "#/definitions/selector"
+              },
+              "property": {
+                "type": "object",
+                "description": "Contact behaviour. Only `contact` accepts it. A `tie` carrying this block is refused rather than ignored: a tie is a constraint, not an interaction, so it has no friction and no normal behaviour, and accepting the block would silently discard settings the author plainly meant.",
+                "properties": {
+                  "normal": {
+                    "type": "string",
+                    "enum": [
+                      "hard"
+                    ],
+                    "default": "hard"
+                  },
+                  "friction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "Coulomb friction coefficient. 0 (the default) means frictionless — stated explicitly rather than assumed, because a frictionless interface and a rough one give answers that differ by a factor of four on a layered beam."
+                  },
+                  "allow_separation": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether the surfaces may come apart under tension. Off makes contact behave like a tie in the normal direction while still allowing slip."
+                  }
+                },
+                "additionalProperties": false
+              },
+              "sliding": {
+                "type": "string",
+                "enum": [
+                  "small",
+                  "finite"
+                ],
+                "default": "small"
+              },
+              "main_expect": {
+                "$ref": "#/definitions/expect"
+              },
+              "secondary_expect": {
+                "$ref": "#/definitions/expect"
+              },
+              "position_tolerance": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Abaqus Tie positionTolerance. Nodes further apart than this are left untied — and Abaqus only WARNS about it, so leaving this at the default on a badly-fitted pair produces a model that solves with the parts effectively detached."
+              },
+              "adjust": {
+                "type": "boolean",
+                "default": false,
+                "description": "Move secondary nodes onto the main surface. Changes the mesh geometry, so it is off unless asked for."
+              }
+            },
+            "additionalProperties": false,
+            "description": "The two-name shorthand: `tie` and `contact`, with the surfaces named directly. Kept because it is what most pairs are and it reads well; anything else is written as a `call`."
+          },
+          {
+            "type": "object",
+            "description": "An interaction written as the Abaqus call it is. Everything that joins instances hangs off the MODEL — Tie, Coupling, RigidBody, ShellSolidCoupling, MultipointConstraint, SurfaceToSurfaceContactStd, ContactStd (general contact), SelfContactStd, ContactProperty, ConnectorSection — so `call` names a method on the model and every other key is a keyword argument. Measured on Abaqus 2021 the model answers a mistake the way Part does: AttributeError for a method it has not got, `keyword error on <name>` for a keyword, `master; found string, expecting Region` for a type. A region is written `{surface: \"<instance>:<phrase>\"}`, which builds the assembly surface and passes it. main=/secondary= and master=/slave= are interchangeable: Abaqus 2021 still wants the old pair and refuses `main`, newer releases refuse `master`, so whichever is written is renamed and retried once.",
+            "required": [
+              "call"
+            ],
+            "not": {
+              "required": [
+                "type"
+              ]
+            },
+            "additionalProperties": true,
+            "properties": {
+              "call": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                "description": "The method name on the model, e.g. Tie, Coupling, ContactStd, ConnectorSection."
+              },
+              "as": {
+                "$ref": "#/definitions/identifier",
+                "description": "Bind what the call returns, so a later one can act on it."
+              },
+              "expect": {
+                "type": "object",
+                "additionalProperties": false,
+                "description": "The truth layer for a pair.",
+                "properties": {
+                  "gap": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "How far apart the two surfaces actually are, measured from their node coordinates before the job is written. Required when a call builds exactly two surfaces. Measured on Abaqus 2021: a tie whose surfaces are 0.05 apart with a 0.01 position tolerance is created without complaint, writes a normal *Tie card, and the job COMPLETES SUCCESSFULLY with the bodies unbonded — tip deflection 7.95x the correct value. Stating a deliberate clearance is a fine answer; the point is that the number is stated and checked.",
+                    "properties": {
+                      "max": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "min": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "between": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Which two surfaces, when the call does not build exactly two."
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "max"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "min"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "target": {
+                "$ref": "#/definitions/dispatch_target"
               }
             }
           }
-        }
+        ]
       }
+    },
+    "steps": {
+      "type": "array",
+      "description": "v2 dialect. Ordered analysis steps. Either the named shorthand (one Static step carrying its own bcs and loads) or `call:`, which is any step method the release has: FrequencyStep, ImplicitDynamicsStep, ExplicitDynamicsStep, BuckleStep, HeatTransferStep, ViscoStep, StaticRiksStep. Dispatched entries put their boundary conditions and loads in the top-level `conditions:` block instead, because each of those names its own `createStepName:`. Measured on Abaqus 2021: two steps that both declare `previous: Initial` are both accepted and the second is inserted BEFORE the first, so the analysis runs them backwards and the job still completes — the generated deck asserts the order for every dispatched spec without being asked.",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "name",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/definitions/identifier"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Static"
+                ]
+              },
+              "nlgeom": {
+                "type": "boolean",
+                "default": false
+              },
+              "time_period": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "initial_inc": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "min_inc": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "max_inc": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "max_num_inc": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "bcs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "region",
+                    "type"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/definitions/identifier"
+                    },
+                    "region": {
+                      "$ref": "#/definitions/selector"
+                    },
+                    "expect": {
+                      "$ref": "#/definitions/expect"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "encastre",
+                        "pinned",
+                        "displacement",
+                        "symmetry_x",
+                        "symmetry_y",
+                        "symmetry_z"
+                      ]
+                    },
+                    "u1": {
+                      "type": "number"
+                    },
+                    "u2": {
+                      "type": "number"
+                    },
+                    "u3": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "loads": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "region",
+                    "type",
+                    "value"
+                  ],
+                  "properties": {
+                    "name": {
+                      "$ref": "#/definitions/identifier"
+                    },
+                    "region": {
+                      "$ref": "#/definitions/selector"
+                    },
+                    "expect": {
+                      "$ref": "#/definitions/expect"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "pressure",
+                        "concentrated_force"
+                      ]
+                    },
+                    "value": {
+                      "type": "number",
+                      "description": "Sign is physical and is carried through untouched: a positive pressure pushes INTO the surface. An earlier defect dropped the sign here and loaded plate_with_hole backwards."
+                    },
+                    "direction": {
+                      "type": "integer",
+                      "enum": [
+                        1,
+                        2,
+                        3
+                      ],
+                      "description": "Required for concentrated_force; meaningless for pressure, which acts along the surface normal."
+                    },
+                    "points": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "How many NODES a concentrated_force lands on. Abaqus writes *Cload per node, so the magnitude here is applied once at every node of the region — measured on Abaqus 2021, cf2=-100 on a set of four tip corners gives a total reaction of 400 N against the 100 N written, with the job COMPLETED and no warning. The generated deck reads the *Cload cards back out of the input file it just wrote and refuses any that land on more than one node without this number."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false,
+            "description": "The named shorthand: one Static step with its own bcs and loads. Kept because four shipped cases are written this way and because it chains `previous` itself, one step to the next, so the running order cannot come out wrong."
+          },
+          {
+            "$ref": "#/definitions/generic_step"
+          }
+        ]
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/condition"
+      },
+      "description": "Boundary conditions, loads and predefined fields, dispatched. One block for all three because CAE groups them the same way, in the Load module. Regions are given as `{set: \"<instance>:<kind>@<where>\"}` or `{surface: ...}`; the set is created on the assembly under a name that appears in the .dat, and its node count is logged whether or not the spec asked, because that count is the difference between the load written and the load applied."
     },
     "parametric": {
       "type": "object",
-      "description": "Parametric sweep configuration (premium: parametric)",
+      "description": "Parametric sweep configuration (features.parametric)",
       "properties": {
         "parameters": {
           "type": "array",
@@ -704,6 +1405,567 @@
       "description": "Alias for contracts",
       "items": {
         "$ref": "#/properties/contracts/items"
+      }
+    },
+    "job": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Options for the Abaqus LAUNCHER, not keywords for the deck. Written as `name: value` and passed through as `name=value`, because these are the things a deck cannot say: `double` (precision), `user` (a subroutine source), `oldjob` (what to restart from), `gpus`, `scratch`. A passthrough rather than a supported-flag list, and what makes that safe is measured rather than assumed: on Abaqus 2021 an unknown option, an unsupported value, a missing subroutine file and a missing restart odb are all rejected by the launcher, which prints the reason -- and all four EXIT 0 with no .dat and no .odb, so the reason is captured from stdout and raised rather than left to surface later as a missing .sta. The launcher also prints the 36 options it accepts; that list is NOT used as a validator, because it omits `gpus` and `gpus=1` runs (measured at 6 licence tokens instead of 5 and 3m45s instead of 11s on the same one-element deck). `job`, `input`, `interactive`, `background`, `cpus`, `mp_mode` and `memory` are refused here: the pipeline already puts them on the command line, and a duplicate is not an error — measured on Abaqus 2021, `cpus=1 cpus=2` runs to COMPLETED and checks out the 2-cpu licence count, so the later value wins in silence, and job options are appended last. CAUTION on `double`: nothing on this machine records whether it took effect. Measured across six combinations (Standard and Explicit x default, double=both, output_precision=full), `odb.jobData.precision` reads SINGLE_PRECISION every time, and the .dat, .msg and .sta files are identical between a default and a double=both run. The option reaches Abaqus and Abaqus accepts it; that it changed the arithmetic is NOT something this project can show you.",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$",
+      "description": "Becomes an Abaqus object name and, for instances, a prefix on every set and surface name in the deck. Restricted to what Abaqus accepts unquoted so a name can never split a deck line."
+    },
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "selector": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(.*\\S)?$",
+      "description": "Names a geometric region, e.g. `Lower:face@z=max` or `Upper:faces@r=5`. Deliberately NOT given its full grammar here: core/selectors.py is the single authoritative parser, because a regex duplicated between this file and Python drifts, and the half that drifts is the half that stops rejecting. JSON Schema only rejects the empty and whitespace-only cases; everything else is parsed there, with an error message naming the selector."
+    },
+    "expect": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^(>=|<=|>|<|=)?[0-9]+$"
+        }
+      ],
+      "description": "How many entities the selector must match. The build fails when the count differs. This exists because findAt(coordinates=...) does not raise on a wrong coordinate — it returns the neighbouring face, the load lands somewhere else, and the job still reports COMPLETED. Default when omitted is `>=1`, so a selector that matches nothing is always fatal."
+    },
+    "generic_call": {
+      "type": "object",
+      "description": "A direct call on the Abaqus object — `call` names the method and every other key is passed as a keyword argument. This exists because Abaqus exposes 292 callables on Part and 71 on ConstrainedSketch and the lists grow every release, so an enum of named ops can only ever build the shapes somebody already thought of. Measured on Abaqus 2021, every way of getting a call wrong is loud: an unknown method is an AttributeError, an unknown keyword is `TypeError: keyword error on <name>`, and a wrong type is `TypeError: point1; found string, expecting tuple`. Argument values: numbers and lists pass through (a list becomes a tuple); an ALL-CAPS string is read as an abaqusConstants symbol, because the generated script does `from abaqusConstants import *` — write `{literal: TEXT}` to force a genuine all-caps string. A mapping naming exactly one of `select` (a geometry selector, optionally with `expect`), `one` (the same selector grammar, but the ENTITY rather than the sequence of one — `{select:}` always compiles to a GeomSequence, which no positioning constraint will take, since FaceToFace, ParallelFace and EdgeToEdge each want a single Face or Edge; the count assertion is fixed at exactly one by the form itself, so no `expect` belongs beside it), `sketch` (a sketch declared earlier in this part), `datum` (a datum bound earlier with `as:`), `ref` (any result bound with `as:`), `surface` (a selector made into an assembly surface), `set` (a selector made into a named set; in a part feature that is a PART set built on the part, everywhere else an assembly set on an instance — measured on Abaqus 2021, engineeringFeatures.assignSeam answers a raw sequence with `regions; found GeomSequence, expecting Set` on the part exactly as on the assembly, and a part set is a different object from an assembly one, so a part-scope selector must NOT carry an instance prefix because instances do not exist while part features run), `reference_point` (three numbers, or `{at: <selector>}` to put it at an entity's centroid; creates the point and the one-member set that Coupling, RigidBody and MultipointConstraint each take as a Region) `named_set` (a set an earlier call in this spec already built), `new` (`{new: \"mesh.ElemType\", ...}` — construct an object instead of calling a method, because some Abaqus arguments are objects that have to be built first and `setElementType(elemTypes=(mesh.ElemType(...),))` reaches a constructor that lives on no part and no assembly; the module must be one the generated script imports), `instance` (an assembly instance by name, for arguments that take the instance itself rather than geometry on it), `vertex` (`{vertex: {instance: <name>, at: [x, y, z]}}` — a corner by position, and the instance is REQUIRED rather than convenient: measured on Abaqus 2021, a WirePolyLine built from bare coordinate tuples is accepted, adds a real edge and takes a ConnectorSection without complaint, and the solver then says `CONNECTOR ELEMENT 1 (ASSEMBLY) NODE NUMBERS CANNOT BE BOTH ZERO` because the wire is attached to nothing — nothing at build time can tell the two apart, so the coordinate-only form is not writable) or `wire_at` (`{wire_at: [[x,y,z], [x,y,z]]}` — the wire between two points; a wire adds its edge to the ASSEMBLY and not to any instance, so no ordinary selector reaches it: measured, `Fixed:edge@z=max` resolves against the instance's 12 edges while `a.edges` held only the 4 wires) is resolved at build time. On `reference_point` specifically: measured on Abaqus 2021, misusing it is loud — a coupling onto an empty surface dies with 6 fatal errors and one whose control point is a face set with 74 — but MISPLACING it is silent. Same bar, same 100 N, point moved 50 mm past the end: 0 errors, 0 warnings, COMPLETED, and a `location: whole_model` KPI answering -0.61471903 where beam theory is -0.19047619 — that reading is the reference point's own node, which is not part of the structure; the bar's tip in the same run is -0.33120051, so both are wrong and the one the spec gets is the wronger. Nothing refuses that, because an offset control point is also how a moment is applied; the position is written to selectors.log either way, and `{at:}` exists so the common case needs no coordinate at all. `named_set` names a set an earlier call in this spec already built. It exists for one asymmetry: every other region form re-finds its region by geometry, so two calls on the same face just write the selector twice — but a reference point sits on no face and no edge and no selector reaches it, so without this the coupling you just created could never be loaded, which is the only reason to create one. Booleans are refused outright: YAML turns bare on/off into True/False and Abaqus wants the symbol, so quote them — except where a keyword genuinely wants the Python value, which `{bool: true}` states explicitly. Measured on Abaqus 2021: keywordBlock.synchVersions answers the string 'OFF' with \"storeNodesAndElements; found string, expecting False, True, 0 or 1\", so without that form it is reachable and unusable.",
+      "required": [
+        "call"
+      ],
+      "not": {
+        "required": [
+          "op"
+        ]
+      },
+      "properties": {
+        "call": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "description": "The Abaqus method name, e.g. BaseSolidRevolve, Round, CutExtrude, PartitionCellByDatumPlane, DatumPlaneByPrincipalPlane."
+        },
+        "as": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "description": "Bind this call's return value under a name, so a later feature can refer to it with {datum: <name>} or {ref: <name>}. Needed because a Datum* method returns a FEATURE, not the datum — the datum lives at part.datums[feature.id] — and MakeSketchTransform wants the datum."
+        },
+        "creates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/identifier"
+          },
+          "description": "Assembly operations only. The instance names this call will bring into existence — a pattern or a boolean creates instances the spec never listed, and a boundary condition on one of them is legitimate. Declaring them keeps the selector check able to catch a typo instead of having to accept any name. If the declaration is wrong, assembly.expect catches it at run time against the real assembly."
+        },
+        "target": {
+          "$ref": "#/definitions/dispatch_target"
+        }
+      },
+      "additionalProperties": true
+    },
+    "feature": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "id",
+            "profile"
+          ],
+          "properties": {
+            "op": {
+              "const": "sketch"
+            },
+            "id": {
+              "$ref": "#/definitions/identifier"
+            },
+            "plane": {
+              "type": "string",
+              "enum": [
+                "XY"
+              ],
+              "default": "XY",
+              "description": "The sketch plane. Only XY is built. XZ and YZ used to validate here and were then ignored outright — the generated script came out byte-identical, so a spec asking for a sketch on YZ got a part on XY that meshed, solved and looked fine. They are not a flag to flip: the base extrude runs along +z from XY and cut_extrude drives off the z=max face, so the other two planes are unwritten code. An enum that accepts a word the generator cannot honour is worse than no enum."
+            },
+            "profile": {
+              "$ref": "#/definitions/profile"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "sketch",
+            "depth"
+          ],
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "extrude",
+                "cut_extrude"
+              ]
+            },
+            "sketch": {
+              "$ref": "#/definitions/identifier"
+            },
+            "depth": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A sketch drawn entity by entity rather than from a named profile. Each entity is a direct call on the ConstrainedSketch — Line, ArcByCenterEnds, CircleByCenterPerimeter, Spline, ConstructionLine, FilletByRadius and the rest. There is no `plane` here: a bare sketch is a 2D drawing, and the feature that consumes it decides how it lands in space. Give `transform` for a sketch that will drive a cut — measured on Abaqus 2021, CutExtrude on a sketch built without one raises \"Cut extrude feature failed\", and there is no way to attach the transform afterwards.",
+          "required": [
+            "op",
+            "id",
+            "entities"
+          ],
+          "properties": {
+            "op": {
+              "const": "sketch"
+            },
+            "id": {
+              "$ref": "#/definitions/identifier"
+            },
+            "entities": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/generic_call"
+              }
+            },
+            "transform": {
+              "description": "Usually {ref: <name>} naming an earlier MakeSketchTransform bound with `as:`."
+            },
+            "sheet_size": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "The drawing canvas, never the geometry. Derived from the coordinates the entities mention when omitted."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/generic_call"
+        }
+      ]
+    },
+    "profile": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "rect": {
+          "type": "object",
+          "required": [
+            "corner1",
+            "corner2"
+          ],
+          "properties": {
+            "corner1": {
+              "$ref": "#/definitions/vec2"
+            },
+            "corner2": {
+              "$ref": "#/definitions/vec2"
+            }
+          },
+          "additionalProperties": false
+        },
+        "circle": {
+          "type": "object",
+          "required": [
+            "center",
+            "r"
+          ],
+          "properties": {
+            "center": {
+              "$ref": "#/definitions/vec2"
+            },
+            "r": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "part_import": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Read this part from a file instead of building it from features. Two shapes, because Abaqus reads a SHAPE and a MESH by different routes.\n\nWith `open:` — a geometry file. `open` is a call mapping naming the mdb opener (openStep, openIges, openAcis, openVda, openCatia, openParasolid), because each format has its own method and its own keywords (openIges alone takes msbo, trimCurve and topology), so an enum here could only import the formats somebody already wrote a branch for. The result is handed to PartFromGeometryFile, and `part:` carries its extra keywords.\n\nWithout `open:` — a mesh. `part` is then the whole call, naming a model method that makes the part itself, e.g. {call: PartFromInputFile, inputFileName: {file: bar.inp}}. Measured on Abaqus 2021: that method takes no `name` at all — the deck names the part and Abaqus UPPER-CASES it, so `Bar` arrives as `BAR` — and the part's own `name:` is applied afterwards with parts.changeKey. A file that produces anything other than exactly one part is refused rather than guessed at. Such a part has no geometry to seed, so it must NOT carry a `mesh:` block.\n\nEither way the part MUST state what came back. Measured on Abaqus 2021 with one bar exported and read back: STEP and SAT give 1 cell and volume 10000.0; IGES gives 0 cells and volume 0.0 with no exception and the SAME 6 faces the solid has, so a face count cannot tell them apart; and PartFromInputFile gives 189 nodes and 80 elements with 0 cells and volume 0.0. So a shape states expect.volume or expect.cells, a mesh states expect.mesh.nodes or expect.mesh.elements, and which pair is stated is also what tells this layer which kind of part it is.",
+      "properties": {
+        "open": {
+          "$ref": "#/definitions/generic_call",
+          "description": "The mdb opener. `fileName` takes a {file: <path>} mapping, which resolves relative to the spec file and is refused at generation time if it does not exist."
+        },
+        "part": {
+          "type": "object",
+          "description": "With `open:` — extra keywords for PartFromGeometryFile (combine, mergeSolidRegions, scale, bodyNum, dimensionality, type); `name` and `geometryFile` are not settable, since the part's own name: names it and the opener supplies the geometry. Without `open:` — the whole call, which must carry `call:`; `name` and `as` are not settable there either.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "part_expect": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "What the finished geometry should measure, checked in CAE before the part is meshed. Required for any part that uses a generic `call:` feature, and allowed on every part. A named op carries its own check — cut_extrude looks for the cylindrical face it asked for — but a generic call can be any method on Part, so nothing in the generator knows what it was meant to produce. And every way this goes wrong is silent: measured on Abaqus 2021, a cut that lands off the solid leaves the volume untouched and raises nothing, and one whose sketchUpEdge is wrong produces a real hole of the right radius with x and y transposed — same volume, same element count, and every symmetric test case in the world passes it. `cylindrical_faces` is the count that catches both.",
+      "properties": {
+        "volume": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "volume_tol": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.001,
+          "description": "Relative, not absolute. Default 1e-3, which is loose enough for a revolved solid's faceting and far tighter than any modelling mistake."
+        },
+        "area": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "What `volume` is for a 2D part, and NOT interchangeable with it: measured on Abaqus 2021, `getVolume()` on a planar part answers 0.0 without raising — the same silent zero an IGES shell and an orphan mesh give — so a 2D part that stated a volume would fail every time and prove nothing."
+        },
+        "area_tol": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.001,
+          "description": "Relative, like volume_tol."
+        },
+        "cells": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "faces": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "edges": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "vertices": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cylindrical_faces": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mesh": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "What the mesh should be. Required for any part that meshes itself with a generic call, because nothing else checks a mesh built that way — and measured on Abaqus 2021, elemShape=HEX with technique=SYSTEM_ASSIGN is ACCEPTED on a shape that has no hexes, produces zero elements and raises nothing. Present or not, the hard invariants always apply once a mesh exists: non-empty, no unmeshed region, no element that fails the solver's own analysis checks.",
+          "properties": {
+            "elements": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "description": "A count or a comparison ('>=5000'), same grammar as a selector's expect. A mesh far coarser than intended still solves and still reports COMPLETED."
+            },
+            "nodes": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "description": "A count or a comparison, same grammar as elements. It matters where the mesh was not made here: a part read out of a deck has whatever the file held, and the element count alone does not say which ORDER the elements are — measured on Abaqus 2021, the same 80-element bar is 189 nodes as C3D8 and would be far more as C3D20."
+            },
+            "max_warned": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many elements Abaqus may flag as poor. Omitted means no limit — warnings are not failures, and a blanket zero would refuse meshes that are fine."
+            },
+            "quality": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Shape criteria to measure and bound. The solver's own analysis checks say nothing about shape: measured on Abaqus 2021, the same 10x10x100 C3D8I cantilever meshed as 2000 slivers of aspect ratio 40 passes ANALYSIS_CHECKS with 0 failed and 0 warned and lands 5.18% below the theoretical tip deflection, while 2160 cubes — the same element budget — land 0.84% below. The criterion names come from Abaqus and are not enumerated here so they cannot go stale; naming one this release does not have is refused with the release's own list.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "criterion"
+                ],
+                "properties": {
+                  "criterion": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]+$",
+                    "description": "The abaqusConstants symbol, bare and all caps: ASPECT_RATIO, SMALL_ANGLE, LARGE_ANGLE, SHORTEST_EDGE, LONGEST_EDGE, SHAPE_FACTOR, GEOM_DEVIATION_FACTOR, ANGULAR_DEVIATION, STABLE_TIME_INCREMENT, MAX_FREQUENCY and the TRI_FACE / QUAD_FACE angle variants."
+                  },
+                  "max": {
+                    "type": "number",
+                    "description": "Upper bound on the worst value the criterion reports."
+                  },
+                  "min": {
+                    "type": "number",
+                    "description": "Lower bound on the worst value. This is the one for the angle criteria, where small is bad."
+                  },
+                  "max_failed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "How many elements may fail. Needs `threshold:` alongside it — Abaqus flags nothing until a threshold says what counts as bad."
+                  },
+                  "allow_na": {
+                    "type": "boolean",
+                    "description": "Accept that the criterion does not apply to some elements. Default false, and deliberately so: a criterion that applies to none of them still answers with an empty failure list. Measured on a hex mesh, SHAPE_FACTOR reports 2160 of 2160 not applicable and 0 failed, and GEOM_DEVIATION_FACTOR reports 928 of 2160 while its worst value reads 0.0."
+                  },
+                  "threshold": {
+                    "type": "number",
+                    "description": "Passed straight to verifyMeshQuality. Any other key is passed through the same way, so a criterion added by a later release needs no change here."
+                  }
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "cylinders": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Cylindrical faces that must exist, each given by radius and centroid. This is the only entry that can see a cut which landed in the wrong PLACE. Measured on Abaqus 2021: drilling one hole with the sketch oriented against XAXIS instead of ZAXIS put it at (0, 5, 20) instead of (-20, 5, 0) — 90 degrees away — with volume 31447.3311 against 31447.3357 (1.5e-7 apart, which is faceting noise) and faces, edges, vertices and cylindrical_faces all identical. On a symmetric part no global measure can tell those two models apart, so the position has to be stated.",
+          "items": {
+            "type": "object",
+            "required": [
+              "r",
+              "at"
+            ],
+            "properties": {
+              "r": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "at": {
+                "$ref": "#/definitions/vec3",
+                "description": "Face centroid in part coordinates, which for a through hole is the mid-depth point on its axis."
+              },
+              "at_tol": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Absolute, in model units. Omit it and the default follows the radius: max(1e-3, r * 2e-3). getCentroid() is a tessellation estimate whose error grows with the feature -- measured on Abaqus 2021 it is exact at r = 4 and 6 and misses by 0.00901 at r = 12 and 0.02690 at r = 50, about 5.4e-4 * r -- so a fixed tolerance is too tight on a large bore and meaningless on a small one."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "seams": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Required on any part whose features call `assignSeam`, and required rather than optional because the failure is silent. Measured on Abaqus 2021: one 10 x 10 x 10 block partitioned at mid-height and meshed at seed 5 gives 27 nodes with no seam, 36 with a seam on the INTERIOR face, and 27 with a seam on the top or bottom face — assignSeam on a face that is not shared by two cells returns without an exception and changes nothing, so picking the wrong face with a selector produces a model with no crack in it that builds, solves and reports success. `duplicated` is how many node positions along the seam should end up carrying two nodes instead of one; measured, the correct case gives the seam's set 18 nodes at 9 positions where an unseamed face gives 9 at 9.",
+          "items": {
+            "type": "object",
+            "required": [
+              "set",
+              "duplicated"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "set": {
+                "type": "string",
+                "description": "The set the seam was assigned to. It needs an explicit `name:` on the `{set:}` argument so the check finds the same set the seam used, rather than agreeing with it by coincidence."
+              },
+              "duplicated": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Node positions that must carry two nodes. Zero is not writable: a seam that duplicates nothing did nothing."
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "vec2": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "part_mesh": {
+      "type": "object",
+      "required": [
+        "seed"
+      ],
+      "properties": {
+        "seed": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "element": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{2,15}$",
+          "default": "C3D8R",
+          "description": "The Abaqus element code for the hex/brick family this part is meshed with. Not enumerated here on purpose: runner/build_v2.py:_COMPANION is the authority, because what the schema would have to encode is not the list of legal Abaqus elements but the list this generator can pair with a wedge and a tet — and that pairing cannot be derived from the name (DC3D8 takes DC3D6, C3D8RT takes C3D6T and not C3D6RT). An element with no recorded pairing is refused by name, with the recorded ones listed, because the alternative is Abaqus quietly meshing the cells a sweep leaves behind with a default element of a different formulation. Recorded today: C3D20, C3D20E, C3D20R, C3D20RT, C3D8, C3D8E, C3D8H, C3D8I, C3D8R, C3D8RT, C3D8T, DC3D20, DC3D8, Q3D8."
+        },
+        "technique": {
+          "type": "string",
+          "enum": [
+            "free",
+            "sweep",
+            "structured"
+          ],
+          "description": "Meshing technique. Omit to let Abaqus choose. Measured on Abaqus 2021: `structured` fails outright on a plate with a hole (\"Some regions cannot be Mapped\") unless the part is partitioned first, which this dialect cannot yet do. It fails loudly, so it stays available."
+        },
+        "local_seeds": {
+          "type": "array",
+          "description": "Refine the mesh on named edges. A uniform seed fine enough for a hole edge is a uniform seed fine enough for the whole plate, which turns a stress-concentration model into a twenty-minute job — so the refinement is what makes the case runnable at all.",
+          "items": {
+            "type": "object",
+            "required": [
+              "region",
+              "size"
+            ],
+            "properties": {
+              "region": {
+                "$ref": "#/definitions/selector",
+                "description": "An EDGE selector without an instance prefix: seeds are applied to the part, before it is instanced. `edges@r=5` names every circular edge of radius 5, which is how a hole rim is refined without writing a coordinate."
+              },
+              "size": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "expect": {
+                "$ref": "#/definitions/expect"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "generic_step": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/generic_call"
+        }
+      ],
+      "not": {
+        "required": [
+          "type"
+        ]
+      },
+      "required": [
+        "call",
+        "name"
+      ],
+      "description": "A step written as the Abaqus method that makes it. `name:` must be readable on this side — write `name: {literal: \"Press\"}` — because the order the steps run in is checked against the order the spec wrote them."
+    },
+    "condition": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/generic_call"
+        }
+      ],
+      "properties": {
+        "expect": {
+          "type": "object",
+          "required": [
+            "points"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "points": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "How many NODES the condition lands on. A concentrated load is written per node: measured on Abaqus 2021, cf2=-100 on a set of the four tip corners of a cantilever gives a total reaction of 400 N and a tip deflection of -0.7584553 mm, against -0.1896138 for the same call at cf2=-25 on those same four nodes, with both jobs COMPLETED and no warning. Optional here on purpose — whether a call writes a per-node card is Abaqus's business, not something to be guessed from the shape of the selector — and enforced after the fact: the generated deck reads the *Cload cards back out of the input file it just wrote and refuses any that land on more than one node without this number, deleting the input file first. Stating it also checks the count in CAE, before the job is written."
+            }
+          }
+        }
+      },
+      "description": "A boundary condition, a load or a predefined field — Abaqus makes no distinction and neither does this: EncastreBC, DisplacementBC, VelocityBC, Pressure, ConcentratedForce, Moment, SurfaceTraction, BodyForce, Gravity, Temperature are all methods on the model taking a region and a createStepName. Emitted after every step, so `createStepName:` can name any of them; a name that is not a step is refused by Abaqus itself (\"The specified step either does not exist or is the Initial step\")."
+    },
+    "dispatch_target": {
+      "type": "object",
+      "anyOf": [
+        {
+          "required": [
+            "ref"
+          ]
+        },
+        {
+          "required": [
+            "attr"
+          ]
+        }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/definitions/identifier"
+        },
+        "attr": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "description": "A member to dispatch against — of the `ref:` result if one is named, otherwise of this block's default object. General contact configures itself through members rather than keywords — contactPropertyAssignments.appendInStep(...), includedPairs.setValuesInStep(...) — so without this ContactStd is reachable and unusable. Without a `ref:` it is the only route to the two members that hang off the model and the assembly and are returned by nothing, so `as:` cannot bind them: `keywordBlock`, for a card this dialect has no name for, and `engineeringFeatures`, where cracks, seams and pressure penetration live."
+        }
+      },
+      "description": "Dispatch against an earlier result instead of against the default object for this block (the model for an interaction, a condition or a step; the part for a part feature). This is what puts NormalBehavior on the ContactProperty that was just made rather than on the model, which has no such method -- and what reaches the seven methods a load or BC exposes (setValuesInStep, deactivate, suppress, move, reset, resume, setValues), which are calls on the object and were unreachable from a spec while each block hard-coded its target. Give `ref:`, `attr:`, or both. (Spelled `target` and not `on` because YAML 1.1 reads a bare `on` as the boolean true, so the key would never arrive as a string.)"
+    },
+    "assembly_operation": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/generic_call"
+        }
+      ],
+      "properties": {
+        "expect": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "description": "What the call made, measured on what it returned. Honoured here and refused on model_setup and on a step, because an operation returns a modelling result and one of its failures is silent. Measured on Abaqus 2021: a cut that removes nothing RAISES, but a merge across a gap does not -- it returns a Part carrying every cubic millimetre of both bodies and TWO cells instead of one, so what solves is two loose pieces where the spec asked for one solid.",
+          "properties": {
+            "volume": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Volume of the body the call produced, in model units. Blind to a merge across a gap on its own -- state `cells` as well for that one."
+            },
+            "volume_tol": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 0.001,
+              "description": "Relative tolerance on `volume`."
+            },
+            "cells": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many cells the result has. One solid is 1; a merge that joined nothing is 2, which is the only measure that sees that failure."
+            }
+          }
+        }
       }
     }
   },

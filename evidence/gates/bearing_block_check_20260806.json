@@ -1,0 +1,116 @@
+{
+  "schema": "bearing_block_check/1",
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "source": "bearing_block_check_20260806",
+  "items": [
+    {
+      "id": "bearing_weight_is_the_sum_of_three_densities",
+      "status": "pass",
+      "relative_deviation": 3.020501758814642e-06,
+      "predicted": 17.6936,
+      "measured": 17.69365344354992,
+      "seconds": 1379.3,
+      "tolerance_relative": 0.005
+    },
+    {
+      "id": "bearing_clamp_reaction_is_weight_plus_pressure",
+      "status": "pass",
+      "relative_deviation": 2.0802565059335512e-07,
+      "predicted": 257.6936,
+      "measured": 257.6936536068788,
+      "seconds": 1379.3,
+      "tolerance_relative": 0.01
+    },
+    {
+      "id": "bearing_friction_is_coulomb",
+      "status": "pass",
+      "relative_deviation": 7.712329811233852e-07,
+      "predicted": 60.9241,
+      "measured": 60.92405301332474,
+      "seconds": 1379.3,
+      "tolerance_relative": 0.05
+    },
+    {
+      "id": "bearing_tie_binds_at_the_shipped_seeds",
+      "status": "pass",
+      "identity": "chord height h^2/(8r) = 0.023 mm at the 1.5 mm local seed, inside a 0.1 mm position tolerance",
+      "seconds": 1379.3,
+      "tie_tolerance": 0.1,
+      "integrity_count": 0,
+      "integrity_ids": []
+    },
+    {
+      "id": "bearing_coarse_mesh_drops_the_tie_silently",
+      "status": "pass",
+      "identity": "chord height h^2/(8r) = 0.51 mm at seed 7, ten times the 0.05 mm tolerance the case shipped with until 2026-08",
+      "mutation": "mesh.local_seeds removed from Housing and Bushing, position_tolerance 0.05",
+      "note": "the identities are expected to pass here. That is the finding, not a pass: equilibrium does not care which nodes carry the load, so only the .dat can tell these two models apart.",
+      "measured": {
+        "WEIGHT_TOTAL": 17.69429777687276,
+        "CLAMP_REACTION": 257.6942978727893,
+        "FRICTION_FORCE": 60.92405232787132
+      },
+      "seconds": 104.0,
+      "integrity_count": 85,
+      "integrity_ids": [
+        "distorted_elements",
+        "nodes_miss_master_intersection",
+        "tie_node_outside_tolerance"
+      ],
+      "identity_deviations": [
+        3.944e-05,
+        2.71e-06,
+        7.8e-07
+      ]
+    },
+    {
+      "id": "bearing_the_seeds_bind_it_not_the_tolerance",
+      "status": "pass",
+      "identity": "2x2 over {local seeds, none} x {0.05, 0.1} mm, datacheck only",
+      "note": "the seeds bind it at either tolerance; raising the tolerance silences the warning without adding one element. The shipped spec did both, and only the first was needed.",
+      "seconds": 50.4,
+      "untied_blocks": {
+        "fine@0.05": 0,
+        "fine@0.1": 0,
+        "coarse@0.05": 11,
+        "coarse@0.1": 0
+      },
+      "integrity_counts": {
+        "fine@0.05": 0,
+        "fine@0.1": 0,
+        "coarse@0.05": 85,
+        "coarse@0.1": 0
+      },
+      "deck_lines": {
+        "fine@0.05": 92662,
+        "fine@0.1": 92662,
+        "coarse@0.05": 19463,
+        "coarse@0.1": 19463
+      }
+    },
+    {
+      "id": "bearing_tie_tolerance_still_catches_a_misalignment",
+      "status": "pass",
+      "mutation": "Bushing translated +0.5 mm in x",
+      "note": "run this with --tie-tolerance 1.0 to see the item fail: that is the loosened tolerance the design doc warns against, measured rather than argued.",
+      "seconds": 19.0,
+      "tie_tolerance": 0.1,
+      "integrity_count": 6737,
+      "integrity_ids": [
+        "nodes_miss_master_intersection",
+        "tie_node_outside_tolerance"
+      ],
+      "untied_blocks": 11,
+      "misalignment_mm": 0.5,
+      "datacheck_ok": true,
+      "caught_by": "dat_integrity"
+    }
+  ],
+  "counts": {
+    "total": 7,
+    "pass": 7,
+    "fail": 0,
+    "skipped": 0
+  }
+}

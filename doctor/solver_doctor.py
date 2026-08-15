@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
-from premium.autorepair.log_parser import (
+from features.autorepair.log_parser import (
     DiagnosticCategory,
     DiagnosticEvent,
     DiagnosticSeverity,

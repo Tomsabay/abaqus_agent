@@ -1,7 +1,10 @@
 # Abaqus Agent
 
+**English** | [简体中文](README.zh-CN.md)
+
 [![CI](https://github.com/Tomsabay/abaqus_agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Tomsabay/abaqus_agent/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
+[![Commercial licence](https://img.shields.io/badge/commercial%20licence-available-FF6B2B)](LICENSING.md)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 
 **Local Simulation QA & Regression Framework for Abaqus FEA.**
@@ -13,6 +16,51 @@ Turn Abaqus runs into reproducible experiment capsules:
 ```
 
 Abaqus Agent runs in your own Abaqus-licensed environment. The core is deterministic and auditable; LLMs, MCP clients, Codex, Claude Code, or the web UI are optional frontends.
+
+## See It In 60 Seconds — CAE Copilot Workspace
+
+A Cursor-style workspace for Abaqus/CAE: describe the model in plain language — the
+Copilot's scenario library is cantilever, simply-supported three-point bend,
+plate-with-hole tension and cantilever modal analysis, which is its list and not the
+engine's; see [the model layer](#the-model-layer--generic-dispatch-and-a-truth-layer-under-it)
+for what the spec dialect underneath can build —
+review the generated action plan, execute it inside CAE through the plugin bridge, and
+watch the model tree, viewport snapshots, and errors stream back live. When an action
+fails, a plain-language diagnosis explains what happened (15 CAE failure patterns) and one
+click asks the Copilot for a repaired plan; failed solves additionally get an automatic
+Solver Doctor pass over the job's .msg/.sta/.dat logs (30+ known patterns). Every scenario
+is theory-checked on a real solver with the coarse demo meshes: cantilever tip vs PL^3/3EI,
+simply-supported midspan vs PL^3/48EI (both ~1.3x, the same systematic mesh softness),
+plate-with-hole Kt 2.7 vs Howland's 3.1, first modal frequency within 14% of the
+Euler-Bernoulli solution, plus the solver-failure diagnosis chain.
+
+Those four are the first five gates of seventeen. `python
+scripts/run_all_real_checks.py` runs them all in about 20 minutes on Abaqus 2021
+and prints one verdict; the two CalculiX gates need `ABAQUS_AGENT_CCX_EXE` and
+report themselves as skipped without it, which does not fail the run. Measured
+2026-08-06: 17 gates, 17 pass, 1240 s.
+
+![CAE Copilot workspace replaying a real Abaqus session](docs/assets/copilot_workspace_replay.png)
+
+**No Abaqus needed to watch the demo.** The repo ships a recorded real Abaqus 2021 session
+(`evidence/copilot_replay/replay.json` — real failure, real fix, real KPIs):
+
+```bash
+pip install -e ".[dev]"
+python server.py
+# open http://127.0.0.1:8000 -> 01 Abaqus/CAE Copilot -> ▶ 播放真实录像
+```
+
+The replay shows the full loop: plan cards typing out, action chips flipping, the model tree
+growing, real viewport PNGs, a genuine stale-lock failure with its diagnosis card, the
+one-click fix, and the final KPIs (max displacement 0.1286 mm, max Mises 9.58 MPa).
+On a machine with Abaqus, `python scripts/record_copilot_replay.py` re-records it live.
+
+The same server also hosts the **workbench** at
+[`http://127.0.0.1:8000/workbench`](http://127.0.0.1:8000/workbench): write or
+edit a spec, watch the stages run, and read the KPIs and the 3D preview. It is
+the direct view of the pipeline, where the Copilot page is the conversational
+one.
 
 ## Why This Exists
 
@@ -43,6 +91,66 @@ The current codebase already has the original Abaqus automation pipeline. The v0
 | Report Export | Implemented MVP | Produce Markdown, standalone/printable HTML, optional PDF, and zipped run report bundles from capsules, KPIs, contracts, evidence checklists, and visuals across CLI/API/MCP/UI. |
 | Environment Preflight | Implemented MVP | Record OS, Python, Abaqus command, release-check, expected-release match, workdir writability, license markers, and runner config evidence across CLI/API/MCP/UI before real validation. |
 
+See [docs/ROADMAP.md](docs/ROADMAP.md) for where this is going, and for the rule
+that decides when something moves from "the code path exists" to "supported".
+
+## The Model Layer — Generic Dispatch, And A Truth Layer Under It
+
+The scenario list above is the Copilot's, not the engine's. Underneath it is a
+spec dialect that describes `parts`, `assembly`, `interactions`, `steps` and
+`conditions`, and it does not work from a closed list of supported features.
+A spec names the Abaqus method it wants and the arguments to pass:
+
+```yaml
+parts:
+  - name: Flange
+    features:
+      - op: sketch
+        id: profile
+        entities: [ ... ]
+      - call: BaseSolidRevolve
+        sketch: {sketch: profile}
+        angle: 360.0
+        flipRevolveDirection: "OFF"
+    expect: {volume: 26389.378290154, cells: 1, faces: 4}
+```
+
+`getattr(part, "BaseSolidRevolve")(**kwargs)` does the rest. Abaqus exposes 292
+callables on `Part` and 71 on `ConstrainedSketch`, and the lists grow every
+release; enumerating them in a schema would mean the dialect could only ever
+build the shapes somebody had already written a branch for.
+
+That is only defensible with something underneath it, because what generic
+dispatch gives up is a schema that knows what each call was *supposed* to
+produce. So it is replaced by `expect:` blocks checked against the built model:
+
+| Layer | What it checks |
+|---|---|
+| Geometry | volume, cells, faces, cylindrical faces, where a feature landed |
+| Mesh | element count, shape quality criteria, and how many elements a criterion did not apply to |
+| Assembly | instance count, where each instance ended up, that created parts reach the analysis |
+| Contact | the measured gap between the two surfaces a pair was built from |
+
+The failures these exist for are not hypothetical, and each one is a measured
+refusal rather than a guess:
+
+- `elemShape=HEX` on a body with no hexes in it is **accepted** by Abaqus. It
+  meshes nothing, raises nothing, and the job completes.
+- A cut whose holes miss the solid removes nothing, returns 0, and leaves the
+  volume byte-identical.
+- An assembly boolean creates a part nothing meshes; the `.inp` carries an empty
+  `*Part` with a live `*Instance` and not one `*Element`.
+- CalculiX, given a load card it does not recognise, drops it, exits 0, and
+  returns every displacement as `0.000000E+00`.
+
+Five worked cases ship in this dialect — `bearing_block`, `two_plate_tie`,
+`two_plate_contact`, `block_friction_slide`, `plate_hole_v2` — and the gate
+scripts that prove the layer are in `scripts/run_generic_*_check.py`, with
+their summarised output committed under
+[`evidence/gates/`](evidence/gates/). The dialect itself is
+[`schema/spec_schema.json`](schema/spec_schema.json), whose descriptions carry
+the measurement behind each rule; the shortest complete example is
+[`cases/two_plate_tie/spec.yaml`](cases/two_plate_tie/spec.yaml).
 
 ## Installation
 
@@ -63,11 +171,70 @@ pip install -e ".[all]"  # dev + mcp + llm
 
 ## Quick Start
 
-Run tests that do not require Abaqus:
+### No Abaqus licence? Start here
+
+You do not need Abaqus to get a real, verifiable answer out of this. Install
+[CalculiX](http://www.calculix.de/) — free, open source, runs on Windows,
+Linux and macOS — point the tool at it, and solve:
 
 ```bash
-pytest tests/ -v
+pip install -e ".[dev]"
+
+# Windows
+set ABAQUS_AGENT_CCX_EXE=C:\path\to\ccx.exe
+# Linux / macOS
+export ABAQUS_AGENT_CCX_EXE=/usr/local/bin/ccx
+
+python agent/orchestrator.py cases/cantilever/spec.yaml \
+  cases/cantilever/expected.json \
+  cases/cantilever/runner.json
 ```
+
+The backend is chosen automatically: Abaqus if it is installed, CalculiX
+otherwise. Measured on the shipped cantilever case, CalculiX agrees with the
+frozen Abaqus baseline to **seven significant figures**:
+
+| KPI | Abaqus 2021 | CalculiX 2.23 | |
+|---|---|---|---|
+| `U_tip` | `-1.903958e-3` mm | `-1.903958e-3` mm | agrees |
+| `MISES_MAX` | `0.6529` MPa | `0.6109` MPa | **not comparable** |
+
+That last row is the point. CalculiX reports nodal-averaged stress where
+Abaqus reports unaveraged `ELEMENT_NODAL`; on the same mesh those differ by
+about 6%. The number is still produced, tagged with where it came from, and
+**excluded from pass/fail** rather than quietly graded against an Abaqus
+baseline it does not mean the same thing as.
+
+The CalculiX backend is deliberately narrow — `cantilever_block` and
+`custom_inp` geometry, `Static` steps, concentrated forces. Everything else is
+**refused before the solve starts**, naming the spec field in plain language,
+because CalculiX silently drops load cards it does not recognise and still
+exits 0 with every displacement reading `0.000000E+00`. Two gates do that, and
+they read different things: one reads the spec, the other reads the deck card
+by card. With `geometry.type: custom_inp` the deck *is* the model and the spec
+cannot describe its procedure, so only the second one can see a `*FREQUENCY`
+step — which is how a mode shape was once reported as a tip displacement. See
+[docs/ROADMAP.md](docs/ROADMAP.md) for the current capability matrix.
+
+### With Abaqus installed
+
+```bash
+python agent/orchestrator.py cases/cantilever/spec.yaml \
+  cases/cantilever/expected.json \
+  cases/cantilever/runner.json
+```
+
+Same command. The release is probed from the installed solver, never taken
+from the spec.
+
+### Run the test suite
+
+```bash
+pytest -q
+```
+
+The suite is hermetic: it hides both Abaqus and CalculiX so no test can reach
+a real solver.
 
 Check whether the current machine is ready for real Abaqus validation:
 
@@ -114,7 +281,7 @@ Use an existing `.inp` as a first-class input:
 
 ```yaml
 meta:
-  abaqus_release: "2024"
+  abaqus_release: "2021"
   model_name: "CustomerModel"
 geometry:
   type: custom_inp
@@ -255,7 +422,8 @@ mcp_server.py       MCP server for agent integration
 mcp_bridge.py       HTTP/SSE bridge for browser clients
 server.py           FastAPI server
 cases/              Public benchmark specs
-premium/            Open-core prototype modules from v0.1
+features/           Optional analysis modules: coupling, adaptivity, parametric,
+                    extended geometry, auto-repair
 ```
 
 ## Benchmark Status
@@ -270,16 +438,27 @@ Public specs currently cover:
 | `explicit_impact` | Dynamic compression | Explicit | `RF_Z_MAX`, `U_Z_MIN` |
 | `blast_plate` | Protective blast plate demo | Explicit | `U_MAX_DEFLECTION`, `PEEQ_MAX`, `ALLPD_MAX` |
 
+And in the v2 dialect, where the model is built from dispatched Abaqus calls
+rather than from a geometry type:
+
+| Case | What it is | Interactions | Key KPIs |
+|---|---|---|---|
+| `two_plate_tie` | one part, two instances, tied | tie | `U_TIP`, `MISES_MAX` |
+| `two_plate_contact` | the same pair, in contact instead | contact | `U_TIP`, `MISES_MAX` |
+| `block_friction_slide` | two parts, two static steps: press, then push | contact + friction | `FRICTION_FORCE`, `NORMAL_FORCE` |
+| `plate_hole_v2` | plate with a hole, built from sketch entities | — | `HOOP_MAX`, `HOOP_S22`, `FAR_FIELD` |
+| `bearing_block` | three parts, three steps, bolt preload, tie and contact together | tie + contact | `WEIGHT_TOTAL`, `CLAMP_REACTION`, `FRICTION_FORCE`, `BUSHING_DROP`, `CAP_MISES_MAX` |
+
 Notes:
 
 - `python run_benchmark.py --dry-run` validates specs without Abaqus.
 - `abaqus-agent validate env` and the Environment panel record OS, Python, Abaqus command resolution, `abaqus information=release`, expected-release match, workdir writability, license markers, and runner config evidence before real validation.
-- `abaqus-agent validate record` appends a normalized evidence row to `docs/VALIDATION_MATRIX.md` after real Windows/Linux/Abaqus runs.
+- `abaqus-agent validate record` appends a normalized evidence row to `docs/VALIDATION_MATRIX.md` after real Windows/Linux/Abaqus runs, creating the file on first use — your matrix records your environments, not ours.
 - `abaqus-agent report export`, `/api/report/export`, MCP bridge, and the Report panel produce Markdown, standalone HTML, optional PDF, or zipped report bundles from offline run evidence.
 - Full regression requires a local Abaqus installation and license.
-- Current environment evidence is tracked in [docs/VALIDATION_MATRIX.md](docs/VALIDATION_MATRIX.md).
+- The evidence behind every "supported" claim is a check harness you can run yourself: `scripts/run_*_check.py`.
 - Current local validation has been done on Abaqus 2021 / Windows.
-- External contributor validation exists for Abaqus 2026 compatibility.
+- An external contributor reported Abaqus 2026 compatibility; the original report is no longer distributed with this repository, so it is not part of the current gate evidence.
 
 ## Safety And Deployment
 
@@ -337,8 +516,28 @@ Do not run third-party Abaqus workloads as a hosted SaaS without explicit legal 
 
 ## Acknowledgments
 
-- **GLY2024 / Goulingyun** — first external contributor. Verified Abaqus 2026 compatibility and contributed Windows command-path fixes.
+- **[@ganansuan647](https://github.com/ganansuan647) (GLY2024)** — first external contributor. Reported Abaqus 2026 compatibility on a licence this project does not have, and contributed Windows command-path fixes.
 
 ## License
 
-Apache 2.0. See [LICENSE](LICENSE).
+**AGPL-3.0-or-later** — see [LICENSE](LICENSE).
+
+Most people never need anything else: running it, modifying it, and using it
+commercially inside your own organisation are all free under the AGPL. The
+obligation it adds is narrow — if you offer a modified version to others over
+a network, those users must be able to get your modified source.
+
+If that does not fit (closed-source embedding, proprietary redistribution, or
+a hosted service you cannot open), a **commercial licence** is available and
+priced openly in [LICENSING.md](LICENSING.md) — no "contact us for a quote".
+
+Two deliberate carve-outs, so integrating with the tool never drags AGPL in:
+
+- `schema/`, `cases/` and `examples/` stay under **Apache-2.0**
+  ([LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)) — they are the
+  integration surface, and anyone should be able to implement against them.
+- Releases published between 2026-03-06 and 2026-06-16 were Apache-2.0. That
+  grant is irrevocable and forks from that period may continue under it.
+
+Full detail in [NOTICE](NOTICE). Contributions stay inbound-Apache-2.0 — no
+CLA, no copyright assignment (see [CONTRIBUTING.md](CONTRIBUTING.md)).

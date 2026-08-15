@@ -105,6 +105,7 @@ JSON schema:
       "abaqus_python": "安全的 Abaqus Python 片段；可以是注释级 MVP，不要访问网络/文件删除/任意系统命令"
     }}
   ],
+  说明：apply_boundary_condition 的 params 支持 "support": "cantilever"（左端固定+右端载荷，默认）、"simply_supported"（两端简支+跨中载荷，用户提到简支/三点弯时用）或 "plate_with_hole"（开孔板单轴拉伸，用户提到开孔/孔板/应力集中时用，此时 create 动作 params 需带 hole_diameter_mm、载荷用 tension_mpa）,
   "expected_outputs": ["最大位移", "最大 Mises 应力"],
   "safety_notes": ["执行前请确认单位"]
 }}
@@ -122,7 +123,8 @@ JSON schema:
     proc = subprocess.run(
         ["node", str(CODEX_CLIENT), "--cwd", str(ROOT), "--prompt", prompt],
         cwd=ROOT,
-        text=True,
+        # A non-ASCII byte in the tool output must not become a crash.
+        text=True, encoding="utf-8", errors="replace",
         capture_output=True,
         timeout=140,
         check=False,
@@ -188,53 +190,200 @@ def _plan_from_payload(
 
 def _template_plan(text: str, *, session_id: str, raw: str) -> CopilotPlan:
     actions = _template_actions(text)
+    support = _infer_support_type(text)
+    if support == "cantilever_modal":
+        user_summary = "建立一个悬臂梁模态分析模型，提取前 5 阶固有频率。"
+        expected_outputs = ["前 5 阶固有频率 (Hz)", "一阶弯曲频率（可对照解析解）", "求解日志是否报错"]
+        model_type = "cantilever_modal"
+    elif support == "plate_with_hole":
+        user_summary = "建立一个中心开孔板的单轴拉伸模型，并准备查看孔边应力集中。"
+        expected_outputs = ["孔边最大 Mises 应力", "应力集中系数（对比理论值约 3）", "求解日志是否报错"]
+        model_type = "plate_with_hole"
+    elif support == "simply_supported":
+        user_summary = "建立一个两端简支、跨中加载的三点弯梁静力模型，并准备查看跨中位移和最大应力。"
+        expected_outputs = ["跨中最大位移", "最大 Mises 应力", "求解日志是否报错"]
+        model_type = "simply_supported_beam"
+    else:
+        user_summary = "建立一个悬臂梁静力分析模型，并准备查看端部位移和最大应力。"
+        expected_outputs = ["端部最大位移", "最大 Mises 应力", "求解日志是否报错"]
+        model_type = "cantilever"
     return CopilotPlan(
         session_id=session_id,
         backend="template",
         intent="create_abaqus_model",
-        user_summary="建立一个悬臂梁静力分析模型，并准备查看端部位移和最大应力。",
-        model_type="cantilever",
+        user_summary=user_summary,
+        model_type=model_type,
         actions=actions,
-        expected_outputs=["端部最大位移", "最大 Mises 应力", "求解日志是否报错"],
+        expected_outputs=expected_outputs,
         safety_notes=["模板模式使用默认尺寸和材料；真实项目执行前请确认单位、截面和载荷。"],
         assistant_message=_assistant_message(actions),
         raw_assistant_text=raw,
     )
 
 
+_SIMPLY_SUPPORTED_KEYWORDS = ("简支", "三点弯", "两端支撑", "两端简支", "simply supported", "three-point")
+_PLATE_HOLE_KEYWORDS = ("开孔", "圆孔", "孔板", "带孔", "应力集中", "plate with hole", "open hole", "stress concentration")
+_MODAL_KEYWORDS = ("模态", "固有频率", "自振", "振型", "频率分析", "modal", "natural frequency", "eigenfrequen")
+
+
+def _infer_support_type(text: str) -> str:
+    lowered = text.lower()
+    if any(keyword in lowered for keyword in _MODAL_KEYWORDS):
+        return "cantilever_modal"
+    if any(keyword in lowered for keyword in _PLATE_HOLE_KEYWORDS):
+        return "plate_with_hole"
+    if any(keyword in lowered for keyword in _SIMPLY_SUPPORTED_KEYWORDS):
+        return "simply_supported"
+    return "cantilever"
+
+
 def _template_actions(text: str) -> list[CopilotAction]:
     dims = _infer_dimensions(text)
-    return [
-        CopilotAction(
-            action="create_cantilever_model",
-            title="创建悬臂梁几何与材料",
-            rationale="先建立一个用户能看见的梁模型，材料默认钢材，单位按 mm-N-MPa 处理。",
-            params=dims | {"material": "steel"},
-            abaqus_python=_create_cantilever_python(dims),
-        ),
-        CopilotAction(
+    support = _infer_support_type(text)
+    force = _infer_force(text)
+    if support == "cantilever_modal":
+        return _modal_actions(dims)
+    if support == "plate_with_hole":
+        return _plate_hole_actions(text)
+    if support == "simply_supported":
+        bc_action = CopilotAction(
+            action="apply_boundary_condition",
+            title="两端简支并在跨中施加载荷",
+            rationale="经典三点弯工况：底边一端铰接、一端滚动支撑，跨中集中力，可对照 PL^3/48EI 手算校核。",
+            params={"support": "simply_supported", "force_n": force, "direction": "downward_y"},
+            abaqus_python=_boundary_load_simply_supported_python({"force_n": force}),
+        )
+        job_name = "Copilot_SimpleBeam_Job"
+    else:
+        bc_action = CopilotAction(
             action="apply_boundary_condition",
             title="固定左端并在右端施加载荷",
             rationale="悬臂梁最常见入门工况，用户可以直接观察端部下挠。",
-            params={"fixed_face": "left", "force_n": 100, "direction": "downward_y"},
-            abaqus_python=_boundary_load_python({"force_n": 100}),
+            params={"support": "cantilever", "fixed_face": "left", "force_n": force, "direction": "downward_y"},
+            abaqus_python=_boundary_load_python({"force_n": force}),
+        )
+        job_name = "Copilot_Cantilever_Job"
+    create_params = dims | {
+        "material": "steel",
+        "model_name": "Copilot_SimpleBeam" if support == "simply_supported" else "Copilot_Cantilever",
+    }
+    return [
+        CopilotAction(
+            action="create_cantilever_model",
+            title="创建梁几何与材料" if support == "simply_supported" else "创建悬臂梁几何与材料",
+            rationale="先建立一个用户能看见的梁模型，材料默认钢材，单位按 mm-N-MPa 处理。",
+            params=create_params,
+            abaqus_python=_create_cantilever_python(create_params),
         ),
+        bc_action,
         CopilotAction(
             action="submit_job_or_prepare_run",
             title="准备作业并说明结果查看方式",
             rationale="创建作业、提交求解并把最大位移/最大 Mises 写入结果 JSON。",
-            params={"job_name": "Copilot_Cantilever_Job", "run_policy": "submit_and_extract"},
-            abaqus_python=_submit_and_extract_python({"job_name": "Copilot_Cantilever_Job"}),
+            params={"job_name": job_name, "run_policy": "submit_and_extract"},
+            abaqus_python=_submit_and_extract_python({"job_name": job_name}),
         ),
     ]
 
 
-def _infer_dimensions(text: str) -> dict[str, int]:
-    numbers = [int(value) for value in re.findall(r"\d+", text)]
+def _infer_force(text: str) -> float:
+    match = re.search(r"(\d+(?:\.\d+)?)\s*N", text, flags=re.IGNORECASE)
+    return float(match.group(1)) if match else 100.0
+
+
+def _modal_actions(dims: dict[str, float]) -> list[CopilotAction]:
+    create_params = dims | {
+        "material": "steel",
+        "model_name": "Copilot_Modal",
+        "analysis": "modal",
+    }
+    return [
+        CopilotAction(
+            action="create_cantilever_model",
+            title="创建悬臂梁几何与材料（含密度）",
+            rationale="模态分析需要质量：钢材密度 7.85e-9 t/mm^3，单位制 mm-N-MPa-s，频率结果即为 Hz。",
+            params=create_params,
+            abaqus_python=_create_cantilever_python(create_params),
+        ),
+        CopilotAction(
+            action="apply_boundary_condition",
+            title="固定左端（悬臂边界）",
+            rationale="一端固支的经典模态工况，一阶弯曲频率可对照 (1.875)^2/2π·√(EI/ρAL^4) 解析解。",
+            params={"support": "cantilever_modal", "fixed_face": "left"},
+            abaqus_python=_boundary_modal_python(),
+        ),
+        CopilotAction(
+            action="submit_job_or_prepare_run",
+            title="提交模态作业并提取前 5 阶频率",
+            rationale="Lanczos 提取前 5 阶固有频率，写入结果 JSON。",
+            params={"job_name": "Copilot_Modal_Job", "run_policy": "submit_and_extract_frequencies"},
+            abaqus_python=_submit_and_extract_modal_python({"job_name": "Copilot_Modal_Job"}),
+        ),
+    ]
+
+
+def _infer_tension_mpa(text: str) -> float:
+    match = re.search(r"(\d+(?:\.\d+)?)\s*MPa", text, flags=re.IGNORECASE)
+    return float(match.group(1)) if match else 100.0
+
+
+def _infer_hole_diameter(text: str, plate_height: float) -> float:
+    match = re.search(r"(?:孔径|孔直径|直径|hole diameter|diameter)\D{0,6}(\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+    return max(2.0, plate_height / 5.0)
+
+
+def _plate_hole_actions(text: str) -> list[CopilotAction]:
+    # For the plate the numbers read as 长 x 宽 x 厚 (thickness defaults thin)
+    mm_numbers = [float(v) for v in re.findall(r"(\d+(?:\.\d+)?)\s*mm", text, flags=re.IGNORECASE)]
+    length = mm_numbers[0] if len(mm_numbers) >= 1 else 100.0
+    height = mm_numbers[1] if len(mm_numbers) >= 2 else 50.0
+    thickness = mm_numbers[2] if len(mm_numbers) >= 3 else 5.0
+    hole_d = _infer_hole_diameter(text, height)
+    tension = _infer_tension_mpa(text)
+    create_params = {
+        "length_mm": length,
+        "height_mm": height,
+        "width_mm": thickness,
+        "hole_diameter_mm": hole_d,
+        "material": "steel",
+        "model_name": "Copilot_PlateHole",
+    }
+    return [
+        CopilotAction(
+            action="create_cantilever_model",
+            title="创建中心开孔板几何与材料",
+            rationale="板中心开圆孔，钢材，单位 mm-N-MPa；网格在孔边加密以捕捉应力集中。",
+            params=create_params,
+            abaqus_python=_create_plate_hole_python(create_params),
+        ),
+        CopilotAction(
+            action="apply_boundary_condition",
+            title="左端约束、右端施加拉应力",
+            rationale="经典单轴拉伸工况：左面约束轴向位移，右面均布拉应力，孔边应力集中系数可对照 Howland 理论值（约 3）。",
+            params={"support": "plate_with_hole", "tension_mpa": tension, "direction": "tension_x"},
+            abaqus_python=_boundary_load_plate_hole_python({"tension_mpa": tension}),
+        ),
+        CopilotAction(
+            action="submit_job_or_prepare_run",
+            title="准备作业并说明结果查看方式",
+            rationale="创建作业、提交求解并把最大位移/最大 Mises 写入结果 JSON，可据此算应力集中系数。",
+            params={"job_name": "Copilot_PlateHole_Job", "run_policy": "submit_and_extract"},
+            abaqus_python=_submit_and_extract_python({"job_name": "Copilot_PlateHole_Job"}),
+        ),
+    ]
+
+
+def _infer_dimensions(text: str) -> dict[str, float]:
+    # Prefer mm-suffixed numbers so "50N" can't be mistaken for a width;
+    # fall back to bare numbers for unit-less requests like "长200宽20高20".
+    mm_numbers = [float(v) for v in re.findall(r"(\d+(?:\.\d+)?)\s*mm", text, flags=re.IGNORECASE)]
+    numbers = mm_numbers or [float(v) for v in re.findall(r"\d+(?:\.\d+)?", text)]
     return {
-        "length_mm": numbers[0] if len(numbers) >= 1 else 200,
-        "height_mm": numbers[1] if len(numbers) >= 2 else 20,
-        "width_mm": numbers[2] if len(numbers) >= 3 else 20,
+        "length_mm": numbers[0] if len(numbers) >= 1 else 200.0,
+        "height_mm": numbers[1] if len(numbers) >= 2 else 20.0,
+        "width_mm": numbers[2] if len(numbers) >= 3 else 20.0,
     }
 
 
@@ -243,11 +392,39 @@ def _assistant_message(actions: list[CopilotAction]) -> str:
     return f"我会按 {len(actions)} 步操作 Abaqus：{titles}。你确认后我再执行。"
 
 
+_NAME_SAFE = re.compile(r"[^A-Za-z0-9_-]")
+
+
+def _safe_name(value: Any, default: str) -> str:
+    """A name safe to interpolate into generated Abaqus Python.
+
+    Everything this module returns is exec()'d by the CAE kernel, and the
+    actions it runs are built from Codex's JSON reply -- `CopilotAction(**item)`
+    in _plan_from_payload -- so any string field of that reply reaches an
+    f-string inside a quoted literal. `model_name` was filtered this way from
+    the start; `job_name` was not, and it lands in the same kind of literal in
+    both submit templates. One quote closes it.
+    """
+    text = _NAME_SAFE.sub("_", str(value or default))
+    return text or default
+
+
 def _python_for_action(action: CopilotAction) -> str:
     if action.action == "create_cantilever_model":
+        if "hole_diameter_mm" in action.params:
+            return _create_plate_hole_python(action.params)
         return _create_cantilever_python(action.params)
     if action.action == "apply_boundary_condition":
+        support = str(action.params.get("support") or "")
+        if support == "cantilever_modal":
+            return _boundary_modal_python()
+        if support == "plate_with_hole":
+            return _boundary_load_plate_hole_python(action.params)
+        if support == "simply_supported":
+            return _boundary_load_simply_supported_python(action.params)
         return _boundary_load_python(action.params)
+    if str(action.params.get("run_policy") or "") == "submit_and_extract_frequencies":
+        return _submit_and_extract_modal_python(action.params)
     return _submit_and_extract_python(action.params)
 
 
@@ -255,13 +432,19 @@ def _create_cantilever_python(params: dict[str, Any]) -> str:
     length = float(params.get("length_mm", 200) or 200)
     height = float(params.get("height_mm", 20) or 20)
     width = float(params.get("width_mm", 20) or 20)
+    model_name = _safe_name(params.get("model_name"), "Copilot_Cantilever")
+    step_line = (
+        "model.FrequencyStep(name='ModalStep', previous='Initial', numEigen=5)\n"
+        if str(params.get("analysis") or "static") == "modal"
+        else "model.StaticStep(name='LoadStep', previous='Initial', nlgeom=OFF)\n"
+    )
     return (
         "from abaqus import *\n"
         "from abaqusConstants import *\n"
         "from odbAccess import openOdb\n"
         "import json\n"
         "import mesh\n"
-        "COPILOT_MODEL_NAME = 'Copilot_Cantilever'\n"
+        f"COPILOT_MODEL_NAME = '{model_name}'\n"
         "COPILOT_PART_NAME = 'Beam'\n"
         "COPILOT_INSTANCE_NAME = 'Beam-1'\n"
         f"COPILOT_LENGTH = {length:.6f}\n"
@@ -276,6 +459,7 @@ def _create_cantilever_python(params: dict[str, Any]) -> str:
         "part.BaseSolidExtrude(sketch=sketch, depth=COPILOT_WIDTH)\n"
         "material = model.Material(name='Steel')\n"
         "material.Elastic(table=((210000.0, 0.3),))\n"
+        "material.Density(table=((7.85e-09,),))\n"
         "model.HomogeneousSolidSection(name='SteelSection', material='Steel')\n"
         "all_cells = part.Set(cells=part.cells[:], name='ALL_CELLS')\n"
         "part.SectionAssignment(region=all_cells, sectionName='SteelSection')\n"
@@ -285,7 +469,7 @@ def _create_cantilever_python(params: dict[str, Any]) -> str:
         "assembly = model.rootAssembly\n"
         "assembly.DatumCsysByDefault(CARTESIAN)\n"
         "assembly.Instance(name=COPILOT_INSTANCE_NAME, part=part, dependent=ON)\n"
-        "model.StaticStep(name='LoadStep', previous='Initial', nlgeom=OFF)\n"
+        + step_line
     )
 
 
@@ -315,11 +499,216 @@ def _boundary_load_python(params: dict[str, Any]) -> str:
         "    raise RuntimeError('Copilot could not find right-end load nodes')\n"
         "assembly.Set(nodes=(load_nodes[0:1]), name='RIGHT_LOAD_NODE')\n"
         f"model.ConcentratedForce(name='Load_100N_Down', createStepName='LoadStep', region=assembly.sets['RIGHT_LOAD_NODE'], cf2=-{load:.6f})\n"
+        "tip_nodes = inst.nodes.getByBoundingBox(\n"
+        "    xMin=COPILOT_LENGTH - tol,\n"
+        "    xMax=COPILOT_LENGTH + tol,\n"
+        "    yMin=-COPILOT_HEIGHT / 2.0 - tol,\n"
+        "    yMax=-COPILOT_HEIGHT / 2.0 + tol,\n"
+        "    zMin=COPILOT_WIDTH / 2.0 - tol,\n"
+        "    zMax=COPILOT_WIDTH / 2.0 + tol,\n"
+        ")\n"
+        "if len(tip_nodes) == 0:\n"
+        "    tip_nodes = inst.nodes.getByBoundingBox(\n"
+        "        xMin=COPILOT_LENGTH - tol, xMax=COPILOT_LENGTH + tol,\n"
+        "        yMin=-COPILOT_HEIGHT / 2.0 - tol, yMax=-COPILOT_HEIGHT / 2.0 + tol)\n"
+        "if len(tip_nodes):\n"
+        "    assembly.Set(nodes=(tip_nodes[0:1]), name='TIP_DEFLECTION_NODE')\n"
+    )
+
+
+def _create_plate_hole_python(params: dict[str, Any]) -> str:
+    length = float(params.get("length_mm", 100) or 100)
+    height = float(params.get("height_mm", 50) or 50)
+    thickness = float(params.get("width_mm", 5) or 5)
+    hole_d = float(params.get("hole_diameter_mm", 10) or 10)
+    model_name = _safe_name(params.get("model_name"), "Copilot_PlateHole")
+    return (
+        "from abaqus import *\n"
+        "from abaqusConstants import *\n"
+        "from odbAccess import openOdb\n"
+        "import json\n"
+        "import mesh\n"
+        f"COPILOT_MODEL_NAME = '{model_name}'\n"
+        "COPILOT_PART_NAME = 'Plate'\n"
+        "COPILOT_INSTANCE_NAME = 'Plate-1'\n"
+        f"COPILOT_LENGTH = {length:.6f}\n"
+        f"COPILOT_HEIGHT = {height:.6f}\n"
+        f"COPILOT_WIDTH = {thickness:.6f}\n"
+        f"COPILOT_HOLE_D = {hole_d:.6f}\n"
+        "if COPILOT_MODEL_NAME in mdb.models.keys():\n"
+        "    del mdb.models[COPILOT_MODEL_NAME]\n"
+        "model = mdb.Model(name=COPILOT_MODEL_NAME)\n"
+        "sketch = model.ConstrainedSketch(name='plate_profile', sheetSize=max(500.0, COPILOT_LENGTH * 2.0))\n"
+        "sketch.rectangle(point1=(0.0, 0.0), point2=(COPILOT_LENGTH, COPILOT_HEIGHT))\n"
+        "sketch.CircleByCenterPerimeter(\n"
+        "    center=(COPILOT_LENGTH / 2.0, COPILOT_HEIGHT / 2.0),\n"
+        "    point1=(COPILOT_LENGTH / 2.0 + COPILOT_HOLE_D / 2.0, COPILOT_HEIGHT / 2.0),\n"
+        ")\n"
+        "part = model.Part(name=COPILOT_PART_NAME, dimensionality=THREE_D, type=DEFORMABLE_BODY)\n"
+        "part.BaseSolidExtrude(sketch=sketch, depth=COPILOT_WIDTH)\n"
+        "material = model.Material(name='Steel')\n"
+        "material.Elastic(table=((210000.0, 0.3),))\n"
+        "model.HomogeneousSolidSection(name='SteelSection', material='Steel')\n"
+        "all_cells = part.Set(cells=part.cells[:], name='ALL_CELLS')\n"
+        "part.SectionAssignment(region=all_cells, sectionName='SteelSection')\n"
+        "part.seedPart(size=max(1.0, COPILOT_HOLE_D / 8.0), deviationFactor=0.05, minSizeFactor=0.05)\n"
+        "# full integration: C3D8R's single centroid point badly under-reads the\n"
+        "# stress peak right at the hole surface\n"
+        "part.setElementType(regions=(part.cells[:],), elemTypes=(mesh.ElemType(elemCode=C3D8, elemLibrary=STANDARD),))\n"
+        "part.generateMesh()\n"
+        "if len(part.elements) == 0:\n"
+        "    # the holed solid is not always sweep-meshable; fall back to quadratic tets\n"
+        "    part.setMeshControls(regions=part.cells[:], elemShape=TET, technique=FREE)\n"
+        "    part.setElementType(regions=(part.cells[:],), elemTypes=(mesh.ElemType(elemCode=C3D10, elemLibrary=STANDARD),))\n"
+        "    part.generateMesh()\n"
+        "assembly = model.rootAssembly\n"
+        "assembly.DatumCsysByDefault(CARTESIAN)\n"
+        "assembly.Instance(name=COPILOT_INSTANCE_NAME, part=part, dependent=ON)\n"
+        "model.StaticStep(name='LoadStep', previous='Initial', nlgeom=OFF)\n"
+    )
+
+
+def _boundary_load_plate_hole_python(params: dict[str, Any]) -> str:
+    tension = abs(float(params.get("tension_mpa", 100) or 100))
+    return (
+        "model = mdb.models[COPILOT_MODEL_NAME]\n"
+        "assembly = model.rootAssembly\n"
+        "inst = assembly.instances[COPILOT_INSTANCE_NAME]\n"
+        "tol = 1.0e-3\n"
+        "left_faces = inst.faces.getByBoundingBox(xMin=-tol, xMax=tol)\n"
+        "if len(left_faces) == 0:\n"
+        "    raise RuntimeError('Copilot could not find the left face of the plate')\n"
+        "assembly.Set(faces=left_faces, name='LEFT_FACE')\n"
+        "model.DisplacementBC(name='BC_Left_U1', createStepName='Initial', region=assembly.sets['LEFT_FACE'], u1=SET)\n"
+        "corner_nodes = inst.nodes.getByBoundingBox(xMin=-tol, xMax=tol, yMin=-tol, yMax=tol)\n"
+        "if len(corner_nodes) == 0:\n"
+        "    raise RuntimeError('Copilot could not find the bottom-left corner nodes')\n"
+        "assembly.Set(nodes=corner_nodes, name='CORNER_PIN')\n"
+        "model.DisplacementBC(name='BC_Corner_Pin', createStepName='Initial', region=assembly.sets['CORNER_PIN'], u2=SET, u3=SET)\n"
+        "right_faces = inst.faces.getByBoundingBox(xMin=COPILOT_LENGTH - tol, xMax=COPILOT_LENGTH + tol)\n"
+        "if len(right_faces) == 0:\n"
+        "    raise RuntimeError('Copilot could not find the right face of the plate')\n"
+        "assembly.Surface(side1Faces=right_faces, name='RIGHT_SURF')\n"
+        f"COPILOT_TENSION = {tension:.6f}\n"
+        "model.Pressure(name='Tension_Right', createStepName='LoadStep', region=assembly.surfaces['RIGHT_SURF'], magnitude=-COPILOT_TENSION)\n"
+    )
+
+
+def _boundary_load_simply_supported_python(params: dict[str, Any]) -> str:
+    load = abs(float(params.get("force_n", params.get("load_n", 100)) or 100))
+    return (
+        "model = mdb.models[COPILOT_MODEL_NAME]\n"
+        "assembly = model.rootAssembly\n"
+        "inst = assembly.instances[COPILOT_INSTANCE_NAME]\n"
+        "tol = 1.0e-3\n"
+        "bottom_y = -COPILOT_HEIGHT / 2.0\n"
+        "left_edge = inst.nodes.getByBoundingBox(xMin=-tol, xMax=tol, yMin=bottom_y - tol, yMax=bottom_y + tol)\n"
+        "if len(left_edge) == 0:\n"
+        "    raise RuntimeError('Copilot could not find the left support edge nodes')\n"
+        "assembly.Set(nodes=left_edge, name='LEFT_SUPPORT_EDGE')\n"
+        "model.PinnedBC(name='BC_Pin_Left', createStepName='Initial', region=assembly.sets['LEFT_SUPPORT_EDGE'])\n"
+        "right_edge = inst.nodes.getByBoundingBox(\n"
+        "    xMin=COPILOT_LENGTH - tol, xMax=COPILOT_LENGTH + tol, yMin=bottom_y - tol, yMax=bottom_y + tol)\n"
+        "if len(right_edge) == 0:\n"
+        "    raise RuntimeError('Copilot could not find the right support edge nodes')\n"
+        "assembly.Set(nodes=right_edge, name='RIGHT_SUPPORT_EDGE')\n"
+        "model.DisplacementBC(name='BC_Roller_Right', createStepName='Initial', region=assembly.sets['RIGHT_SUPPORT_EDGE'], u2=SET, u3=SET)\n"
+        "mid_nodes = inst.nodes.getByBoundingBox(\n"
+        "    xMin=COPILOT_LENGTH / 2.0 - tol,\n"
+        "    xMax=COPILOT_LENGTH / 2.0 + tol,\n"
+        "    yMin=COPILOT_HEIGHT / 2.0 - tol,\n"
+        "    yMax=COPILOT_HEIGHT / 2.0 + tol,\n"
+        "    zMin=COPILOT_WIDTH / 2.0 - tol,\n"
+        "    zMax=COPILOT_WIDTH / 2.0 + tol,\n"
+        ")\n"
+        "if len(mid_nodes) == 0:\n"
+        "    mid_nodes = inst.nodes.getByBoundingBox(\n"
+        "        xMin=COPILOT_LENGTH / 2.0 - tol, xMax=COPILOT_LENGTH / 2.0 + tol,\n"
+        "        yMin=COPILOT_HEIGHT / 2.0 - tol, yMax=COPILOT_HEIGHT / 2.0 + tol)\n"
+        "if len(mid_nodes) == 0:\n"
+        "    raise RuntimeError('Copilot could not find mid-span load nodes')\n"
+        "assembly.Set(nodes=(mid_nodes[0:1]), name='MID_LOAD_NODE')\n"
+        f"model.ConcentratedForce(name='Load_Midspan_Down', createStepName='LoadStep', region=assembly.sets['MID_LOAD_NODE'], cf2=-{load:.6f})\n"
+        "bottom_mid = inst.nodes.getByBoundingBox(\n"
+        "    xMin=COPILOT_LENGTH / 2.0 - tol,\n"
+        "    xMax=COPILOT_LENGTH / 2.0 + tol,\n"
+        "    yMin=bottom_y - tol,\n"
+        "    yMax=bottom_y + tol,\n"
+        "    zMin=COPILOT_WIDTH / 2.0 - tol,\n"
+        "    zMax=COPILOT_WIDTH / 2.0 + tol,\n"
+        ")\n"
+        "if len(bottom_mid) == 0:\n"
+        "    bottom_mid = inst.nodes.getByBoundingBox(\n"
+        "        xMin=COPILOT_LENGTH / 2.0 - tol, xMax=COPILOT_LENGTH / 2.0 + tol,\n"
+        "        yMin=bottom_y - tol, yMax=bottom_y + tol)\n"
+        "if len(bottom_mid):\n"
+        "    assembly.Set(nodes=(bottom_mid[0:1]), name='MIDSPAN_BOTTOM_NODE')\n"
+    )
+
+
+def _boundary_modal_python() -> str:
+    return (
+        "model = mdb.models[COPILOT_MODEL_NAME]\n"
+        "assembly = model.rootAssembly\n"
+        "inst = assembly.instances[COPILOT_INSTANCE_NAME]\n"
+        "tol = 1.0e-3\n"
+        "left_faces = inst.faces.getByBoundingBox(xMin=-tol, xMax=tol)\n"
+        "if len(left_faces) == 0:\n"
+        "    raise RuntimeError('Copilot could not find the left fixed face')\n"
+        "assembly.Set(faces=left_faces, name='LEFT_FIXED_FACE')\n"
+        "model.EncastreBC(name='BC_Left_Fixed', createStepName='Initial', region=assembly.sets['LEFT_FIXED_FACE'])\n"
+    )
+
+
+def _submit_and_extract_modal_python(params: dict[str, Any]) -> str:
+    job_name = _safe_name(params.get("job_name"), "Copilot_Modal_Job")
+    return (
+        f"COPILOT_JOB_NAME = '{job_name}'\n"
+        "if COPILOT_JOB_NAME in mdb.jobs.keys():\n"
+        "    del mdb.jobs[COPILOT_JOB_NAME]\n"
+        "mdb.Job(name=COPILOT_JOB_NAME, model=COPILOT_MODEL_NAME, description='AbaqusAgent Copilot modal analysis')\n"
+        "mdb.saveAs(pathName=COPILOT_JOB_NAME + '.cae')\n"
+        "mdb.jobs[COPILOT_JOB_NAME].submit(consistencyChecking=ON)\n"
+        "mdb.jobs[COPILOT_JOB_NAME].waitForCompletion()\n"
+        "# job.status can be None in noGUI kernels, so trust the solver's .sta verdict\n"
+        "job_status = str(mdb.jobs[COPILOT_JOB_NAME].status)\n"
+        "if job_status not in ('COMPLETED',):\n"
+        "    sta_text = ''\n"
+        "    try:\n"
+        "        _sta = open(COPILOT_JOB_NAME + '.sta', 'r')\n"
+        "        try:\n"
+        "            sta_text = _sta.read()\n"
+        "        finally:\n"
+        "            _sta.close()\n"
+        "    except Exception:\n"
+        "        pass\n"
+        "    if 'COMPLETED SUCCESSFULLY' in sta_text:\n"
+        "        job_status = 'COMPLETED'\n"
+        "if job_status != 'COMPLETED':\n"
+        "    raise RuntimeError('Abaqus job %s aborted (status %s); see the .msg/.sta logs'\n"
+        "                       % (COPILOT_JOB_NAME, job_status))\n"
+        "odb = openOdb(COPILOT_JOB_NAME + '.odb')\n"
+        "frequencies = []\n"
+        "for frame in odb.steps['ModalStep'].frames:\n"
+        "    freq = getattr(frame, 'frequency', None)\n"
+        "    if freq is not None and freq > 0.0:\n"
+        "        frequencies.append(float(freq))\n"
+        "odb.close()\n"
+        "result = {\n"
+        "    'job_name': COPILOT_JOB_NAME,\n"
+        "    'status': 'COMPLETED',\n"
+        "    'natural_frequencies_hz': frequencies[:5],\n"
+        "    'first_frequency_hz': frequencies[0] if frequencies else None,\n"
+        "    'model': COPILOT_MODEL_NAME,\n"
+        "}\n"
+        "with open(COPILOT_JOB_NAME + '_copilot_result.json', 'w') as f:\n"
+        "    json.dump(result, f, indent=2, sort_keys=True)\n"
+        "print('ABAQUS_AGENT_COPILOT_RESULT ' + json.dumps(result, sort_keys=True))\n"
     )
 
 
 def _submit_and_extract_python(params: dict[str, Any]) -> str:
-    job_name = str(params.get("job_name") or "Copilot_Cantilever_Job")
+    job_name = _safe_name(params.get("job_name"), "Copilot_Cantilever_Job")
     return (
         f"COPILOT_JOB_NAME = '{job_name}'\n"
         "if COPILOT_JOB_NAME in mdb.jobs.keys():\n"
@@ -328,20 +717,60 @@ def _submit_and_extract_python(params: dict[str, Any]) -> str:
         "mdb.saveAs(pathName=COPILOT_JOB_NAME + '.cae')\n"
         "mdb.jobs[COPILOT_JOB_NAME].submit(consistencyChecking=ON)\n"
         "mdb.jobs[COPILOT_JOB_NAME].waitForCompletion()\n"
+        "# job.status can be None in noGUI kernels, so trust the solver's .sta verdict\n"
+        "job_status = str(mdb.jobs[COPILOT_JOB_NAME].status)\n"
+        "if job_status not in ('COMPLETED',):\n"
+        "    sta_text = ''\n"
+        "    try:\n"
+        "        _sta = open(COPILOT_JOB_NAME + '.sta', 'r')\n"
+        "        try:\n"
+        "            sta_text = _sta.read()\n"
+        "        finally:\n"
+        "            _sta.close()\n"
+        "    except Exception:\n"
+        "        pass\n"
+        "    if 'COMPLETED SUCCESSFULLY' in sta_text:\n"
+        "        job_status = 'COMPLETED'\n"
+        "if job_status != 'COMPLETED':\n"
+        "    raise RuntimeError('Abaqus job %s aborted (status %s); see the .msg/.sta logs'\n"
+        "                       % (COPILOT_JOB_NAME, job_status))\n"
         "odb = openOdb(COPILOT_JOB_NAME + '.odb')\n"
         "frame = odb.steps['LoadStep'].frames[-1]\n"
         "u_values = frame.fieldOutputs['U'].values\n"
         "s_values = frame.fieldOutputs['S'].values\n"
         "max_u = max([v.magnitude for v in u_values]) if u_values else None\n"
         "max_mises = max([v.mises for v in s_values]) if s_values else None\n"
+        "midspan_deflection = None\n"
+        "try:\n"
+        "    mid_set = odb.rootAssembly.nodeSets['MIDSPAN_BOTTOM_NODE']\n"
+        "    mid_values = frame.fieldOutputs['U'].getSubset(region=mid_set).values\n"
+        "    if mid_values:\n"
+        "        midspan_deflection = float(abs(mid_values[0].data[1]))\n"
+        "except Exception:\n"
+        "    pass  # set only exists for simply-supported runs\n"
+        "tip_deflection = None\n"
+        "try:\n"
+        "    tip_set = odb.rootAssembly.nodeSets['TIP_DEFLECTION_NODE']\n"
+        "    tip_values = frame.fieldOutputs['U'].getSubset(region=tip_set).values\n"
+        "    if tip_values:\n"
+        "        tip_deflection = float(abs(tip_values[0].data[1]))\n"
+        "except Exception:\n"
+        "    pass  # set only exists for cantilever runs\n"
         "odb.close()\n"
         "result = {\n"
         "    'job_name': COPILOT_JOB_NAME,\n"
         "    'status': 'COMPLETED',\n"
         "    'max_displacement': max_u,\n"
         "    'max_mises': max_mises,\n"
+        "    'midspan_deflection': midspan_deflection,\n"
+        "    'tip_deflection': tip_deflection,\n"
         "    'model': COPILOT_MODEL_NAME,\n"
         "}\n"
+        "try:\n"
+        "    if max_mises:\n"
+        "        result['stress_concentration_kt'] = float(max_mises) / COPILOT_TENSION\n"
+        "except NameError:\n"
+        "    pass  # COPILOT_TENSION only exists for the plate-with-hole scenario\n"
         "with open(COPILOT_JOB_NAME + '_copilot_result.json', 'w') as f:\n"
         "    json.dump(result, f, indent=2, sort_keys=True)\n"
         "print('ABAQUS_AGENT_COPILOT_RESULT ' + json.dumps(result, sort_keys=True))\n"

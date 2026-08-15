@@ -1,5 +1,14 @@
 # Abaqus/CAE Copilot MVP
 
+> **Status 2026-07-05** — the workspace has grown well past this MVP doc:
+> Cursor-style five-pane workspace (model tree / viewport / action queue /
+> error diagnosis / chat), a no-Abaqus replay demo (`▶ 播放真实录像`),
+> plain-language failure diagnosis + a Solver Doctor pass over solver logs,
+> a second beam scenario (simply-supported, theory-checked on a real solve),
+> session persistence with auto-resume, and browser/real-solve verification
+> gates. See `CHANGELOG.md` (Unreleased) and the README "See It In 60
+> Seconds" section. The steps below still describe the plumbing accurately.
+
 This MVP is the user-facing "Cursor for Abaqus/CAE" path:
 
 1. Start the local AbaqusAgent server.
@@ -12,11 +21,16 @@ This MVP is the user-facing "Cursor for Abaqus/CAE" path:
 ## Start Server
 
 ```bash
-.venv/bin/uvicorn server:app --host 0.0.0.0 --port 8000
+.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
-Use `0.0.0.0` when Abaqus/CAE runs on another workstation in the same private
-network or Tailscale tailnet.
+If Abaqus/CAE runs on another workstation, set `ABAQUS_AGENT_HOST` to the
+address you want to listen on. Read `SECURITY.md` before you do: there is no
+authentication and there is not meant to be, so anyone who can reach the port
+can start solver jobs and read run directories. On a Tailscale tailnet, bind to
+the tailnet address rather than to every interface. This page used to hand you
+a bind-to-everything command with no such sentence, which contradicted
+`SECURITY.md` in the same published tree.
 
 ## Install Plug-in
 
@@ -156,10 +170,10 @@ The reproducible remote smoke command is:
 ```bash
 abaqus-agent-copilot-real-smoke \
   --backend codex_strict \
-  --remote-host 10.0.0.10 \
-  --remote-user ciuser \
-  --remote-path D:/code/abaqus_agent \
-  --proxy-command '/opt/homebrew/bin/tailscale --socket=/Users/owner/.tailscale/tailscaled.sock nc %h %p' \
+  --remote-host <windows-host> \
+  --remote-user <windows-user> \
+  --remote-path <path-to-checkout-on-that-host> \
+  --proxy-command '<optional ProxyCommand, e.g. a VPN nc helper>' \
   --out-dir artifacts/copilot/real_smoke_cli_codex
 ```
 

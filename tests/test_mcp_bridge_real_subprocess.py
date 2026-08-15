@@ -27,15 +27,11 @@ def bridge_with_real_subprocess(monkeypatch, tmp_path):
     monkeypatch.setenv("ABAQUS_AGENT_EVIDENCE_VAULT", str(tmp_path / "bridge-vault"))
     original_conn = mcp_bridge.mcp_conn
     mcp_bridge.mcp_conn = mcp_bridge.MCPConnection()
-    mcp_bridge.EVIDENCE_ARTIFACTS.clear()
-    mcp_bridge.EVIDENCE_ARTIFACT_SEQUENCE = 0
-    mcp_bridge.DEMO_GALLERY_ARTIFACTS.clear()
+    mcp_bridge.EVIDENCE.clear()
     try:
         yield mcp_bridge
     finally:
-        mcp_bridge.EVIDENCE_ARTIFACTS.clear()
-        mcp_bridge.EVIDENCE_ARTIFACT_SEQUENCE = 0
-        mcp_bridge.DEMO_GALLERY_ARTIFACTS.clear()
+        mcp_bridge.EVIDENCE.clear()
         mcp_bridge.mcp_conn = original_conn
 
 
@@ -611,27 +607,17 @@ def test_bridge_routes_to_real_mcp_subprocess(bridge_with_real_subprocess) -> No
         assert invalid_offline.status_code == 400
         assert "run_id" in invalid_offline.json()["detail"]
 
-        premium_features = client.get("/mcp/api/premium/features")
-        assert premium_features.status_code == 200
-        premium_data = premium_features.json()
-        assert set(premium_data["features"]) >= {"coupling", "parametric"}
-        assert "capabilities" in premium_data
+        features_res = client.get("/mcp/api/features")
+        assert features_res.status_code == 200
+        features_data = features_res.json()
+        assert set(features_data["features"]) >= {"coupling", "parametric"}
+        assert "capabilities" in features_data
+        assert "enabled" not in json.dumps(features_data)
 
-        empty_activation = client.post("/mcp/api/premium/activate")
-        assert empty_activation.status_code == 200
-        assert empty_activation.json() == {
-            "valid": False,
-            "error": "No license key provided",
-        }
-
-        dev_activation = client.post(
-            "/mcp/api/premium/activate",
-            params={"license_key": "dev-bridge-smoke"},
-        )
-        assert dev_activation.status_code == 200
-        activated = dev_activation.json()
-        assert activated["valid"] is True
-        assert set(activated["features"]) == set(premium_data["features"])
+        # The licence gate is gone end to end: the old routes are 404, not
+        # stubs that answer "licensed".
+        assert client.get("/mcp/api/premium/features").status_code == 404
+        assert client.post("/mcp/api/features/activate").status_code == 404
 
         started = client.post(
             "/mcp/api/run/start",

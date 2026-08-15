@@ -15,7 +15,7 @@ def test_submit_job_interactive_passes_license_env_writes_log_and_meta(tmp_path,
     workdir = tmp_path / "work"
     calls = []
 
-    def fake_run(cmd, cwd, capture_output, text, timeout, env):
+    def fake_run(cmd, cwd, capture_output, text, timeout, env, **kwargs):
         calls.append(
             {
                 "cmd": cmd,
@@ -68,7 +68,7 @@ def test_submit_job_interactive_failure_classifies_license_error(tmp_path, monke
     inp_path = tmp_path / "model.inp"
     inp_path.write_text("*Heading\n", encoding="utf-8")
 
-    def fake_run(cmd, cwd, capture_output, text, timeout, env):
+    def fake_run(cmd, cwd, capture_output, text, timeout, env, **kwargs):
         return SimpleNamespace(returncode=1, stdout="license checkout failed", stderr="")
 
     monkeypatch.setattr(submit_job_module.subprocess, "run", fake_run)
@@ -131,7 +131,7 @@ def test_submit_job_missing_abaqus_raises_structured_error(tmp_path, monkeypatch
     inp_path = tmp_path / "model.inp"
     inp_path.write_text("*Heading\n", encoding="utf-8")
 
-    def fake_run(cmd, cwd, capture_output, text, timeout, env):
+    def fake_run(cmd, cwd, capture_output, text, timeout, env, **kwargs):
         raise FileNotFoundError("abaqus")
 
     monkeypatch.setattr(submit_job_module.subprocess, "run", fake_run)

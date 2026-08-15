@@ -7,8 +7,11 @@ plug-in pulls one approved action at a time from the FastAPI server.
 
 from __future__ import print_function
 
+import base64
 import json
 import os
+import tempfile
+import traceback
 import webbrowser
 
 try:
@@ -61,6 +64,7 @@ PLUGIN_MENU_ENTRIES = [
     "AbaqusAgent Copilot: Run Current Plan",
     "AbaqusAgent Copilot: Execute Next Action",
     "AbaqusAgent Copilot: Check Session Status",
+    "AbaqusAgent Copilot: Sync Model To Sidecar",
 ]
 
 
@@ -80,6 +84,143 @@ def _post_json(url, payload):
     return json.loads(raw)
 
 
+def _snapshot_mdb():
+    """Serialize the current mdb into a plain dict tree (Copilot's eyes)."""
+    from abaqus import mdb
+
+    def safe_keys(getter):
+        try:
+            return [str(k) for k in getter().keys()]
+        except Exception:
+            return []
+
+    models = []
+    for model_name in mdb.models.keys():
+        m = mdb.models[model_name]
+        entry = {"name": str(model_name)}
+        entry["parts"] = safe_keys(lambda: m.parts)
+        entry["materials"] = safe_keys(lambda: m.materials)
+        entry["sections"] = safe_keys(lambda: m.sections)
+        entry["steps"] = safe_keys(lambda: m.steps)
+        entry["loads"] = safe_keys(lambda: m.loads)
+        entry["bcs"] = safe_keys(lambda: m.boundaryConditions)
+        entry["instances"] = safe_keys(lambda: m.rootAssembly.instances)
+        total_elements = 0
+        for iname in entry["instances"]:
+            try:
+                total_elements += len(m.rootAssembly.instances[iname].elements)
+            except Exception:
+                pass
+        entry["mesh_elements"] = total_elements
+        models.append(entry)
+    return models
+
+
+def report_model_state(session_id):
+    """POST the current mdb snapshot to the sidecar model tree panel."""
+    models = _snapshot_mdb()
+    active = models[0]["name"] if models else ""
+    result = _post_json(
+        "%s/api/copilot/sessions/%s/model-state" % (SERVER_URL, session_id),
+        {"models": models, "active_model": active, "source": "abaqus-cae-plugin"},
+    )
+    print("AbaqusAgent: reported model state (%s models)" % len(models))
+    return result
+
+
+def _capture_viewport_png():
+    """Render the current viewport to a PNG file and return its bytes."""
+    from abaqus import mdb, session
+    from abaqusConstants import OFF, PNG
+
+    try:
+        session.printOptions.setValues(vpDecorations=OFF)
+    except Exception:
+        pass
+    if len(session.viewports) == 0:
+        viewport = session.Viewport(
+            name="AbaqusAgentViewport", origin=(0, 0), width=180, height=135
+        )
+    else:
+        try:
+            viewport = session.viewports[session.currentViewportName]
+        except Exception:
+            viewport = list(session.viewports.values())[0]
+    if viewport.displayedObject is None:
+        for model_name in mdb.models.keys():
+            parts = mdb.models[model_name].parts
+            if len(parts):
+                viewport.setValues(displayedObject=list(parts.values())[0])
+                break
+    try:
+        viewport.view.fitView()
+    except Exception:
+        pass
+    file_base = os.path.join(tempfile.gettempdir(), "abaqus_agent_viewport")
+    session.printToFile(fileName=file_base, format=PNG, canvasObjects=(viewport,))
+    f = open(file_base + ".png", "rb")
+    try:
+        return f.read()
+    finally:
+        f.close()
+
+
+def capture_viewport(session_id, caption=""):
+    """POST the current viewport PNG to the sidecar viewport panel."""
+    png = _capture_viewport_png()
+    encoded = base64.b64encode(png)
+    if not isinstance(encoded, str):
+        encoded = encoded.decode("ascii")
+    result = _post_json(
+        "%s/api/copilot/sessions/%s/viewport" % (SERVER_URL, session_id),
+        {"image_base64": encoded, "caption": caption},
+    )
+    print("AbaqusAgent: captured viewport (%s bytes)" % len(png))
+    return result
+
+
+def sync_model_to_sidecar(session_id):
+    """Report model state and viewport in one call; each part is best-effort."""
+    outcome = {"session_id": session_id}
+    try:
+        outcome["model_state"] = report_model_state(session_id)
+    except Exception as exc:
+        outcome["model_state_error"] = str(exc)
+        print("AbaqusAgent: model state sync failed: %s" % exc)
+    try:
+        outcome["viewport"] = capture_viewport(session_id)
+    except Exception as exc:
+        outcome["viewport_error"] = str(exc)
+        print("AbaqusAgent: viewport sync failed: %s" % exc)
+    return outcome
+
+
+def _collect_solver_log_tails(action):
+    """Grab the tails of the job's solver logs so the sidecar can diagnose
+    a failed solve (the Python traceback alone rarely explains WHY)."""
+    params = action.get("params") or {}
+    job_name = str(params.get("job_name") or "")
+    if not job_name:
+        return "", {}
+    logs = {}
+    for suffix in (".msg", ".sta", ".dat", ".log"):
+        path = job_name + suffix
+        if not os.path.exists(path):
+            continue
+        try:
+            f = open(path, "rb")
+            try:
+                data = f.read()
+            finally:
+                f.close()
+            text = data[-6000:].decode("utf-8", "replace")
+            if text.strip():
+                logs[suffix] = text
+        except Exception:
+            pass
+    return job_name, logs
+
+
 def execute_next_copilot_action(session_id):
     """Pull and execute one server-approved Copilot action."""
     data = _get_json(
@@ -95,16 +236,43 @@ def execute_next_copilot_action(session_id):
     script = action.get("abaqus_python") or ""
     if not script.strip():
         raise RuntimeError("Copilot action did not include Abaqus Python")
-    exec(script, globals(), globals())
+    try:
+        exec(script, globals(), globals())
+    except Exception:
+        error_text = traceback.format_exc()
+        payload = {"action": action_name, "traceback": error_text}
+        job_name, solver_logs = _collect_solver_log_tails(action)
+        if solver_logs:
+            payload["job_name"] = job_name
+            payload["solver_logs"] = solver_logs
+        _post_json(
+            "%s/api/copilot/sessions/%s/action-result" % (SERVER_URL, session_id),
+            {
+                "action_index": data.get("action_index", 0),
+                "status": "failed",
+                "message": "Abaqus/CAE execution failed",
+                "payload": payload,
+            },
+        )
+        print("AbaqusAgent: action %s failed; traceback sent to sidecar" % action_name)
+        raise
+    success_payload = {"action": action_name}
+    if action_name == "submit_job_or_prepare_run":
+        # the extract script leaves its KPI dict in our exec globals; ship it
+        # so the sidecar can show results without touching the CAE machine
+        kpi_result = globals().get("result")
+        if isinstance(kpi_result, dict) and kpi_result.get("job_name"):
+            success_payload["kpis"] = kpi_result
     _post_json(
         "%s/api/copilot/sessions/%s/action-result" % (SERVER_URL, session_id),
         {
             "action_index": data.get("action_index", 0),
             "status": "completed",
             "message": "Executed inside Abaqus/CAE",
-            "payload": {"action": action_name},
+            "payload": success_payload,
         },
     )
+    sync_model_to_sidecar(session_id)
     print("AbaqusAgent: executed %s" % action_name)
     return {
         "status": "completed",
@@ -217,6 +385,16 @@ def execute_all_copilot_actions_from_env():
     return execute_all_copilot_actions(session_id)
 
 
+def sync_model_to_sidecar_from_env():
+    session_id = _read_session_id()
+    if not session_id:
+        raise RuntimeError(
+            "Set ABAQUS_AGENT_SESSION or write the Copilot session id to %s "
+            "before syncing the model to the sidecar." % SESSION_FILE
+        )
+    return sync_model_to_sidecar(session_id)
+
+
 def open_copilot_sidecar():
     """Open the local Copilot web sidecar from Abaqus/CAE."""
     webbrowser.open(SERVER_URL)
@@ -262,6 +440,17 @@ class AbaqusAgentStatusForm(AFXForm):  # pragma: no cover - Abaqus GUI only
         self.cmd = AFXGuiCommand(
             mode=self,
             method="inspect_copilot_session_from_env",
+            objectName=__name__,
+            registerQuery=False,
+        )
+
+
+class AbaqusAgentSyncModelForm(AFXForm):  # pragma: no cover - Abaqus GUI only
+    def __init__(self, owner):
+        AFXForm.__init__(self, owner)
+        self.cmd = AFXGuiCommand(
+            mode=self,
+            method="sync_model_to_sidecar_from_env",
             objectName=__name__,
             registerQuery=False,
         )
@@ -317,6 +506,18 @@ def registerPlugin():  # pragma: no cover - Abaqus GUI only
         version="0.1",
         author="AbaqusAgent",
         description="Print the active Copilot session progress.",
+        helpUrl="",
+    )
+    toolset.registerGuiMenuButton(
+        buttonText="AbaqusAgent Copilot: Sync Model To Sidecar",
+        object=AbaqusAgentSyncModelForm(toolset),
+        messageId=0,
+        icon=None,
+        kernelInitString="import abaqusAgent_plugin",
+        applicableModules="All",
+        version="0.1",
+        author="AbaqusAgent",
+        description="Send the current model tree and viewport to the sidecar.",
         helpUrl="",
     )
 

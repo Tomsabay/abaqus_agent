@@ -1,0 +1,70 @@
+/* workbench_chat.css — the agentic generation flow's own surfaces.
+
+   Split out of workbench.css along the same seam the behaviour already took
+   (workbench_chat.js, workbench_livegeom.js): the live stream, the reasoning
+   block, the design-sheet card, and the browser-drawn sketch. workbench.css
+   keeps the app chrome; this file owns what appears only while the model is
+   working.
+
+   Loaded after workbench.css, top-level rules like it — NOT wrapped in a
+   nesting block, because this ships to air-gapped workstations whose browser
+   is whatever was installed, and a nested block that fails to parse takes
+   every rule inside it down with it. */
+
+  /* Live generation stream: the model's words as it writes. Capped height —
+     it is a window onto the work, not the document of record. */
+  .bubble.stream-live { width: 100%; }
+  .stream-stage {
+    font-family: var(--mono); font-size: var(--fs-2xs); color: var(--accent);
+    font-weight: 600; text-transform: uppercase; letter-spacing: var(--tracking-cap);
+  }
+  .stream-stage:empty { display: none; }
+  .stream-text {
+    margin: var(--s2) 0 0; max-height: 220px; overflow-y: auto;
+    font-family: var(--mono); font-size: var(--fs-2xs); color: var(--tx2);
+    white-space: pre-wrap; word-break: break-word; line-height: 1.5;
+  }
+  .stream-text:empty { display: none; }
+  /* The reasoning, set back from the answer: it is what fills the first
+     minutes, and it must never read as the result. Shrinks once the answer
+     starts arriving so the two are not competing for the same attention. */
+  .stream-think {
+    margin: var(--s2) 0 0; max-height: 130px; overflow-y: auto;
+    padding-left: var(--s2); border-left: 2px solid var(--bd);
+    font-family: var(--mono); font-size: var(--fs-2xs); color: var(--tx3, var(--tx2));
+    opacity: .62; white-space: pre-wrap; word-break: break-word; line-height: 1.45;
+    transition: max-height .35s ease, opacity .35s ease;
+  }
+  .stream-think:empty { display: none; }
+  .stream-think.done { max-height: 34px; opacity: .38; }
+
+  /* The half-written model, drawn in the browser. Sits in the spec pane, so it
+     carries its own card chrome rather than the viewport's. */
+  #live-geom-card {
+    border: 1px solid var(--bd); border-radius: var(--r-md);
+    background: var(--bg1); overflow: hidden; margin-bottom: var(--s3);
+  }
+  #live-geom-canvas { width: 100%; height: 320px; }
+  #live-geom-canvas canvas { display: block; }
+  .live-tag {
+    font-family: var(--mono); font-size: var(--fs-2xs); color: var(--amber, var(--tx2));
+    border: 1px solid var(--bd); border-radius: var(--r-sm);
+    padding: 1px 6px; white-space: nowrap;
+  }
+
+  .plan-card {
+    margin-top: var(--s2); border: 1px solid var(--accent-bd); border-radius: var(--r-md);
+    background: var(--accent-bg); padding: var(--s3);
+  }
+  .plan-card .ph {
+    font-family: var(--mono); font-size: var(--fs-2xs); color: var(--accent);
+    margin-bottom: 5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: var(--tracking-cap);
+  }
+  .plan-card .hint { font-size: var(--fs-2xs); color: var(--tx2); margin: var(--s2) 0; }
+  #plan-edit {
+    width: 100%; min-height: 180px; resize: vertical; border: 1px solid var(--bd);
+    border-radius: var(--r-sm); background: var(--bg1); color: var(--tx1);
+    font-family: var(--mono); font-size: var(--fs-2xs); line-height: 1.6;
+    padding: var(--s2); box-sizing: border-box;
+  }

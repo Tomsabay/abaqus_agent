@@ -1,0 +1,107 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 173.5,
+  "source": "dropped_input_check_20260807b",
+  "items": [
+    {
+      "id": "material_declared_plasticity_reaches_the_model",
+      "status": "pass",
+      "note": "peak Mises is compared between the two runs and not against beam theory: on a solid model the largest Mises is at the encastred corner, which concentrates. The rig is checked on the tip deflection instead, which is global. The load sits at 90% of the plastic limit load (625 N) and well past first yield (416.7 N): M/My = 1.34, so 44% of the depth has yielded at the root and the softening is structural rather than a sliver at the surface. Before the fix the same spec solved elastically: measured 917.4 MPa at a 1500 N load against the 250 MPa it declared, COMPLETED, no *Plastic card, nothing in the log. The v1 generator emitted Plastic for this key all along.",
+      "declared_yield": 250.0
+    },
+    {
+      "id": "material_an_unbuildable_key_is_refused_not_dropped",
+      "status": "pass",
+      "note": "the other half of the plasticity fix: emitting what is known is only safe if what is not known stops the build.",
+      "refusals": {
+        "fracture_energy": "SpecError: [SPEC_INVALID] material 'Steel': `fracture_energy` cannot be built here: a cohesive damage property, and there is no cohesive section in this dialect to attach it to Declaring a property that is not emitted would leave the spec saying one thing and the model doing another.\n  → Suggestion: Validate spec against schema/spec_schema.json",
+        "max_traction": "SpecError: [SPEC_INVALID] material 'Steel': `max_traction` cannot be built here: a cohesive damage property, and there is no cohesive section in this dialect to attach it to Declaring a property that is not emitted would leave the spec saying one thing and the model doing another.\n  → Suggestion: Validate spec against schema/spec_schema.json",
+        "yield_stress": "SpecError: [SPEC_INVALID] material 'Steel': `yield_stress` cannot be built here: write `yield` — that is the key this dialect reads, and two spellings for one property is two places to disagree Declaring a property that is not emitted would leave the spec saying one thing and the model doing another.\n  → Suggestion: Validate spec against schema/spec_schema.json",
+        "poissons_ratio": "SpecError: [SPEC_INVALID] material 'Steel': `poissons_ratio` is not a material property this dialect knows. It reads: E, conductivity, density, electrical_conductivity, expansion_coeff, hardening, name, nu, specific_heat, yield. Declaring a property that is not emitted would leave the spec saying one thing and the model doing another.\n  → Suggestion: Validate spec against schema/spec_schema.json"
+      }
+    },
+    {
+      "id": "material_thermal_properties_reach_the_model",
+      "status": "pass",
+      "note": "conductivity / specific_heat / expansion_coeff are declared in the schema and were dropped by this dialect. A thermal analysis with no conductivity is not a thermal analysis."
+    },
+    {
+      "id": "conditions_a_reused_name_is_refused",
+      "status": "pass",
+      "note": "measured before the fix: Abaqus accepted it, wrote the input file, and the model had NO boundary card in step One at all -- the second call replaced the first, keeping only the later region and the later step. The log line read GENERIC_OK.",
+      "refusal": "SpecError: [SPEC_INVALID] condition 3: condition 2 already carries the name 'Push'. Abaqus does not add a second condition of that name — it REPLACES the first, keeping only the later region and the later step, and says nothing. If this is one condition whose value changes between steps, that is `setValuesInStep` on the condition itself: bind the first with `as: <alias>` and write the change as `{call: setValuesInStep, target: {ref: <alias>}, stepName: ...}`. The named `steps[].bcs` / `steps[].loads` shorthand does the same thing on its own. If they are two different conditions, give them different names.\n  → Suggestion: Validate spec against schema/spec_schema.json"
+    },
+    {
+      "id": "steps_a_replacement_is_caught_at_run_time_too",
+      "status": "pass",
+      "note": "two dispatched steps of the same name. The host-side check compares conditions, so this goes straight past it; the runtime gate asks the model instead and needs to know nothing about what a step is."
+    },
+    {
+      "id": "outputs_a_heat_transfer_analysis_can_ask_for_its_own_variables",
+      "status": "pass",
+      "note": "same spec, one key different. S, E and RF do not exist in a heat transfer step, so Abaqus refuses the whole request and writes no input file -- which is why this was not a missing convenience but a physics that could not be built.",
+      "stated": [
+        "NT",
+        "HFL"
+      ],
+      "built_with_stated_variables": true,
+      "built_with_the_old_default": false,
+      "job_completed": true,
+      "why_the_default_fails": [
+        "Invalid variables are specified in an output request.  An output request cannot be created in a step where some variables are invalid."
+      ]
+    },
+    {
+      "id": "diagnostics_a_kernel_crash_says_so",
+      "status": "pass",
+      "note": "FluidPipeSection with a step-scoped region takes ABQcaeK.exe down with EXCEPTION_ACCESS_VIOLATION. No Python exception is raised, so no gate in the deck can catch it, and the launcher returns 0 as always. This used to be reported as '.inp not generated, check the log' with an empty snippet and a suggestion to simplify the geometry.",
+      "reported_message": ".inp not generated after CAE run. the Abaqus kernel crashed (EXCEPTION_ACCESS_VIOLATION in ABQcaeK.exe). That is a crash inside Abaqus itself, not a bad spec value — no Python exception is raised and no gate in the generated deck can catch it; it stopped while building condition 2 PIPE (faces, 4 node(s)). Full output: <path>",
+      "reported_snippet": "selectors.log stops after: SET_OK: condition 2 PIPE (faces, 4 node(s))\nabaqus said: *** Error: ABQcaeK.exe / rank 0 / thread 0  encountered a system exception 0xC0000005 (EXCEPTION_ACCESS_VIOLATION)"
+    },
+    {
+      "id": "dispatch_a_target_reaches_the_object_it_names",
+      "status": "pass",
+      "note": "the seven methods a load or BC exposes -- setValuesInStep, deactivate, suppress, move, reset, resume, setValues -- are calls on the object, not on the model, so no spec could reach them while the condition path hard-coded `m` as its target.",
+      "banana_refusal": "SpecError: [SPEC_INVALID] condition 1: `target:` must name a `ref:` (something an earlier call bound with `as:`), an `attr:` (a member of the default object, which is how `keywordBlock` and `engineeringFeatures` are reac",
+      "unbound_refusal": "SpecError: [SPEC_INVALID] condition 1: `target: {ref: 'nothing_bound_this'}` names nothing an earlier call bound. Bound so far: nothing\n  → Suggestion: Validate spec against schema/spec_schema.json",
+      "step_two_tip": -0.5309187769889832,
+      "beam_theory_step_two_tip": -0.5333333333333333,
+      "beam_theory_if_unchanged": -1.0666666666666667
+    },
+    {
+      "id": "dispatch_attr_alone_reaches_the_keyword_block",
+      "status": "pass",
+      "note": "the same card and the same spec, one integer apart: after block 21 (*Elastic) the deck datachecks clean, after block 3 (inside the generated *Element table) CAE wraps it in *Conflicts and Abaqus reports 4 FATAL ERRORS. Both used to log KEYWORD_OK and report success.",
+      "card": "*Damping, alpha=0.5",
+      "card_in_written_deck": true,
+      "deck_input_processor_errors": 0,
+      "conflict_block_refused": true,
+      "out_of_range_aborted": true,
+      "refused_when_the_card_is_absent": true
+    },
+    {
+      "id": "dispatch_attr_alone_reaches_engineering_features",
+      "status": "pass",
+      "note": "the route is proven by a ContourIntegral that RUNS through `{attr: engineeringFeatures}` on the assembly, with the crack front built as an assembly Set and reused by `{named_set:}`. No J is read here -- run_crack_check.py measures the number on a real crack. The other half is the one call on this object still refused, `assignSeam`, and what is pinned is that its message gives the reason that is actually true (timing) and routes to the part.",
+      "reached_line": "GENERIC_OK: assembly operation 1 ContourIntegral",
+      "set_form_refusal": "SpecError: [SPEC_INVALID] assembly operation 1 assigns a seam on the assembly. A seam belongs on the PART, and the reason is timing rather than scope. Measured on Abaqus 2021: a seam assigned AFTER `generateMesh` leaves the node count exactly as it was and says nothing -- 27 nodes before and 27 afte"
+    },
+    {
+      "id": "steps_a_named_step_chains_onto_a_dispatched_one",
+      "status": "pass",
+      "note": "the two step forms have to be mixable, because the dispatched form is how anything other than StaticStep gets written and the named form is what every shipped case still uses.",
+      "step_cards_in_order": [
+        "Step, name=One, nlgeom=NO",
+        "Step, name=Two, nlgeom=NO"
+      ],
+      "step_order_line": "STEP_ORDER_OK: One -> Two"
+    }
+  ],
+  "counts": {
+    "total": 11,
+    "pass": 11,
+    "fail": 0,
+    "skipped": 0
+  }
+}

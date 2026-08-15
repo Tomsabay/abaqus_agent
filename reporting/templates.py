@@ -11,6 +11,27 @@ TEMPLATE_TITLES = {
     "engineering_delivery": "Engineering Delivery Report",
 }
 
+# Gate G2: demo-mode runs (no solver detected) must announce themselves on the
+# first screen of every export channel and must not carry numeric KPIs.
+DEMO_BANNER = "演示数据 · 非真实求解"
+DEMO_BANNER_DETAIL = "未检测到 Abaqus，无法求解；本报告不含任何数值 KPI。"
+
+# A check that did not run is neither a pass nor a failure, and both the
+# regression and the contract status can now say so explicitly: the
+# orchestrator attaches a reason when it had no baseline to compare against
+# or no contracts to evaluate.
+NOT_GRADED = "NOT GRADED"
+
+
+def _is_demo(report: dict) -> bool:
+    return bool(report.get("demo_mode")) or report.get("summary", {}).get("status") == "DEMO"
+
+
+def _demo_banner_md_lines(report: dict) -> list[str]:
+    if not _is_demo(report):
+        return []
+    return ["", f"> **{DEMO_BANNER}** — {DEMO_BANNER_DETAIL}"]
+
 
 def available_templates() -> list[str]:
     """Return supported run report template names."""
@@ -26,6 +47,18 @@ def render_run_report_markdown(report: dict, template: str = "standard") -> str:
     return _render_standard(report)
 
 
+def _solver_metric_value(summary: dict) -> tuple[str, str]:
+    """(label, value) for the solver row.
+
+    A CalculiX run has no Abaqus release; printing the spec's release field on
+    its cover would make the archived report itself a false claim. Abaqus runs
+    keep the exact wording they had.
+    """
+    if summary.get("solver_backend") == "calculix":
+        return "Solver", summary.get("solver_label") or "CalculiX"
+    return "Abaqus", summary.get("abaqus_release") or "-"
+
+
 def render_run_report_html(report: dict, template: str = "standard") -> str:
     """Render a run report as a standalone HTML document."""
     summary = report["summary"]
@@ -38,9 +71,9 @@ def render_run_report_html(report: dict, template: str = "standard") -> str:
     metrics = [
         _metric("Status", summary.get("status") or "-", _status_class(summary.get("status"))),
         _metric("Model", summary.get("model_name") or "-"),
-        _metric("Abaqus", summary.get("abaqus_release") or "-"),
+        _metric(*_solver_metric_value(summary)),
         _metric("Contracts", contract_status, contract_class),
-        _metric("KPIs", str(len(report.get("kpis", {})))),
+        _metric("KPIs", *_kpi_metric_value(report)),
         _metric("Artifacts", str(artifact_count)),
     ]
     if template == "engineering_delivery":
@@ -69,6 +102,8 @@ def render_run_report_html(report: dict, template: str = "standard") -> str:
         '<main class="page">',
         '<section class="hero">',
         f"<p>Run report</p><h1>{escape(title)}</h1>",
+        (f'<div class="demo-banner">{escape(DEMO_BANNER)} — {escape(DEMO_BANNER_DETAIL)}</div>'
+         if _is_demo(report) else ""),
         f"<div class=\"run-id\">{escape(str(run_id))}</div>",
         "</section>",
         '<section class="metrics">',
@@ -77,6 +112,7 @@ def render_run_report_html(report: dict, template: str = "standard") -> str:
         *delivery_blocks,
         _evidence_checklist_html(report),
         _kpi_table_html(report),
+        _limitations_table_html(report),
         _contract_table_html(report),
         _visuals_html(run_id, image_artifacts, report.get("image_artifact_sources", {})),
         _artifact_table_html(report),
@@ -94,11 +130,12 @@ def _render_standard(report: dict) -> str:
     summary = report["summary"]
     lines = [
         "# Abaqus Run Report",
+        *_demo_banner_md_lines(report),
         "",
         f"- Run ID: `{summary.get('run_id')}`",
         f"- Status: `{summary.get('status')}`",
         f"- Model: `{summary.get('model_name') or '-'}`",
-        f"- Abaqus release: `{summary.get('abaqus_release') or '-'}`",
+        f"- {_solver_metric_value(summary)[0]}: `{_solver_metric_value(summary)[1]}`",
         "",
         "## KPIs",
         "",
@@ -108,6 +145,7 @@ def _render_standard(report: dict) -> str:
     _append_kpi_rows(lines, report)
     _append_contract_section(lines, report)
     _append_capsule_section(lines, report)
+    _append_limitations_section(lines, report)
     _append_doctor_section(lines, report)
     return "\n".join(lines)
 
@@ -115,20 +153,22 @@ def _render_standard(report: dict) -> str:
 def _render_client_summary(report: dict) -> str:
     summary = report["summary"]
     status = summary.get("status") or "-"
-    contracts = report.get("contracts", {})
-    contract_results = contracts.get("results", []) if isinstance(contracts, dict) else []
-    contract_status = "PASS" if contracts.get("passed") else ("FAIL" if contract_results else "-")
+    # No contracts evaluated means nothing was verified — say so. Reporting an
+    # empty contract set as PASS claims a check that never ran, and every
+    # workbench run currently lands in exactly that branch.
+    contract_status, _ = _contract_status(report)
     lines = [
         "# Simulation QA Summary",
+        *_demo_banner_md_lines(report),
         "",
         f"Run `{summary.get('run_id')}` finished with status `{status}`.",
         "",
         "## Executive Result",
         "",
         f"- Model: `{summary.get('model_name') or '-'}`",
-        f"- Abaqus release: `{summary.get('abaqus_release') or '-'}`",
+        f"- {_solver_metric_value(summary)[0]}: `{_solver_metric_value(summary)[1]}`",
         f"- Physics contracts: `{contract_status}`",
-        f"- KPI count: `{len(report.get('kpis', {}))}`",
+        f"- KPI count: `{_kpi_metric_value(report)[0]}`",
         f"- Artifact count: `{len(report.get('artifacts', {}))}`",
         "",
         "## KPI Table",
@@ -138,6 +178,7 @@ def _render_client_summary(report: dict) -> str:
     ]
     _append_kpi_rows(lines, report)
     _append_contract_section(lines, report)
+    _append_limitations_section(lines, report)
     _append_doctor_section(lines, report)
     return "\n".join(lines)
 
@@ -150,6 +191,7 @@ def _render_engineering_delivery(report: dict) -> str:
     verdict = _delivery_verdict(status, contract_status, regression_status)
     lines = [
         "# Engineering Delivery Report",
+        *_demo_banner_md_lines(report),
         "",
         "## Acceptance Snapshot",
         "",
@@ -158,7 +200,7 @@ def _render_engineering_delivery(report: dict) -> str:
         f"- Physics contracts: `{contract_status}`",
         f"- KPI regression: `{regression_status}`",
         f"- Model: `{summary.get('model_name') or '-'}`",
-        f"- Abaqus release: `{summary.get('abaqus_release') or '-'}`",
+        f"- {_solver_metric_value(summary)[0]}: `{_solver_metric_value(summary)[1]}`",
         "",
         "## Traceability",
         "",
@@ -191,22 +233,41 @@ def _render_engineering_delivery(report: dict) -> str:
     _append_kpi_rows(lines, report)
     _append_contract_section(lines, report)
     _append_artifact_section(lines, report)
+    _append_limitations_section(lines, report)
     _append_doctor_section(lines, report)
     return "\n".join(lines)
 
 
 def _append_kpi_rows(lines: list[str], report: dict) -> None:
     comparisons = report.get("regression", {}).get("comparisons", {})
-    for name, value in sorted(report.get("kpis", {}).items()):
+    kpis = report.get("kpis", {})
+    if not kpis and _is_demo(report):
+        lines.append(f"| （{DEMO_BANNER} — 未生成 KPI） | - | - |")
+        return
+    for name, value in sorted(kpis.items()):
         comp = comparisons.get(name, {})
         status = comp.get("status", "-")
         lines.append(f"| {name} | {_format_kpi_value(value, comp)} | {status} |")
+    # In the SAME table as the values, not a footnote below it. A KPI that was
+    # asked for and never came back is a fact about this table's completeness,
+    # and a reader who scans only the table is the reader who needs it.
+    for entry in report.get("kpis_missing", []):
+        reason = " ".join(_missing_kpi_reason(entry).split()).replace("|", "/")
+        lines.append(
+            f"| {_missing_kpi_name(entry)} | "
+            f"{reason or 'requested by the spec, never returned'} | NOT EXTRACTED |")
 
 
 def _append_contract_section(lines: list[str], report: dict) -> None:
     contracts = report.get("contracts", {})
     contract_results = contracts.get("results", []) if isinstance(contracts, dict) else []
     if not contract_results:
+        # Silence here made a run with zero contracts look identical to one
+        # whose contracts all held: the section simply was not printed.
+        reason = contracts.get("not_checked_reason") if isinstance(contracts, dict) else ""
+        if reason:
+            lines += ["", "## Physics Contracts", "",
+                      f"Overall: `{NOT_GRADED}` — {reason}"]
         return
     lines += [
         "",
@@ -268,6 +329,48 @@ def _append_delivery_manifest_rows(lines: list[str], report: dict) -> None:
         )
 
 
+def _limitation_rows(report: dict) -> list[tuple]:
+    """(what, value, why) per limitation, whichever shape it arrived in.
+
+    Two shapes have always coexisted in `result["limitations"]`: the backend
+    layer writes `{feature, value, reason}` records and
+    `runner/dat_warnings.limitation_lines()` writes plain sentences. Both are
+    real; a reader that handles one silently drops the other, which is exactly
+    how the .dat integrity findings spent months rendering as blank cards in
+    the workbench.
+    """
+    rows = []
+    for entry in report.get("limitations", []) or []:
+        if isinstance(entry, str):
+            rows.append(("-", "-", entry))
+        elif isinstance(entry, dict):
+            rows.append((str(entry.get("feature", "") or "-"),
+                         str(entry.get("value", "") or "-"),
+                         str(entry.get("reason", "") or "-")))
+    return rows
+
+
+def _append_limitations_section(lines: list[str], report: dict) -> None:
+    """What this run cannot be trusted about, in the archived report.
+
+    Until #72 this existed only on the live page. An archived report is what
+    gets sent to somebody who was not there — a hourglass-prone element, a tie
+    that silently dropped 85 nodes, a KPI that never came back — and it carried
+    none of it. The run's verdict is unchanged by anything here (#73(b), #72):
+    these are caveats on numbers that were produced, not a claim they are
+    wrong.
+    """
+    rows = _limitation_rows(report)
+    if not rows:
+        return
+    lines += ["", "## Known Limitations", "",
+              "| Where | Value | Why it matters |",
+              "|-------|-------|----------------|"]
+    for what, value, why in rows:
+        clean = " ".join(str(why).split()).replace("|", "/")
+        lines.append(f"| {what} | {value} | {clean} |")
+
+
 def _append_doctor_section(lines: list[str], report: dict) -> None:
     diagnosis = report.get("diagnosis", {})
     if not diagnosis.get("matched"):
@@ -289,6 +392,8 @@ def _contract_status(report: dict) -> tuple[str, str]:
     contracts = report.get("contracts", {})
     results = contracts.get("results", []) if isinstance(contracts, dict) else []
     if not results:
+        if isinstance(contracts, dict) and contracts.get("not_checked_reason"):
+            return NOT_GRADED, "warn"
         return "-", ""
     if contracts.get("passed"):
         return "PASS", "pass"
@@ -296,11 +401,23 @@ def _contract_status(report: dict) -> tuple[str, str]:
 
 
 def _regression_status(report: dict) -> str:
-    comparisons = report.get("regression", {}).get("comparisons", {})
+    regression = report.get("regression", {})
+    if not isinstance(regression, dict):
+        return "-"
+    # The verdict written on top of the comparisons outranks the comparisons.
+    # A run blocked by dat-integrity keeps every comparison at PASS on purpose
+    # -- equilibrium holds however the load gets carried -- and only
+    # `passed` is set to False. Deriving the status from the comparisons alone
+    # printed `Regression: PASS` for a model that was provably not the one the
+    # spec described, re-asserting the exact claim
+    # _block_regression_on_integrity exists to withdraw.
+    if regression.get("passed") is False:
+        return "FAIL"
+    comparisons = regression.get("comparisons", {})
     statuses = {str(comp.get("status", "")).upper() for comp in comparisons.values()}
     statuses.discard("")
     if not statuses:
-        return "-"
+        return NOT_GRADED if regression.get("not_compared_reason") else "-"
     if "FAIL" in statuses:
         return "FAIL"
     if "WARNING" in statuses:
@@ -313,7 +430,8 @@ def _regression_status(report: dict) -> str:
 def _delivery_verdict(status: str, contract_status: str, regression_status: str) -> str:
     if status != "COMPLETED":
         return "REVIEW"
-    if contract_status in {"-", "FAIL"} or regression_status in {"-", "FAIL"}:
+    if (contract_status in {"-", "FAIL", NOT_GRADED}
+            or regression_status in {"-", "FAIL", NOT_GRADED}):
         return "REVIEW"
     return "PASS"
 
@@ -411,9 +529,14 @@ def _delivery_manifest_items(report: dict) -> list[dict[str, str]]:
 
 
 def _regression_detail(report: dict) -> str:
-    comparisons = report.get("regression", {}).get("comparisons", {})
+    regression = report.get("regression", {})
+    if not isinstance(regression, dict):
+        regression = {}
+    comparisons = regression.get("comparisons", {})
     if not comparisons:
-        return "No KPI regression comparisons reported"
+        # The orchestrator says WHY it compared nothing; "none reported" reads
+        # like a reporting gap when it is a missing baseline.
+        return regression.get("not_compared_reason") or "No KPI regression comparisons reported"
     counts: dict[str, int] = {}
     for comp in comparisons.values():
         status = str(comp.get("status") or "-").upper()
@@ -425,6 +548,8 @@ def _contract_detail(report: dict) -> str:
     contracts = report.get("contracts", {})
     results = contracts.get("results", []) if isinstance(contracts, dict) else []
     if not results:
+        if isinstance(contracts, dict) and contracts.get("not_checked_reason"):
+            return contracts["not_checked_reason"]
         return "No Physics Contract results reported"
     passed = sum(1 for item in results if item.get("status") == "PASS" or item.get("passed") is True)
     failed = len(results) - passed
@@ -434,11 +559,43 @@ def _contract_detail(report: dict) -> str:
 def _status_class(status: str | None) -> str:
     if status in {"COMPLETED", "COMPLETED (sim)", "DRY_RUN_PASS", "PASS", "INFO"}:
         return "pass"
-    if status in {"WARNING", "REVIEW"}:
+    if status in {"WARNING", "REVIEW", "DEMO", NOT_GRADED}:
         return "warn"
     if status:
         return "fail"
     return ""
+
+
+def _kpi_metric_value(report: dict) -> tuple[str, str]:
+    """(value, css_class) for the KPI count.
+
+    It used to print `len(report["kpis"])` — the count of what was DELIVERED,
+    with nothing to compare it against. Two of three requested KPIs read
+    exactly like two of two, so a run that dropped one looked complete on its
+    own cover page. `kpis_missing` gives the denominator back.
+
+    #73(b): this changes what the cover SHOWS, not what the run is graded as.
+    A shortfall is a warn, never a fail — that was decided deliberately,
+    because failing the run would re-grade every frozen baseline.
+    """
+    delivered = len(report.get("kpis", {}))
+    missing = len(report.get("kpis_missing", []))
+    if not missing:
+        return str(delivered), ""
+    return "%d of %d" % (delivered, delivered + missing), "warn"
+
+
+def _missing_kpi_name(entry) -> str:
+    """A `kpis_missing` entry is a dict; tolerate a bare name from older runs."""
+    if isinstance(entry, str):
+        return entry
+    return str((entry or {}).get("name", "")) or "-"
+
+
+def _missing_kpi_reason(entry) -> str:
+    if isinstance(entry, str):
+        return ""
+    return str((entry or {}).get("reason", "") or "")
 
 
 def _metric(label: str, value: str, css_class: str = "") -> str:
@@ -464,9 +621,38 @@ def _kpi_table_html(report: dict) -> str:
             f"<td class=\"{_status_class(status)}\">{escape(str(status))}</td>"
             "</tr>"
         )
+    for entry in report.get("kpis_missing", []):
+        reason = _missing_kpi_reason(entry)
+        rows.append(
+            "<tr>"
+            f"<td><code>{escape(_missing_kpi_name(entry))}</code></td>"
+            f"<td class=\"muted\">{escape(reason or 'requested by the spec, never returned')}</td>"
+            "<td class=\"fail\">NOT EXTRACTED</td>"
+            "</tr>"
+        )
     if not rows:
-        rows.append('<tr><td colspan="3" class="muted">No KPI values reported.</td></tr>')
+        empty_text = (
+            f"{DEMO_BANNER} — 未检测到 Abaqus，无法求解，未生成 KPI。"
+            if _is_demo(report) else "No KPI values reported."
+        )
+        rows.append(f'<tr><td colspan="3" class="muted">{escape(empty_text)}</td></tr>')
     return _table_block("KPI / Regression", ["KPI", "Value", "Regression"], rows)
+
+
+def _limitations_table_html(report: dict) -> str:
+    rows = _limitation_rows(report)
+    if not rows:
+        return ""
+    body = [
+        "<tr>"
+        f"<td><code>{escape(what)}</code></td>"
+        f"<td>{escape(value)}</td>"
+        f"<td class=\"warn\">{escape(why)}</td>"
+        "</tr>"
+        for what, value, why in rows
+    ]
+    return _table_block("Known Limitations", ["Where", "Value", "Why it matters"],
+                        body)
 
 
 def _contract_table_html(report: dict) -> str:
@@ -626,6 +812,15 @@ h2 { font-size: 18px; margin-bottom: 14px; }
   margin-top: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color: var(--muted);
+}
+.demo-banner {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--warn);
+  border-left: 5px solid var(--warn);
+  background: #fdf6ec;
+  color: var(--warn);
+  font-weight: 600;
 }
 .metrics {
   display: grid;

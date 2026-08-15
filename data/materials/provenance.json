@@ -1,0 +1,1001 @@
+{
+  "schema": "abaqus_agent.material_provenance/1",
+  "upstream": {
+    "project": "FreeCAD",
+    "repo": "https://github.com/FreeCAD/FreeCAD",
+    "path": "src/Mod/Material/Resources/Materials/Standard",
+    "commit": "c54df69e0b699e37fb67d116ef2d6ded8ebdc64e",
+    "retrieved": "2026-08-06"
+  },
+  "licenses_accepted": [
+    "CC-BY-3.0",
+    "CC-BY-4.0"
+  ],
+  "counts": {
+    "examined": 140,
+    "accepted": 17,
+    "refused": 123
+  },
+  "cards": [
+    {
+      "card": "Concrete-EN-C35_45",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Aggregate/Concrete-EN-C35_45.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "Concrete-EN-C35_45"
+    },
+    {
+      "card": "Concrete-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Aggregate/Concrete-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "Concrete-Generic"
+    },
+    {
+      "card": "Reinforcement-FIB-B500",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Aggregate/Reinforcement-FIB-B500.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "Reinforcement-FIB-B500"
+    },
+    {
+      "card": "Graphite",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Carbon/Graphite.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Default",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Default.FCMat",
+      "license": "CC-BY-4.0",
+      "verdict": "refused",
+      "reason": "卡片缺少 E、nu，而 schema 里 material 块必须有 E 和 ν，所以它没法当材料用。"
+    },
+    {
+      "card": "Glass-E-GlassFibre",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Glass/Glass-E-GlassFibre.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "refused",
+      "reason": "卡片缺少 E、nu，而 schema 里 material 块必须有 E 和 ν，所以它没法当材料用。"
+    },
+    {
+      "card": "Glass-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Glass/Glass-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "Glass-Generic"
+    },
+    {
+      "card": "Glass-S2-GlassFibre",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Glass/Glass-S2-GlassFibre.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "refused",
+      "reason": "卡片缺少 E、nu，而 schema 里 material 块必须有 E 和 ν，所以它没法当材料用。"
+    },
+    {
+      "card": "Invar-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Alloys/Invar-Generic.FCMat",
+      "license": "LGPL-2.1-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.1-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "AlMg3F24",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/AlMg3F24.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "AlMgSi1F31",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/AlMgSi1F31.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Aluminum-6061-T6",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/Aluminum-6061-T6.FCMat",
+      "license": "CC-BY-4.0",
+      "verdict": "accepted",
+      "name": "Aluminum-6061-T6"
+    },
+    {
+      "card": "Aluminum-7075-T6",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/Aluminum-7075-T6.FCMat",
+      "license": "CC-BY-4.0",
+      "verdict": "accepted",
+      "name": "Aluminum-7075-T6"
+    },
+    {
+      "card": "Aluminum-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/Aluminum-Generic.FCMat",
+      "license": "LGPL-2.1-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.1-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "AlZn4-5Mg1F35",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Aluminum/AlZn4-5Mg1F35.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-102",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-102.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-122a",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-122a.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-122b",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-122b.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-150",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-150.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-220",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-220.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-230",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-230.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-443",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-443.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-464",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-464.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-510",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-510.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-614",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-614.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-647",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-647.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-655",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-655.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-706",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-706.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-715",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-715.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-955",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-955.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Copper-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Copper/Copper-Generic.FCMat",
+      "license": "LGPL-2.1-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.1-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Iron-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Iron/Iron-Generic.FCMat",
+      "license": "LGPL-2.1-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.1-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "CalculiX-Steel",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/CalculiX-Steel.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "CalculiX-Steel"
+    },
+    {
+      "card": "Steel-15CrNi6",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-15CrNi6.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-17CrNiMo6",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-17CrNiMo6.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-1C22",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-1C22.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-1C35",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-1C35.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-1C45",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-1C45.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-1C60",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-1C60.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-20NiCrMo2",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-20NiCrMo2.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-28Mn6",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-28Mn6.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-2C10",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-2C10.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-30CrNiMo8",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-30CrNiMo8.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-34CrNiMo6",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-34CrNiMo6.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-36CrNiMo4",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-36CrNiMo4.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-36NiCrMo16",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-36NiCrMo16.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-3C15",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-3C15.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-3C22",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-3C22.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-3C35",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-3C35.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-3V45",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-3V45.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C10",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C10.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C15",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C15.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C22E",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C22E.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C25E",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C25E.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C30E",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C30E.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C40E",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C40E.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C50E",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C50E.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C55E",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C55E.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-C60E",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-C60E.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-E295-GC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-E295-GC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-E295",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-E295.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-E335-GC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-E335-GC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-E335",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-E335.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-E360-GC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-E360-GC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-E360",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-E360.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJL-100",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJL-100.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJL-150",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJL-150.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJL-200",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJL-200.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJL-250",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJL-250.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJL-300",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJL-300.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJL-350",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJL-350.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJMB-350-10",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJMB-350-10.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJMB-550-4",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJMB-550-4.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJMB-650-2",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJMB-650-2.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJMW-350-4",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJMW-350-4.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJMW-360-12",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJMW-360-12.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJMW-400-5",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJMW-400-5.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJMW-450-7",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJMW-450-7.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJS-400-15",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJS-400-15.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJS-500-7",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJS-500-7.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJS-600-3",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJS-600-3.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJS-700-2",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJS-700-2.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-EN-GJS-800-1",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-EN-GJS-800-1.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-G16Mn5",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-G16Mn5.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-G200",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-G200.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-G20Mn5",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-G20Mn5.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-G230",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-G230.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-G260",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-G260.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-G300",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-G300.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-G30Mn5",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-G30Mn5.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "Steel-Generic"
+    },
+    {
+      "card": "Steel-S185",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S185.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S235JO",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S235JO.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S235JR",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S235JR.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S235JRG1",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S235JRG1.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S260NC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S260NC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S275JO",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S275JO.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S275JR",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S275JR.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S275N",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S275N.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S335JO",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S335JO.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S335JR",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S335JR.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S335N",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S335N.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S340MC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S340MC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S355J2G3",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S355J2G3.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S380MC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S380MC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S420MC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S420MC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S420N",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S420N.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S460MC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S460MC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S460N",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S460N.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S500MC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S500MC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S550MC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S550MC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-S690MC",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-S690MC.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-St-37-2K",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-St-37-2K.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-St-E-255",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-St-E-255.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-St-E-315",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-St-E-315.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-St-E-380",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-St-E-380.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-St-E-460",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-St-E-460.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-St-E-500",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-St-E-500.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-X2CrNiMoN17-13-3",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-X2CrNiMoN17-13-3.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-X2CrNiN24-4",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-X2CrNiN24-4.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-X39CrMo17-1",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-X39CrMo17-1.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-X3CrNiMo13-14",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-X3CrNiMo13-14.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-X5CrNi18-10",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-X5CrNi18-10.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-X5CrNiMo17-12-2",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-X5CrNiMo17-12-2.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Steel-X6CrNiTi18-10",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/Steel-X6CrNiTi18-10.FCMat",
+      "license": "LGPL-2.0-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.0-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "Ti-6Al-4V",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Titanium/Ti-6Al-4V.FCMat",
+      "license": "LGPL-2.1-or-later",
+      "verdict": "refused",
+      "reason": "许可 'LGPL-2.1-or-later' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "ABS-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/ABS-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "ABS-Generic"
+    },
+    {
+      "card": "Acrylic-Glass-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/Acrylic-Glass-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "Acrylic-Glass-Generic"
+    },
+    {
+      "card": "PA6-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PA6-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "PA6-Generic"
+    },
+    {
+      "card": "PC-Molded",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PC-Molded.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "refused",
+      "reason": "PC-Molded.YoungsModulus：值 '2200,00 MPa' 里有逗号。逗号既可能是小数点（2200.00 MPa）也可能是千分位（220000 MPa），两个读法都是物理上说得通的数，本模块不猜——请把上游卡片改成用小数点的写法再转换。"
+    },
+    {
+      "card": "PEEK-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PEEK-Generic.FCMat",
+      "license": "CC-BY-SA-4.0",
+      "verdict": "refused",
+      "reason": "许可 'CC-BY-SA-4.0' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "PET-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PET-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "PET-Generic"
+    },
+    {
+      "card": "PLA-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PLA-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "PLA-Generic"
+    },
+    {
+      "card": "PMMA-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PMMA-Generic.FCMat",
+      "license": "CC-BY-SA-4.0",
+      "verdict": "refused",
+      "reason": "许可 'CC-BY-SA-4.0' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "POM-Copolymer-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/POM-Copolymer-Generic.FCMat",
+      "license": "CC-BY-SA-4.0",
+      "verdict": "refused",
+      "reason": "许可 'CC-BY-SA-4.0' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "POM-Homopolymer-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/POM-Homopolymer-Generic.FCMat",
+      "license": "CC-BY-SA-4.0",
+      "verdict": "refused",
+      "reason": "许可 'CC-BY-SA-4.0' 不在允许分发的清单 CC-BY-3.0、CC-BY-4.0 里。"
+    },
+    {
+      "card": "PP-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PP-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "PP-Generic"
+    },
+    {
+      "card": "PTFE-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PTFE-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "PTFE-Generic"
+    },
+    {
+      "card": "PVC-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Thermoplast/PVC-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "PVC-Generic"
+    },
+    {
+      "card": "Wood-Generic",
+      "path": "src/Mod/Material/Resources/Materials/Standard/Wood/Wood-Generic.FCMat",
+      "license": "CC-BY-3.0",
+      "verdict": "accepted",
+      "name": "Wood-Generic"
+    }
+  ]
+}

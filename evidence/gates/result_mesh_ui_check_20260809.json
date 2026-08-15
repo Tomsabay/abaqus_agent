@@ -1,0 +1,58 @@
+{
+  "overall": "pass",
+  "seconds": 34.1,
+  "source": "result_mesh_ui_check_20260809",
+  "items": [
+    {
+      "name": "bare_labels_delete_the_whole_surface",
+      "detail": "two blocks numbered alike collapse into one: 0 tris, 0 nodes -- every face paired with its twin in the other instance and was called interior",
+      "status": "pass"
+    },
+    {
+      "name": "scoped_labels_keep_both_instances",
+      "detail": "384 tris, 196 nodes, y spans [0.0, 12.0] -- both blocks present and 8 units apart, as built",
+      "status": "pass"
+    },
+    {
+      "name": "per_instance_ranges_are_contiguous",
+      "detail": "groups=[('A', 0, 192), ('B', 192, 192)] cross_instance_tris=0",
+      "status": "pass"
+    },
+    {
+      "name": "cross_wired_fixture_differs",
+      "detail": "the deliberately corrupted mesh is not the clean one",
+      "status": "pass"
+    },
+    {
+      "name": "the_scoped_mesh_renders_as_solid_geometry",
+      "detail": "edge density 0.0079 < 0.020 floor (speckle 0.0020, coverage 0.1607); page errors: none",
+      "status": "pass"
+    },
+    {
+      "name": "the_cross_wired_mesh_renders_as_a_wire_nest",
+      "detail": "edge density 0.0554 > 0.035 ceiling (speckle 0.0101, coverage 0.1972) -- the metric can say no, which is what makes the item above mean something",
+      "status": "pass"
+    },
+    {
+      "name": "a_current_mesh_carries_no_warning",
+      "detail": "format abaqus-agent-mesh/2 -> no notes; page errors: none",
+      "status": "pass"
+    },
+    {
+      "name": "a_pre_fix_mesh_says_so",
+      "detail": "format abaqus-agent-mesh/1 -> ' · ⚠ 这次 run 的网格是修复前导出的（格式 abaqus-agent-mesh/1），装配里各零件的节点编号会互相覆盖，几何和图例数值都可能是错的；KPI 卡不受影响'",
+      "status": "pass"
+    },
+    {
+      "name": "a_self_contradictory_mesh_says_so",
+      "detail": "short node array + 4 cross-instance tris -> ' · ⚠ 网格文件自相矛盾（node_count 196 vs 195 coordinates; displacement 588 vs nodes 585; 4 triangles span two instances），画面不可信'",
+      "status": "pass"
+    }
+  ],
+  "counts": {
+    "total": 9,
+    "pass": 9,
+    "fail": 0,
+    "skipped": 0
+  }
+}

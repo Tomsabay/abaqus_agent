@@ -64,7 +64,42 @@ def test_load_contracts_accepts_json_list(tmp_path):
         encoding="utf-8",
     )
 
-    assert load_contracts(path) == [{"name": "mode order", "type": "order", "kpis": ["f1", "f2"]}]
+    # `check` is filled in alongside `type`: the two are one field under two
+    # names, and every consumer should be able to read either.
+    assert load_contracts(path) == [
+        {"name": "mode order", "type": "order", "check": "order",
+         "kpis": ["f1", "f2"]}]
+
+
+def test_load_contracts_accepts_the_check_spelling(tmp_path):
+    """cases/cantilever/contracts.yaml -- the only contract file the cases
+    ship -- says `check:`, and this loader used to raise ValueError on it.
+    evidence/offline.py and evidence/real_smoke_contract_diff.py both take
+    that path from their caller, so the failure was reachable."""
+    path = tmp_path / "contracts.yaml"
+    path.write_text(
+        "contracts:\n"
+        "  - name: tip_down\n"
+        "    check: operator\n"
+        "    kpi: U_tip\n"
+        "    operator: '<'\n"
+        "    value: 0.0\n",
+        encoding="utf-8")
+
+    loaded = load_contracts(path)
+    assert [c["check"] for c in loaded] == ["operator"]
+    assert [c["type"] for c in loaded] == ["operator"]
+
+
+def test_a_contract_naming_no_check_is_refused(tmp_path):
+    """It used to be accepted, and contracts/evaluator.py's
+    `.get("type", "range")` default then silently made it a range check."""
+    path = tmp_path / "contracts.yaml"
+    path.write_text("contracts:\n  - name: typo\n    kpi: U_tip\n    min: 0\n",
+                    encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must define check"):
+        load_contracts(path)
 
 
 def test_load_contracts_accepts_legacy_expected_json(tmp_path):

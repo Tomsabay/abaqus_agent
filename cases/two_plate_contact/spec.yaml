@@ -1,0 +1,69 @@
+meta:
+  abaqus_release: "2021"
+  model_name: "TwoPlateContact"
+  units: "mm_MPa_t"
+  description: >
+    cases/two_plate_tie with one word changed: the interface is frictionless
+    CONTACT instead of a tie. Same geometry, same mesh, same load. The two
+    plates can now slide against each other, so each carries its own bending
+    and the tip deflects exactly four times as far
+    (I goes from 10*10^3/12 = 833.3 to 2 * 10*5^3/12 = 208.3).
+
+    That factor of four is the whole point. A contact pair that quietly failed
+    to slip would reproduce the tied answer, and a contact pair that failed to
+    transmit pressure would not converge at all — neither can be mistaken for
+    a correct result.
+
+material:
+  name: Steel
+  E: 210000.0   # MPa
+  nu: 0.3
+
+parts:
+  - name: Half
+    features:
+      - op: sketch
+        id: outline
+        plane: XY
+        profile:
+          rect: { corner1: [0.0, 0.0], corner2: [10.0, 5.0] }
+      - op: extrude
+        sketch: outline
+        depth: 100.0
+    section: { type: solid, material: Steel }
+    mesh: { seed: 2.5, element: C3D8I }
+
+assembly:
+  instances:
+    - { name: Lower, part: Half, translate: [0.0, 0.0, 0.0] }
+    - { name: Upper, part: Half, translate: [0.0, 5.0, 0.0] }
+
+interactions:
+  - name: MidPlane
+    type: contact
+    main: "Lower:face@y=max"
+    secondary: "Upper:face@y=min"
+    sliding: small
+    property:
+      normal: hard
+      friction: 0.0
+      allow_separation: true
+
+steps:
+  - name: Press
+    type: Static
+    bcs:
+      - { name: FixLower, region: "Lower:face@z=min", type: encastre }
+      - { name: FixUpper, region: "Upper:face@z=min", type: encastre }
+    loads:
+      - { name: Top, region: "Upper:face@y=max", type: pressure, value: 0.1 }
+
+outputs:
+  kpis:
+    - name: U_TIP
+      type: field_min
+      location: whole_model
+      component: U2
+    - name: MISES_MAX
+      type: field_max
+      location: whole_model

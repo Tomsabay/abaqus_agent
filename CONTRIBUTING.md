@@ -30,7 +30,7 @@ Key modules:
   runner/     - Abaqus job execution stages
   post/       - Post-processing and KPI extraction
   tools/      - Validators, error handling, security guards
-  premium/    - Premium feature modules (gated)
+  features/   - Optional analysis feature modules
   server.py   - FastAPI REST API
   mcp_server.py - MCP server for AI agent integration
 ```
@@ -43,6 +43,21 @@ Open a [bug report](https://github.com/Tomsabay/abaqus_agent/issues/new?template
 - Abaqus version and OS
 - Steps to reproduce
 - Error output / logs
+
+### Reporting A False Refusal
+
+Open a [false refusal](https://github.com/Tomsabay/abaqus_agent/issues/new?template=false_refusal.yml)
+when it refused a spec that was correct.
+
+This has its own template because it is the failure mode we cannot find
+ourselves. The project refuses on purpose — a capability ships as "supported"
+only once a real solver run proves it, and anything unproven is refused by name
+rather than attempted, because a confident wrong number is worse than an error
+here. The cost of that bias is that the refusal is sometimes wrong, and we only
+ever test the specs we already know work.
+
+A false refusal is the same severity as a wrong answer, and it is tracked and
+counted separately from both.
 
 ### Suggesting Features
 

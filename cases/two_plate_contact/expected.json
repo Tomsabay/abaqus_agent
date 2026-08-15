@@ -1,0 +1,11 @@
+{
+  "kpis": {
+    "U_TIP": {
+      "value": -0.2857142857,
+      "rtol": 0.10,
+      "atol": 1e-6,
+      "unit": "mm",
+      "note": "Euler-Bernoulli PREDICTION for two UNBONDED layers, not a frozen run. Same qL^4/(8EI) as cases/two_plate_tie, but with no shear transfer across the interface each 5 mm plate carries its own I = 10*5^3/12 = 208.33 mm^4, so the pair is 2*208.33 = 416.67 against the tied section's 833.33 - exactly four times more flexible. delta = 1e8 / (8*210000*416.67) = 2.857e-1 mm. If the contact pair silently failed to slip this would come out at the tied -0.0714 instead, which is nowhere near this tolerance in either direction."
+    }
+  }
+}

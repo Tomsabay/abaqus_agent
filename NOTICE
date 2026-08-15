@@ -1,0 +1,60 @@
+Abaqus Agent
+Copyright (c) 2026 Zhao Shaofeng (赵少峰) <zhaoshaofeng892@gmail.com>
+
+This product is licensed under the GNU Affero General Public License,
+version 3 or later. See LICENSE for the full text, and LICENSING.md for the
+commercial licence that is available as an alternative.
+
+------------------------------------------------------------------------------
+Prior licensing of this codebase
+------------------------------------------------------------------------------
+
+Between 2026-03-06 and 2026-06-16 this project was published under the
+Apache License, Version 2.0. That grant is irrevocable: any copy obtained
+during that period remains under Apache-2.0 for its recipient, and forks made
+from it may continue under Apache-2.0. Releases from v0.3.0 onward are
+AGPL-3.0-or-later.
+
+The Apache-2.0 text is retained at LICENSES/Apache-2.0.txt, both because parts
+of this repository are still offered under it (see below) and because
+Apache-2.0 Section 4 requires it to travel with derivative works.
+
+------------------------------------------------------------------------------
+Parts deliberately kept under Apache-2.0
+------------------------------------------------------------------------------
+
+The following are integration surfaces. They are licensed under
+Apache-2.0 (LICENSES/Apache-2.0.txt), not AGPL, so that anyone may implement a
+compatible client or import the data without taking on copyleft obligations:
+
+  schema/          JSON Schema definitions for spec.yaml and related contracts
+  cases/           example specs, expected values and runner configs
+                   (excluding cases/*/runs/, which are not published)
+  examples/        worked examples
+
+Where a directory listed above contains its own LICENSE file, that file
+governs the directory.
+
+------------------------------------------------------------------------------
+Contributors
+------------------------------------------------------------------------------
+
+  Zhao Shaofeng (@Tomsabay)     — author and copyright holder
+  Gou Lingyun (@ganansuan647)   — contributions under Apache-2.0
+
+Contributions made while this project was under Apache-2.0 were received under
+Apache-2.0 Section 5 and are included in the AGPL-3.0-or-later work with the
+permission Apache-2.0 Section 2 grants. They remain available under
+Apache-2.0 from their original source.
+
+------------------------------------------------------------------------------
+Third-party components
+------------------------------------------------------------------------------
+
+See THIRD_PARTY_NOTICES.md.
+
+Note in particular that this product does NOT bundle a solver. Abaqus and
+CalculiX are located and invoked as separate programs that the user installs
+themselves; neither is redistributed here, and neither is linked into this
+work. CalculiX is GPL-licensed software, and running it as a separate process
+does not place it under this project's licence, nor this project under GPL.

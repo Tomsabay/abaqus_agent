@@ -17,7 +17,7 @@ def test_extract_kpis_invokes_abaqus_python_and_reads_result(tmp_path, monkeypat
     kpi_spec = [{"name": "U_tip", "type": "nodal_displacement", "component": "U2"}]
     calls: list[dict] = []
 
-    def fake_run(cmd, cwd, capture_output, text, timeout):
+    def fake_run(cmd, cwd, capture_output, text, timeout, **kwargs):
         calls.append(
             {
                 "cmd": cmd,

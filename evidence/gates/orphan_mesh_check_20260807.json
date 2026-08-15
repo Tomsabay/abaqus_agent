@@ -1,0 +1,71 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 35.7,
+  "source": "orphan_mesh_check_20260807",
+  "items": [
+    {
+      "id": "the_source_deck_carries_sets_and_a_surface",
+      "status": "pass",
+      "note": "measured: the import returns sets: [] and surfaces: [] from this file, so a selector is the only way back to a region -- which is what node@ and element@ are for.",
+      "source_deck": {
+        "Elset": 4,
+        "Nset": 3,
+        "Surface": 1
+      }
+    },
+    {
+      "id": "an_imported_mesh_takes_a_load_through_node_sets",
+      "status": "pass",
+      "note": "the load is on a node set from `nodes@z=max` and the section on an element set, because the part has no faces and no cells to put either on.",
+      "measured_tip": -0.18946819007396698,
+      "beam_theory_tip": -0.19047619047619047,
+      "import_line": "IMPORT_OK: part 'Bar' import -> Bar (was BAR): 189 node(s), 80 element(s), 0 cell(s)",
+      "mesh_line": "MESH_OK: Bar nodes=189 elems=80 warnings=0 aspect=1"
+    },
+    {
+      "id": "the_name_abaqus_upper_cased_is_taken_back",
+      "status": "pass",
+      "note": "measured on Abaqus 2021: the method takes no `name` argument at all, so the part is renamed after the fact with parts.changeKey.",
+      "import_line": "IMPORT_OK: part 'Bar' import -> Bar (was BAR): 189 node(s), 80 element(s), 0 cell(s)"
+    },
+    {
+      "id": "a_deck_holding_two_parts_is_refused_by_name",
+      "status": "pass",
+      "note": "and both arrive upper-cased, which is why the message lists them as ALPHA and BETA rather than as Alpha and Beta.",
+      "refusal_line": "IMPORT_PART_COUNT: part 'Bar' import made 2 part(s) (ALPHA, BETA) and a spec names one. A deck holding several parts has to be split, or the spec has to name each one."
+    },
+    {
+      "id": "an_element_on_a_plane_is_refused_with_the_measurement",
+      "status": "pass",
+      "note": "measured: the emitted tolerance band matched 0 of 80 elements, a band one element thick matched the 4 of that layer, and node@z=min matched the 9 on the plane.",
+      "refusal": "SpecError: [SPEC_INVALID] condition 1: selector 'B:element@z=min' puts elements on a plane, and an element is a volume and `getByBoundingBox` on elements means wholly inside, so a plane never cuts one. Measured on Abaqus 2021, the tolerance band this dialect emits (the model span x 1e-6) matched 0 of 80 elements at z=min, while a band one element thick matched the 4 of that layer -- and that thick"
+    },
+    {
+      "id": "a_volume_stated_on_a_mesh_import_aborts",
+      "status": "pass",
+      "note": "the bar really is 10000 mm3 as a shape; read as a mesh it has no volume at all and Abaqus says 0.0 rather than objecting.",
+      "refusal_line": "EXPECT_VOLUME: part Bar came out at 0.0, the spec says 10000.0. Off by 1.0, tolerance 0.001.",
+      "true_volume": 10000.0
+    },
+    {
+      "id": "a_wrong_node_count_aborts_the_build",
+      "status": "pass",
+      "note": "the element count alone does not pin the mesh: the same 80 elements are 189 nodes as C3D8 and far more as C3D20.",
+      "refusal_line": "MESH_NODES: part Bar has 189 node(s), the spec says =190. For a mesh read from a file this is what says the file that arrived is the file that was meant."
+    },
+    {
+      "id": "an_import_states_what_came_back_and_does_not_seed_it",
+      "status": "pass",
+      "note": "`faces: 6` is the specific trap the geometry half already measured -- the IGES shell has the same 6 faces the solid has -- so it is what an author would reach for.",
+      "no_expect_refusal": "SpecError: [SPEC_INVALID] part 'Bar' import: an imported part must state what came back -- `expect.volume` or `expect.cells` for a shape, or `expect.mesh.nodes` / `expect.mesh.elements` for a mesh. Measured on Abaqus 2021 with one bar exported and read back: STEP and SAT return 1 cell and volume 100",
+      "mesh_block_refusal": "SpecError: [SPEC_INVALID] part 'Bar' is imported as a mesh (its `expect` states nodes or elements and no volume or cells) and also carries a `mesh:` block. There is nothing to seed: measured on Abaqus 2021, a part read by PartFromInputFile has 0 cells, 0 faces and 0 edges, so seedPart and setElement"
+    }
+  ],
+  "counts": {
+    "total": 8,
+    "pass": 8,
+    "fail": 0,
+    "skipped": 0
+  }
+}

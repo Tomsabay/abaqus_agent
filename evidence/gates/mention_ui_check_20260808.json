@@ -1,0 +1,34 @@
+{
+  "schema": "gate/1",
+  "overall": "pass",
+  "seconds": 14.8,
+  "source": "report",
+  "items": [
+    {
+      "id": "1_at_click_attaches_chip_and_composer_text",
+      "status": "pass",
+      "note": "8 rows offer @; after clicking part:Upper — chips=['@Upper×'], composer='@Upper ', held-marks=1"
+    },
+    {
+      "id": "2_send_carries_the_mention_and_clears_the_chips",
+      "status": "pass",
+      "note": "transcript chip=['@Upper']; reply acknowledges='已用模板引擎生成 spec 提案（离线模式，按关键词推断）。\\n待确认信息：What are the dimensions (L × W × H)?；What m'…; chips left=0"
+    },
+    {
+      "id": "3_a_dangling_mention_is_refused_and_chips_stay",
+      "status": "pass",
+      "note": "toast='对话失败: 400 \"@Ghost 指向 \\'part:Ghost\\'，但当前 spec 的模型树里没有这一行——它可能已被改名或删除，重新从树里选一次\"'; chips kept=1; transcript 2 -> 2 messages"
+    },
+    {
+      "id": "4_no_page_errors",
+      "status": "pass",
+      "note": "pageerror count=0 []"
+    }
+  ],
+  "counts": {
+    "total": 4,
+    "pass": 4,
+    "fail": 0,
+    "skipped": 0
+  }
+}

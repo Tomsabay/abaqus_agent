@@ -1,0 +1,58 @@
+{
+  "schema": "abaqus_agent.material_card/1",
+  "name": "Wood-Generic",
+  "upstream_name": "Wood",
+  "category": "Wood",
+  "description": "A standard construction wood",
+  "license": "CC-BY-3.0",
+  "source": {
+    "project": "FreeCAD",
+    "name": "Wood-Generic",
+    "category": "Wood",
+    "path": "src/Mod/Material/Resources/Materials/Standard/Wood/Wood-Generic.FCMat",
+    "commit": "c54df69e0b699e37fb67d116ef2d6ded8ebdc64e",
+    "url": "https://github.com/FreeCAD/FreeCAD/blob/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Wood/Wood-Generic.FCMat",
+    "raw_url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Wood/Wood-Generic.FCMat",
+    "retrieved": "2026-08-06",
+    "author": "Bernd Hahnebach",
+    "uuid": "b588224e-e8d6-47ad-ba1f-a058333fd1c6"
+  },
+  "properties": {
+    "E": {
+      "fcmat_key": "YoungsModulus",
+      "raw": "12000 MPa",
+      "raw_unit": "MPa",
+      "parsed_unit": "MPa",
+      "dimension": "stress",
+      "si": 12000000000.0,
+      "si_unit": "Pa",
+      "mm_MPa_t": 12000.0,
+      "mm_MPa_t_unit": "MPa"
+    },
+    "nu": {
+      "fcmat_key": "PoissonRatio",
+      "raw": "0.05",
+      "raw_unit": "",
+      "parsed_unit": "",
+      "dimension": "dimensionless",
+      "si": 0.05,
+      "si_unit": "-",
+      "mm_MPa_t": 0.05,
+      "mm_MPa_t_unit": "-"
+    },
+    "density": {
+      "fcmat_key": "Density",
+      "raw": "700 kg/m^3",
+      "raw_unit": "kg/m^3",
+      "parsed_unit": "kg/m^3",
+      "dimension": "density",
+      "si": 700.0,
+      "si_unit": "kg/m^3",
+      "mm_MPa_t": 7e-10,
+      "mm_MPa_t_unit": "t/mm^3"
+    }
+  },
+  "plasticity": null,
+  "unmapped": [],
+  "notes": []
+}

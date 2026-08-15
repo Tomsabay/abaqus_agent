@@ -1,0 +1,25 @@
+{
+  "kpis": {
+    "WEIGHT_TOTAL": {
+      "value": 17.6936,
+      "rtol": 0.005,
+      "atol": 0.001,
+      "unit": "N",
+      "note": "Equilibrium PREDICTION, not a frozen run. The fixed face carries the whole assembly, so the summed vertical reaction in the gravity step is the sum of the three weights: Housing (80*40*60 - pi*12^2*60 = 164856.64 mm^3 of steel at 7.85e-9 t/mm^3) = 12.6954 N, Bushing (pi*(12^2-8^2)*60 = 15079.64 mm^3 of bronze at 8.80e-9) = 1.3018 N, Cap (80*10*60 = 48000 mm^3 of steel) = 3.6964 N, times g = 9810 mm/s^2. This is the item that checks the DENSITY DIMENSION: 7850 kg/m^3 written straight into a mm-MPa-t spec is off by 1e12 and nothing in a contour plot shows it. On the tolerance: the bore is a curved face and a tet mesh facets it, so the meshed hole is an inscribed polygon and the meshed housing carries slightly MORE material than the CAD solid. Measured at seed 7.0 with deviationFactor 0.1 that excess is 0.006% (17.69430 against 17.6936), not the ~0.9% a straight polygon estimate gives -- Abaqus refines the curved edge well past the nominal seed. 0.5% is therefore about eighty times the measured discretisation error, which leaves room for a considerably coarser mesh while still being three orders of magnitude tighter than any real mistake here: a wrong density or a dropped body misses by factors, not by percent."
+    },
+    "CLAMP_REACTION": {
+      "value": 257.6936,
+      "rtol": 0.01,
+      "atol": 0.001,
+      "unit": "N",
+      "note": "Equilibrium PREDICTION. Step 2 adds a 0.05 MPa pressure over the cap's 80 x 60 top face, so the summed vertical reaction becomes 17.6936 + 0.05*80*60 = 17.6936 + 240 = 257.6936 N. Equilibrium is an identity: it holds whatever the mesh, the element type or the solver settings are, which is why the tolerance can be 1% while the gravity item needs 0.5% -- the pressure term is exact and dominates. What it catches is a pressure applied to the wrong face (the selector picks a 80x10 side instead of the 80x60 top and this reads 40 N low) or applied in the wrong direction."
+    },
+    "FRICTION_FORCE": {
+      "value": 60.9241,
+      "rtol": 0.05,
+      "atol": 0.001,
+      "unit": "N",
+      "note": "Coulomb PREDICTION. Step 3 pushes the cap 0.4 mm sideways, far past the elastic slip Abaqus allows (about 0.5% of the element size, ~0.03 mm here), so the interface is fully sliding and the horizontal reaction on the pushed face is mu * N exactly. N is the cap's own weight plus the clamping pressure: 3.6964 + 240 = 243.6964 N, and mu = 0.25 gives 60.9241 N. Nothing else in this model can produce that number. A friction coefficient dropped on the way through the spec reads about 0; a coefficient read from the wrong key reads a clean multiple of this."
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema": "abaqus_agent.material_card/1",
+  "name": "CalculiX-Steel",
+  "upstream_name": "CalculiX-Steel",
+  "category": "Steel",
+  "description": "Standard steel material for CalculiX sample calculations",
+  "license": "CC-BY-3.0",
+  "source": {
+    "project": "FreeCAD",
+    "name": "CalculiX-Steel",
+    "category": "Steel",
+    "path": "src/Mod/Material/Resources/Materials/Standard/Metal/Steel/CalculiX-Steel.FCMat",
+    "commit": "c54df69e0b699e37fb67d116ef2d6ded8ebdc64e",
+    "url": "https://github.com/FreeCAD/FreeCAD/blob/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Metal/Steel/CalculiX-Steel.FCMat",
+    "raw_url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Metal/Steel/CalculiX-Steel.FCMat",
+    "retrieved": "2026-08-06",
+    "author": "Juergen Riegel",
+    "uuid": "92589471-a6cb-4bbc-b748-d425a17dea7d"
+  },
+  "properties": {
+    "E": {
+      "fcmat_key": "YoungsModulus",
+      "raw": "210000 MPa",
+      "raw_unit": "MPa",
+      "parsed_unit": "MPa",
+      "dimension": "stress",
+      "si": 210000000000.0,
+      "si_unit": "Pa",
+      "mm_MPa_t": 210000.0,
+      "mm_MPa_t_unit": "MPa"
+    },
+    "nu": {
+      "fcmat_key": "PoissonRatio",
+      "raw": "0.3",
+      "raw_unit": "",
+      "parsed_unit": "",
+      "dimension": "dimensionless",
+      "si": 0.3,
+      "si_unit": "-",
+      "mm_MPa_t": 0.3,
+      "mm_MPa_t_unit": "-"
+    },
+    "density": {
+      "fcmat_key": "Density",
+      "raw": "7900 kg/m^3",
+      "raw_unit": "kg/m^3",
+      "parsed_unit": "kg/m^3",
+      "dimension": "density",
+      "si": 7900.0,
+      "si_unit": "kg/m^3",
+      "mm_MPa_t": 7.9e-09,
+      "mm_MPa_t_unit": "t/mm^3"
+    },
+    "conductivity": {
+      "fcmat_key": "ThermalConductivity",
+      "raw": "43 W/m/K",
+      "raw_unit": "W/m/K",
+      "parsed_unit": "W/m/K",
+      "dimension": "thermal_conductivity",
+      "si": 43.0,
+      "si_unit": "W/(m*K)",
+      "mm_MPa_t": 43.0,
+      "mm_MPa_t_unit": "mW/(mm*K)"
+    },
+    "specific_heat": {
+      "fcmat_key": "SpecificHeat",
+      "raw": "590 J/kg/K",
+      "raw_unit": "J/kg/K",
+      "parsed_unit": "J/kg/K",
+      "dimension": "specific_heat",
+      "si": 590.0,
+      "si_unit": "J/(kg*K)",
+      "mm_MPa_t": 590000000.0,
+      "mm_MPa_t_unit": "mJ/(t*K)"
+    },
+    "expansion_coeff": {
+      "fcmat_key": "ThermalExpansionCoefficient",
+      "raw": "0.000012 m/m/K",
+      "raw_unit": "m/m/K",
+      "parsed_unit": "m/m/K",
+      "dimension": "thermal_expansion",
+      "si": 1.2e-05,
+      "si_unit": "1/K",
+      "mm_MPa_t": 1.2e-05,
+      "mm_MPa_t_unit": "1/K"
+    }
+  },
+  "plasticity": null,
+  "unmapped": [],
+  "notes": []
+}

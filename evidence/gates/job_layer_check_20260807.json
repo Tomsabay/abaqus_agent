@@ -1,0 +1,52 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 67.1,
+  "source": "job_layer_check_20260807",
+  "items": [
+    {
+      "id": "a_launcher_option_reaches_abaqus_and_stays_unverifiable",
+      "status": "pass",
+      "note": "the option gets through and the job runs. What no layer here can show is that the precision changed -- the ODB says SINGLE_PRECISION either way, and .dat/.msg/.sta are identical. Passed through, not vouched for.",
+      "odb_precision": "SINGLE_PRECISION"
+    },
+    {
+      "id": "an_option_the_launcher_refuses_stops_the_run",
+      "status": "pass",
+      "note": "measured: exit code 0, no .dat, no .odb, and the reason on stdout only. Reading the exit code here would have reported success.",
+      "reported_message": "SPEC_INVALID: Job JobLayerCheck never started: the Abaqus launcher refused the command line and still exited 0. Abaqus Error: Command line option \"bogusoption\" may not be used with \"analysis\". | Valid options for use with \"analysis\" are: | ['after', 'background', 'convert', 'convert_sdi', 'cpus', 'csedirector', 'domains', 'double', 'dynamic_load_balancing', 'field', 'fil', 'globalmodel', 'help', '"
+    },
+    {
+      "id": "a_missing_subroutine_is_caught_before_the_licence",
+      "status": "pass",
+      "note": "before CAE, before the solver, before a token.",
+      "reported_message": "FILE_NOT_FOUND: job.user names nosuch.f, and <path> is not there. Abaqus does check this, but only after checking out a licence and with exit code 0, so it is checked here first."
+    },
+    {
+      "id": "an_option_the_pipeline_already_sets_is_refused",
+      "status": "pass",
+      "note": "not a capability limit -- a collision. The message names runner.json so the setting is still reachable.",
+      "reported_message": "SPEC_INVALID: job.cpus is set by the pipeline, not by the spec (runner.json `cpus`). Setting it here would put the option on the command line twice, and a duplicate is not an error: measured on Abaqus 2021, `cpus=1 cpus=2` runs to COMPLETED and takes the 2-cpu licence count, so the later value wins "
+    },
+    {
+      "id": "a_buckling_eigenvalue_matches_euler",
+      "status": "pass",
+      "note": "reference load 1 N, so the multiplier is the load. Abaqus publishes it as text to five significant figures and the .dat repeats exactly those five, so the precision ceiling here is Abaqus's, not this reader's.",
+      "measured_eigenvalue": 10744.0,
+      "euler_p_cr": 10794.879813691485
+    },
+    {
+      "id": "an_unknown_kpi_type_is_refused_before_anything_runs",
+      "status": "pass",
+      "note": "the same typo used to reach the Abaqus kernel. Nothing built, nothing solved -- the seconds on this item are the measurement.",
+      "seconds": 0.0,
+      "reported_message": "SPEC_INVALID: Spec validation failed: 'field_minimum' is not one of ['nodal_displacement', 'field_max', 'field_min', 'reaction_force_max', 'history_output_max', 'eigenfrequency', 'eigenvalue', 'derived_stress_concentration']"
+    }
+  ],
+  "counts": {
+    "total": 6,
+    "pass": 6,
+    "fail": 0,
+    "skipped": 0
+  }
+}

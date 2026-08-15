@@ -1,0 +1,51 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 3.6,
+  "source": "seam_check_20260807",
+  "items": [
+    {
+      "id": "a_seam_duplicates_the_nodes_along_it",
+      "status": "pass",
+      "note": "the two decks come from the same run. The seam adds 9 nodes, one per position on the 3 x 3 mid-height face, and the count is read out of the written .inp rather than out of the kernel.",
+      "plain_deck_nodes": 27,
+      "seamed_deck_nodes": 36,
+      "seam_line": "SEAM_OK: part 'Blk' feature 5 SEAMFACE -> 18 node(s) at 9 position(s), 9 duplicated"
+    },
+    {
+      "id": "a_seam_that_separates_nothing_is_refused",
+      "status": "pass",
+      "note": "assignSeam on a face that is not shared by two cells is accepted and does nothing. Nothing raises; the node count is the only witness.",
+      "refusal_line": "SEAM_NOT_SEPARATED: part 'Blk' feature 5 expected 9 duplicated node position(s) on set SEAMFACE and found 0 (9 node(s) at 9 position(s)). Zero means the seam was accepted and changed nothing, which is what happens on a face that is not shared by two cells -- measured on Abaqus 2021, the same block gives 27 nodes with such a seam and 36 with a correct one, and neither raises."
+    },
+    {
+      "id": "a_seam_with_nothing_stated_is_refused_at_generation",
+      "status": "pass",
+      "note": "before Abaqus starts, and the message carries the measurement that makes the rule make sense.",
+      "refusal": "SpecError: [SPEC_INVALID] part 'Blk' assigns a seam and does not say what it should come to. Write `expect.seams: [{set: <NAME>, duplicated: <n>}]`. This is required rather than optional because the failure is silent: measured on Abaqus 2021, assignSeam on a face that is not shared by two cells is a"
+    },
+    {
+      "id": "a_seam_given_a_raw_sequence_is_refused",
+      "status": "pass",
+      "note": "measured on the part as well as the assembly: `regions; found GeomSequence, expecting Set`. A part Set is what was missing, and it is what this task added.",
+      "refusal": "SpecError: [SPEC_INVALID] part 'Blk' feature 5: assignSeam needs `regions: {set: ...}`. Measured on Abaqus 2021, it answers a raw sequence with `regions; found GeomSequence, expecting Set` on the part exactly as it does on the assembly, so `{select:}` cannot reach it.\n  → Suggestion: Validate spec a"
+    },
+    {
+      "id": "the_seam_is_assigned_before_the_mesh_and_checked_after",
+      "status": "pass",
+      "note": "assignSeam -> generateMesh -> _expect_seam. Writing the seam as a part feature is what puts it on the right side of the mesh; as an assembly operation it would land on the wrong one."
+    },
+    {
+      "id": "an_assembly_seam_is_refused_with_somewhere_to_go",
+      "status": "pass",
+      "note": "the message changed from `known gap` to a route, because the gap closed.",
+      "refusal": "SpecError: [SPEC_INVALID] assembly operation 1: regions asks for a set, and an assembly operation cannot build one. If this is a seam, it belongs on the PART: a part feature can build a set with this same form, and it runs before the mesh is generated, which is when a seam has to be assigned. Otherw"
+    }
+  ],
+  "counts": {
+    "total": 6,
+    "pass": 6,
+    "fail": 0,
+    "skipped": 0
+  }
+}

@@ -13,8 +13,7 @@ Tools:
   get_run_status      - get run status/results
   run_benchmark       - trigger benchmark dry-run
   health_check        - health status
-  get_premium_features - premium feature status
-  activate_premium    - activate premium license
+  get_features        - optional feature modules and registered capabilities
   get_offline_evidence_example_tool - load an offline evidence example
   create_local_demo_pack_tool - create local demo pack artifact
   run_local_cli_smoke_tool - run no-server local CLI smoke evidence
@@ -35,7 +34,7 @@ Tools:
 
 Resources:
   benchmark://cases    - benchmark case definitions
-  premium://features   - premium feature status
+  features://capabilities - optional feature modules and capabilities
   evidence://examples  - offline evidence example gallery
   evidence-vault://entries - local evidence vault records
   case-memory://vault  - local evidence vault memory entries
@@ -81,6 +80,7 @@ from core.pipeline import (
 )
 from core.spec_generator import generate_spec_async
 from doctor import diagnose_logs
+from doctor.cae_errors import diagnose_cae_traceback
 from doctor.solver_doctor import diagnose_log_texts, list_doctor_patterns, render_markdown
 from evidence.case_memory import search_case_memory
 from evidence.case_memory_diff import collect_case_memory_diff
@@ -149,11 +149,13 @@ async def _broadcast_progress(run_id: str, data: dict) -> None:
 @mcp.tool(description="Convert natural language to Problem Spec YAML")
 async def generate_spec(
     text: str,
-    abaqus_release: str = "2024",
+    abaqus_release: str = "",   # empty = probe the installed solver
     llm_backend: str = "template",
     anthropic_key: str = "",
     openai_key: str = "",
 ) -> str:
+    from tools.abaqus_cmd import detect_abaqus_release
+    abaqus_release = abaqus_release or detect_abaqus_release() or "unknown"
     spec_dict, missing = await generate_spec_async(
         text, abaqus_release, llm_backend,
         anthropic_key=anthropic_key,
@@ -868,53 +870,46 @@ async def get_solver_doctor_patterns_tool(
     )
 
 
-@mcp.tool(description="Health check — returns server status and Abaqus availability")
+@mcp.tool(
+    description=(
+        "Diagnose an Abaqus/CAE Python traceback in plain language "
+        "(15 known CAE failure patterns: stale locks, missing objects, license, "
+        "geometry selection, aborted jobs, ...). Returns title/explanation/suggestion."
+    )
+)
+async def diagnose_cae_error_tool(traceback_text: str) -> str:
+    text = (traceback_text or "").strip()
+    if not text:
+        return json.dumps({"error": "traceback_text is required"}, ensure_ascii=False)
+    return json.dumps(diagnose_cae_traceback(text[:20000]), ensure_ascii=False)
+
+
+@mcp.tool(description="Health check — returns server status and solver availability")
 async def health_check() -> str:
+    # An MCP client deciding whether to propose a solve needs to know it may
+    # land on the reduced CalculiX subset, not just that "a solver exists".
+    from core.backends import backend_label, check_calculix, select_backend
+
+    decision = select_backend({})
     return json.dumps({
         "status": "ok",
         "abaqus_available": check_abaqus(),
+        "calculix_available": check_calculix(),
+        "solver_backend": decision.backend,
+        "solver_label": backend_label(decision.backend, decision.version),
         "cases": list_cases(),
         "version": "0.1.0",
         "transport": "mcp",
     })
 
 
-@mcp.tool(description="Get premium feature status and capabilities")
-async def get_premium_features() -> str:
-    try:
-        from premium.feature_registry import list_premium_capabilities
-        from premium.licensing import PREMIUM_FEATURES, feature_gate
-        return json.dumps({
-            "features": {
-                name: {
-                    "display_name": PREMIUM_FEATURES[name],
-                    "enabled": feature_gate.is_enabled(name),
-                }
-                for name in PREMIUM_FEATURES
-            },
-            "capabilities": list_premium_capabilities(),
-        })
-    except ImportError:
-        return json.dumps({
-            "features": {},
-            "capabilities": {},
-            "error": "Premium module not available",
-        })
-
-
-@mcp.tool(description="Activate premium features with a license key")
-async def activate_premium(license_key: str) -> str:
-    try:
-        from premium.licensing import feature_gate
-        if license_key:
-            valid = feature_gate.set_license_key(license_key)
-            return json.dumps({
-                "valid": valid,
-                "features": feature_gate.enabled_features(),
-            })
-        return json.dumps({"valid": False, "error": "No license key provided"})
-    except ImportError:
-        return json.dumps({"valid": False, "error": "Premium module not available"})
+@mcp.tool(description="List the optional feature modules and their registered capabilities")
+async def get_features() -> str:
+    from features.feature_registry import list_capabilities, list_feature_modules
+    return json.dumps({
+        "features": list_feature_modules(),
+        "capabilities": list_capabilities(),
+    })
 
 
 def _with_vault_urls(data: dict[str, Any]) -> dict[str, Any]:
@@ -956,27 +951,13 @@ async def get_benchmark_cases() -> str:
     return json.dumps({"cases": cases, "total": len(cases)}, default=str, ensure_ascii=False)
 
 
-@mcp.resource("premium://features", description="Premium feature status")
-async def get_premium_features_resource() -> str:
-    try:
-        from premium.feature_registry import list_premium_capabilities
-        from premium.licensing import PREMIUM_FEATURES, feature_gate
-        return json.dumps({
-            "features": {
-                name: {
-                    "display_name": PREMIUM_FEATURES[name],
-                    "enabled": feature_gate.is_enabled(name),
-                }
-                for name in PREMIUM_FEATURES
-            },
-            "capabilities": list_premium_capabilities(),
-        })
-    except ImportError:
-        return json.dumps({
-            "features": {},
-            "capabilities": {},
-            "error": "Premium module not available",
-        })
+@mcp.resource("features://capabilities", description="Optional feature modules and registered capabilities")
+async def get_features_resource() -> str:
+    from features.feature_registry import list_capabilities, list_feature_modules
+    return json.dumps({
+        "features": list_feature_modules(),
+        "capabilities": list_capabilities(),
+    })
 
 
 @mcp.resource("evidence://examples", description="Offline evidence example gallery")

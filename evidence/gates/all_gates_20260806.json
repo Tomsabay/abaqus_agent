@@ -1,0 +1,231 @@
+{
+  "overall": "PASS",
+  "schema": "real_check_gate_summary/1",
+  "source": "all_gates_20260806",
+  "total_seconds": 2842.0,
+  "counts": {
+    "total": 19,
+    "pass": 19,
+    "skipped": 0,
+    "fail": 0
+  },
+  "gates": [
+    {
+      "name": "cantilever_tip_theory",
+      "script": "scripts/run_cantilever_real_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 25.4
+    },
+    {
+      "name": "simple_beam_theory",
+      "script": "scripts/run_simple_beam_real_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 28.1
+    },
+    {
+      "name": "plate_hole_kt",
+      "script": "scripts/run_plate_hole_real_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 38.0
+    },
+    {
+      "name": "modal_frequencies",
+      "script": "scripts/run_modal_real_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 28.0
+    },
+    {
+      "name": "solver_failure_diagnosis",
+      "script": "scripts/run_solver_doctor_real_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 32.0
+    },
+    {
+      "name": "generic_part",
+      "script": "scripts/run_generic_part_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 52.3,
+      "items": {
+        "total": 11,
+        "pass": 11,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "generic_mesh",
+      "script": "scripts/run_generic_mesh_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 26.6,
+      "items": {
+        "total": 13,
+        "pass": 13,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "generic_load",
+      "script": "scripts/run_generic_load_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 156.2,
+      "items": {
+        "total": 10,
+        "pass": 10,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "generic_interaction",
+      "script": "scripts/run_generic_interaction_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 102.5,
+      "items": {
+        "total": 8,
+        "pass": 8,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "generic_connector",
+      "script": "scripts/run_generic_connector_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 186.6,
+      "items": {
+        "total": 8,
+        "pass": 8,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "mesh_quality",
+      "script": "scripts/run_mesh_quality_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 78.0,
+      "items": {
+        "total": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "dropped_input",
+      "script": "scripts/run_dropped_input_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 151.5,
+      "items": {
+        "total": 9,
+        "pass": 9,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "part_grammar",
+      "script": "scripts/run_part_grammar_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 186.7,
+      "items": {
+        "total": 7,
+        "pass": 7,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "assembly",
+      "script": "scripts/run_assembly_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 105.7,
+      "items": {
+        "total": 5,
+        "pass": 5,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "assembly_position",
+      "script": "scripts/run_assembly_position_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 8.4,
+      "items": {
+        "total": 5,
+        "pass": 5,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "bearing_block",
+      "script": "scripts/run_bearing_block_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 1603.0,
+      "items": {
+        "total": 7,
+        "pass": 7,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "hallucination_pack",
+      "script": "scripts/run_hallucination_pack_check.py",
+      "solver": "abaqus",
+      "result": "PASS",
+      "seconds": 17.7,
+      "items": {
+        "total": 5,
+        "pass": 5,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "calculix_backend",
+      "script": "scripts/run_calculix_backend_check.py",
+      "solver": "calculix",
+      "result": "PASS",
+      "seconds": 3.0,
+      "items": {
+        "total": 5,
+        "pass": 5,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "free_solver",
+      "script": "scripts/run_free_solver_check.py",
+      "solver": "calculix",
+      "result": "PASS",
+      "seconds": 10.6,
+      "items": {
+        "total": 2,
+        "pass": 2,
+        "fail": 0,
+        "skipped": 0
+      }
+    }
+  ]
+}

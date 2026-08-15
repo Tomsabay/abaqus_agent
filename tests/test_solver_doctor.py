@@ -139,3 +139,31 @@ def test_solver_doctor_pattern_gallery_lists_and_filters_patterns():
     assert license_errors["total"] >= 1
     assert {pattern["category"] for pattern in license_errors["patterns"]} == {"LICENSE"}
     assert {pattern["severity"] for pattern in license_errors["patterns"]} == {"ERROR"}
+
+
+def test_dat_memory_boilerplate_is_not_a_finding(tmp_path):
+    """Every .dat ships an informational MEMORY LIMIT paragraph; it must not
+    surface as a MEMORY error (it did — every diagnosis carried one)."""
+    from doctor.solver_doctor import diagnose_log_texts
+
+    report = diagnose_log_texts(
+        job_name="BoilerplateJob",
+        logs={
+            ".dat": (
+                "THE UPPER LIMIT OF MEMORY THAT CAN BE ALLOCATED BY ABAQUS WILL\n"
+                "IN GENERAL DEPEND ON THE VALUE OF THE MEMORY LIMIT AND THE\n"
+                "MENTIONED MEMORY LIMIT, AND THE SCRATCH DISK USAGE WILL BE\n"
+                "ROUGHLY PROPORTIONAL TO THE DIFFERENCE\n"
+            ),
+        },
+        workdir=tmp_path,
+    )
+
+    assert all(finding.category != "MEMORY" for finding in report.findings)
+
+    exhausted = diagnose_log_texts(
+        job_name="OomJob",
+        logs={".dat": "***ERROR: THE MEMORY LIMIT OF 4096 MB HAS BEEN EXCEEDED\n"},
+        workdir=tmp_path / "oom",
+    )
+    assert any(finding.category == "MEMORY" for finding in exhausted.findings)

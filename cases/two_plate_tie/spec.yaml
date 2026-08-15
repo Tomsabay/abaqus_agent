@@ -1,0 +1,63 @@
+meta:
+  abaqus_release: "2021"
+  model_name: "TwoPlateTie"
+  units: "mm_MPa_t"
+  description: >
+    A 100x10x10 cantilever built as TWO 5 mm plates tied along their shared
+    face, under a uniform pressure on the top. The point is the tie: if it
+    binds, the pair behaves as one 10 mm beam; if it does not, the two halves
+    bend independently and the tip deflects about four times as far
+    (I goes from 10*10^3/12 to 2 * 10*5^3/12). The check is therefore
+    self-evident rather than a number nobody can question.
+
+material:
+  name: Steel
+  E: 210000.0   # MPa
+  nu: 0.3
+
+parts:
+  - name: Half
+    features:
+      - op: sketch
+        id: outline
+        plane: XY
+        profile:
+          rect: { corner1: [0.0, 0.0], corner2: [10.0, 5.0] }
+      - op: extrude
+        sketch: outline
+        depth: 100.0
+    section: { type: solid, material: Steel }
+    mesh: { seed: 2.5, element: C3D20R }
+
+assembly:
+  instances:
+    - { name: Lower, part: Half, translate: [0.0, 0.0, 0.0] }
+    - { name: Upper, part: Half, translate: [0.0, 5.0, 0.0] }
+
+interactions:
+  - name: MidPlane
+    type: tie
+    main: "Lower:face@y=max"
+    secondary: "Upper:face@y=min"
+    position_tolerance: 0.01
+
+steps:
+  - name: Press
+    type: Static
+    bcs:
+      - { name: FixLower, region: "Lower:face@z=min", type: encastre }
+      - { name: FixUpper, region: "Upper:face@z=min", type: encastre }
+    loads:
+      # Positive pressure acts INTO the surface, i.e. downward on the top face.
+      # 0.1 MPa over a 10 mm width is q = 1.0 N/mm.
+      - { name: Top, region: "Upper:face@y=max", type: pressure, value: 0.1 }
+
+outputs:
+  kpis:
+    - name: U_TIP
+      type: field_min
+      location: whole_model
+      component: U2
+    - name: MISES_MAX
+      type: field_max
+      location: whole_model

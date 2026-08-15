@@ -1,0 +1,18 @@
+{
+  "kpis": {},
+  "expected_outcome": "NONCONVERGENCE",
+  "note": "BUILD_SPEC W15 / lesson 4.4. This case is expected to FAIL to converge, so there is deliberately no numeric KPI baseline: at -5000 N the tip load is ~8.5x the plastic limit load of the section, no equilibrium state exists, and Abaqus/Standard must abort. Acceptance is asserted on the solver logs, not on KPI values -- see scripts/check_nonconv_case.py, which requires the .sta tail to read 'THE ANALYSIS HAS NOT BEEN COMPLETED' and the .msg to carry 'TOO MANY ATTEMPTS' or 'TIME INCREMENT ... LESS THAN THE MINIMUM'. Treating a numeric U_tip here as a pass would be the exact mistake lesson 4.4 teaches against.",
+  "hand_calculation": {
+    "section_modulus_elastic_mm3": 166.66666666666666,
+    "section_modulus_plastic_mm3": 250.0,
+    "first_yield_load_N": 391.6666666666667,
+    "plastic_limit_load_N": 587.5,
+    "formula": "P_limit = sigma_y * (W*H^2/4) / L = 235 * 250 / 100 = 587.5 N (elastic-perfectly-plastic, bending-only collapse mechanism at the built-in end)",
+    "applied_load_N": -5000.0,
+    "load_over_limit": 8.51063829787234
+  },
+  "control_variants": {
+    "reduced_load_450N": "-450 N (0.766 * P_limit) must reach 'THE ANALYSIS HAS COMPLETED SUCCESSFULLY' and produce a numeric U_tip -- run from a %TEMP% copy of this spec, never by editing this file. Measured 2026-07-27: 6 increments, 0 cutbacks, 0 analysis warnings, no FIRST YIELD line, U_tip = -0.8567810654640198 mm. Note it stays fully elastic even though 450 N is above the 391.7 N extreme-fibre first-yield load: with two C3D20R elements through the 10 mm height the outermost integration point sits 3.94 mm from the neutral axis, not 5 mm, so it sees 270 * 3.94/5 = 213 MPa < 235 MPa. Integration-point stress, not fibre stress, is what triggers plasticity.",
+    "min_increment_1e_9": "the same -5000 N .inp with the *Static minimum increment loosened from 1e-05 to 1e-09 must STILL fail, and must take longer wall time -- shrinking the increment cannot create an equilibrium state that does not exist"
+  }
+}

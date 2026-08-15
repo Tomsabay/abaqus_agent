@@ -58,7 +58,11 @@ class TestSchemaValidation:
 
     def test_invalid_abaqus_release(self):
         spec = {
-            "meta": {"abaqus_release": "2019", "model_name": "Test"},  # not in enum
+            # 2015 predates everything this toolchain supports. (2019 used to be
+            # the sentinel here, but the enum was widened to 2019-2026 after the
+            # old 2023-2026 range excluded the 2021 actually installed on the
+            # recording machine and forced specs to claim a release they had not.)
+            "meta": {"abaqus_release": "2015", "model_name": "Test"},  # not in enum
             "geometry": {"type": "cantilever_block"},
             "material": {"name": "S", "E": 210000, "nu": 0.3},
             "analysis": {"solver": "standard", "step_type": "Static"},

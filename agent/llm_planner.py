@@ -15,10 +15,62 @@ from pathlib import Path
 
 import yaml
 
+from tools.abaqus_cmd import detect_abaqus_release
 from tools.errors import AbaqusAgentError, ErrorCode
 from tools.schema_validator import validate_spec
 
 PROMPT_DIR = Path(__file__).parent.parent / "prompts"
+
+
+def _relative_file_args(node) -> bool:
+    """True if any ``{file:}`` in the spec is a path nothing here can resolve.
+
+    `{file:}` is resolved against the directory the spec FILE lives in, and this
+    spec has never been written to one. An absolute path still resolves, so only
+    the relative ones are undecidable.
+    """
+    if isinstance(node, dict):
+        raw = node.get("file")
+        if isinstance(raw, str) and raw.strip() and not Path(raw).is_absolute():
+            return True
+        return any(_relative_file_args(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_relative_file_args(v) for v in node)
+    return False
+
+
+def _dry_build_notes(spec: dict) -> list[str]:
+    """Compile the spec the model wrote, and refuse here if it will not build.
+
+    Schema validation is the weaker of the two checks and it is the only one
+    that used to run. Everything the builder learned to refuse across #45-#71 --
+    a partition whose section assignment is overwritten, an import that states
+    no count, a seam nothing checks, a step chain that runs backwards -- passes
+    the schema. Caught here, the model's mistake is reported in the builder's
+    own words, which name the spec key; caught later it is a traceback from a
+    CAE kernel, after a licence has been taken.
+
+    Returns notes for the caller's `missing_questions`, and raises when the spec
+    is one the builder will not compile.
+    """
+    from runner.build_model import _is_v2
+
+    if not _is_v2(spec):
+        return []
+    if _relative_file_args(spec):
+        return ["这份 spec 用了相对路径的 {file:}，它是相对 spec 文件所在目录解析的，"
+                "而这份 spec 还没落盘——所以这里没有替你试建模型脚本。"
+                "存盘后再跑一次校验，或者把路径写成绝对路径。"]
+
+    from runner.build_v2 import SpecError, generate_script
+    try:
+        generate_script(spec)
+    except SpecError as e:
+        raise AbaqusAgentError(
+            ErrorCode.SPEC_INVALID,
+            f"Generated spec passed the schema and the model builder refused "
+            f"it: {e}")
+    return []
 
 
 class LLMPlanner:
@@ -49,13 +101,25 @@ class LLMPlanner:
         -------
         (spec: dict, missing_questions: list[str])
         """
-        prompt = self.prompt_template.replace("{USER_TEXT}", user_text)
-
         if self.backend == "template":
             return self._template_fallback(user_text)
+        return self.parse(self.call(user_text))
 
-        raw_yaml = self._call_llm(prompt)
+    def call(self, user_text: str) -> str:
+        """Render the prompt, ask the backend, return its raw text.
 
+        Split out from `generate` so a caller can tell the two kinds of failure
+        apart. Everything that can go wrong HERE went wrong before the model
+        said anything -- no key, package not installed, the API refused -- and
+        falling back to a template is a reasonable answer to that. Everything
+        that goes wrong in `parse` went wrong AFTER it answered, and there
+        substituting a template silently answers a different question than the
+        one that was asked (core/spec_generator.py).
+        """
+        return self._call_llm(self.prompt_template.replace("{USER_TEXT}", user_text))
+
+    def parse(self, raw_yaml: str) -> tuple[dict, list[str]]:
+        """Load, validate and dry-build what the model returned."""
         try:
             spec = yaml.safe_load(raw_yaml)
         except yaml.YAMLError as e:
@@ -71,7 +135,8 @@ class LLMPlanner:
                 f"Generated spec failed validation: {errors}",
             )
 
-        missing = spec.get("meta", {}).get("missing_questions", [])
+        missing = list(spec.get("meta", {}).get("missing_questions", []) or [])
+        missing.extend(_dry_build_notes(spec))
         return spec, missing
 
     def _call_llm(self, prompt: str) -> str:
@@ -118,7 +183,7 @@ class LLMPlanner:
         """Return a default cantilever spec with missing questions."""
         spec = {
             "meta": {
-                "abaqus_release": "2024",
+                "abaqus_release": detect_abaqus_release() or "unknown",
                 "model_name": "DefaultModel",
                 "units": "mm_MPa_t",
                 "description": user_text[:100],

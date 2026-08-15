@@ -1,0 +1,68 @@
+name: False refusal
+description: It refused a spec that was correct
+labels: ["false-refusal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project refuses on purpose. A capability ships as "supported" only
+        when a real solver run proves it, and anything unproven is refused by
+        name rather than attempted — because in this domain a confident wrong
+        number is worse than an error.
+
+        The cost of that bias is this issue type: sometimes it refuses
+        something that was correct. That is a bug of the same severity as a
+        wrong answer, and it is the one we cannot find by testing our own
+        specs, because we write the specs we already know work.
+
+        If you hit one, this is the most useful report you can send.
+  - type: textarea
+    id: message
+    attributes:
+      label: The refusal, copied verbatim
+      description: >
+        Every refusal names the spec field responsible and, where there is one,
+        the way out. Paste the whole message — the marker at the front
+        (`SELECTOR_`, `EXPECT_`, `ASSEMBLY_`, `SPEC_INVALID` …) tells us which
+        layer produced it.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: The spec, or the smallest part of it that still gets refused
+      description: >
+        Cut it down if you can, but do not hand-simplify it into something that
+        stops reproducing. If the geometry is confidential, replace the numbers
+        rather than the structure.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened instead, and how you know
+      description: >
+        A hand calculation, a CAE session that does the same thing, a manual
+        page — anything that distinguishes "this is legal and we got it wrong"
+        from "this is not legal and the message was unclear". Both are worth
+        reporting; they get fixed differently.
+    validations:
+      required: true
+  - type: input
+    id: release
+    attributes:
+      label: Abaqus release (or CalculiX version)
+      placeholder: "2021"
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: selectors.log from the run directory, if you have it
+      description: >
+        Optional, and the single most useful attachment when it exists: every
+        check logs before it raises, so the lines before the refusal say what
+        the build had already agreed with.
+      render: text

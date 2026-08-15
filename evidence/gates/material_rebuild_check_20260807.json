@@ -1,0 +1,65 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 4.1,
+  "source": "material_rebuild_check_20260807",
+  "items": [
+    {
+      "id": "declared_material_is_built",
+      "status": "pass",
+      "note": "Steel -> {'density': True, 'hyperelastic': False, 'elastic': True, 'plastic': True}",
+      "readback": {
+        "density": true,
+        "hyperelastic": false,
+        "elastic": true,
+        "plastic": true
+      }
+    },
+    {
+      "id": "rebuilding_erases_it_silently",
+      "status": "pass",
+      "note": "after a second Material(name='Steel'): {'density': False, 'hyperelastic': False, 'elastic': False, 'plastic': False} -- and the kernel raised nothing, so a spec declaring E, yield and density would build a model with none of them",
+      "readback": {
+        "density": false,
+        "hyperelastic": false,
+        "elastic": false,
+        "plastic": false
+      }
+    },
+    {
+      "id": "the_rebuild_is_refused_at_generation",
+      "status": "pass",
+      "note": "refused, and the message names the route out: ..., give it a name of its own.\n  → Suggestion: Validate spec against schema/spec_schema.json",
+      "refusal": "[SPEC_INVALID] model_setup 1: `call: Material` with name 'Steel' rebuilds a material this spec already declared, which ERASES it. Measured on Abaqus 2021: a second Material() under the same name leaves elastic, plastic and density all absent, and raises nothing -- so the E, the yield and the density in this spec would be silently gone from the model it builds. To add a constitutive model the material keys cannot express (Hyperelastic, an anisotropic LAMINA elastic, a multi-point hardening curve, a temperature-dependent property), call INTO the existing material instead: `target: {ref: Steel}`. That was measured to keep what was already there. If a genuinely separate material is meant, give it a name of its own.\n  → Suggestion: Validate spec against schema/spec_schema.json"
+    },
+    {
+      "id": "calling_into_the_material_keeps_what_was_there",
+      "status": "pass",
+      "note": "target: {ref: Steel} compiles to m.materials['Steel'] and the model comes back {'density': True, 'hyperelastic': True, 'elastic': True, 'plastic': True} -- Hyperelastic added, and the spec's own properties still there",
+      "readback": {
+        "density": true,
+        "hyperelastic": true,
+        "elastic": true,
+        "plastic": true
+      }
+    },
+    {
+      "id": "an_undeclared_name_is_refused_with_the_list",
+      "status": "pass",
+      "note": "refused, and the message says what IS reachable",
+      "refusal": "[SPEC_INVALID] model_setup 1: `target: {ref: 'Ghost'}` names nothing an earlier call bound. Bound so far: nothing; declared materials: Steel\n  → Suggestion: Validate spec against schema/spec_schema.json"
+    },
+    {
+      "id": "an_unmeasured_route_is_caught_at_runtime",
+      "status": "pass",
+      "note": "a call the refusal has never heard of erased Steel; the build stopped before any deck was written, naming what was lost -- ValueError: MATERIAL_ERASED: Steel lost elastic, density, plastic after model_setup ran, so the spec declares properties the model does not have. Measured on Abaqus 2021, a second Material() under an ",
+      "deck_written": false
+    }
+  ],
+  "counts": {
+    "total": 6,
+    "pass": 6,
+    "fail": 0,
+    "skipped": 0
+  }
+}

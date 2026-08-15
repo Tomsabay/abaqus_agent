@@ -46,12 +46,28 @@ def validate_spec(spec: dict | str | Path) -> tuple[bool, list[str]]:
 
 
 def _manual_validate(spec: dict) -> tuple[bool, list[str]]:
-    """Minimal validation without jsonschema dependency."""
+    """Minimal validation without jsonschema dependency.
+
+    Mirrors the dialect split in the schema's top-level ``allOf``. Without that
+    mirroring this fallback rejects every v2 spec for "missing geometry" on a
+    machine where jsonschema happens not to be installed — a validator that
+    disagrees with its own schema is worse than no validator, because the
+    disagreement only shows up on someone else's machine.
+    """
     errors = []
-    required_top = ["meta", "geometry", "material", "analysis", "bc_load", "outputs"]
+    is_v2 = "parts" in spec
+    required_top = (["meta", "material", "outputs"]
+                    + (["assembly", "steps"] if is_v2
+                       else ["geometry", "analysis", "bc_load"]))
     for key in required_top:
         if key not in spec:
             errors.append(f"Missing required field: '{key}'")
+    if is_v2:
+        for key in ("geometry", "bc_load"):
+            if key in spec:
+                errors.append(
+                    f"'{key}' belongs to the v1 dialect and cannot be combined "
+                    f"with 'parts'")
 
     meta = spec.get("meta", {})
     if "abaqus_release" not in meta:
@@ -64,10 +80,11 @@ def _manual_validate(spec: dict) -> tuple[bool, list[str]]:
         if f not in mat:
             errors.append(f"material.{f} is required")
 
-    ana = spec.get("analysis", {})
-    for f in ["solver", "step_type"]:
-        if f not in ana:
-            errors.append(f"analysis.{f} is required")
+    if not is_v2:
+        ana = spec.get("analysis", {})
+        for f in ["solver", "step_type"]:
+            if f not in ana:
+                errors.append(f"analysis.{f} is required")
 
     out = spec.get("outputs", {})
     if "kpis" not in out or not out["kpis"]:

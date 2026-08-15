@@ -1,0 +1,69 @@
+{
+  "schema": "abaqus_agent.material_card/1",
+  "name": "Concrete-EN-C35_45",
+  "upstream_name": "Concrete-EN-C35/45",
+  "category": "Aggregate",
+  "description": "Concrete matrix for reinforcement material examples, 0.6 x 0.75 x 35 MPa = 15.75 MPa (https://forum.freecad.org/viewtopic.php?f=18&t=33106&start=200#p311075)",
+  "license": "CC-BY-3.0",
+  "source": {
+    "project": "FreeCAD",
+    "name": "Concrete-EN-C35_45",
+    "category": "Aggregate",
+    "path": "src/Mod/Material/Resources/Materials/Standard/Aggregate/Concrete-EN-C35_45.FCMat",
+    "commit": "c54df69e0b699e37fb67d116ef2d6ded8ebdc64e",
+    "url": "https://github.com/FreeCAD/FreeCAD/blob/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Aggregate/Concrete-EN-C35_45.FCMat",
+    "raw_url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD/c54df69e0b699e37fb67d116ef2d6ded8ebdc64e/src/Mod/Material/Resources/Materials/Standard/Aggregate/Concrete-EN-C35_45.FCMat",
+    "retrieved": "2026-08-06",
+    "author": "Bernd Hahnebach",
+    "uuid": "dba76940-a910-4a3b-ab73-a9f412ac69d9"
+  },
+  "properties": {
+    "E": {
+      "fcmat_key": "YoungsModulus",
+      "raw": "32000 MPa",
+      "raw_unit": "MPa",
+      "parsed_unit": "MPa",
+      "dimension": "stress",
+      "si": 32000000000.0,
+      "si_unit": "Pa",
+      "mm_MPa_t": 32000.0,
+      "mm_MPa_t_unit": "MPa"
+    },
+    "nu": {
+      "fcmat_key": "PoissonRatio",
+      "raw": "0.17",
+      "raw_unit": "",
+      "parsed_unit": "",
+      "dimension": "dimensionless",
+      "si": 0.17,
+      "si_unit": "-",
+      "mm_MPa_t": 0.17,
+      "mm_MPa_t_unit": "-"
+    },
+    "density": {
+      "fcmat_key": "Density",
+      "raw": "2500 kg/m^3",
+      "raw_unit": "kg/m^3",
+      "parsed_unit": "kg/m^3",
+      "dimension": "density",
+      "si": 2500.0,
+      "si_unit": "kg/m^3",
+      "mm_MPa_t": 2.5e-09,
+      "mm_MPa_t_unit": "t/mm^3"
+    }
+  },
+  "plasticity": null,
+  "unmapped": [
+    {
+      "fcmat_key": "AngleOfFriction",
+      "raw": "30 deg",
+      "reason": "内摩擦角属于 Mohr-Coulomb 一类本构，本 dialect 不生成这种材料卡。"
+    },
+    {
+      "fcmat_key": "CompressiveStrength",
+      "raw": "15.75 MPa",
+      "reason": "抗压强度同样是失效判据，spec 的 material 块没有对应键。"
+    }
+  ],
+  "notes": []
+}

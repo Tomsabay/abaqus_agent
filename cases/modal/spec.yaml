@@ -1,5 +1,5 @@
 meta:
-  abaqus_release: "2024"
+  abaqus_release: "2021"
   model_name: "ModalBeam"
   units: "mm_MPa_t"
   description: "Cantilever modal analysis of a 3D beam (fixed at z=0), first 6 natural frequencies"

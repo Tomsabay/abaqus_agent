@@ -112,18 +112,13 @@ class MockMCPConnection:
                 "cases": ["cantilever", "plate_hole"],
                 "dry_run": arguments.get("dry_run", True),
             }
-        elif tool_name == "get_premium_features":
+        elif tool_name == "get_features":
             return {
                 "features": {
-                    "coupled_analysis": {"display_name": "Multi-physics Coupling", "enabled": False},
+                    "coupling": {"display_name": "Multi-Physics Coupling"},
                 },
                 "capabilities": {},
             }
-        elif tool_name == "activate_premium":
-            key = arguments.get("license_key", "")
-            if key.startswith("dev-"):
-                return {"valid": True, "features": ["coupled_analysis"]}
-            return {"valid": False, "error": "Invalid key"}
         return {}
 
     async def read_resource(self, uri: str) -> dict:
@@ -135,7 +130,7 @@ class MockMCPConnection:
                 ],
                 "total": 2,
             }
-        elif uri == "premium://features":
+        elif uri == "features://capabilities":
             return {"features": {}, "capabilities": {}}
         return {}
 
@@ -391,26 +386,13 @@ class TestBridgeEndpoints:
         assert data["dry_run"] is True
         assert "run_id" in data
 
-    def test_get_premium_features(self, mock_bridge):
+    def test_get_features(self, mock_bridge):
         client = self._client(mock_bridge)
-        res = client.get("/mcp/api/premium/features")
+        res = client.get("/mcp/api/features")
         assert res.status_code == 200
         data = res.json()
         assert "features" in data
-
-    def test_activate_premium_valid(self, mock_bridge):
-        client = self._client(mock_bridge)
-        res = client.post("/mcp/api/premium/activate?license_key=dev-test")
-        assert res.status_code == 200
-        data = res.json()
-        assert data["valid"] is True
-
-    def test_activate_premium_invalid(self, mock_bridge):
-        client = self._client(mock_bridge)
-        res = client.post("/mcp/api/premium/activate?license_key=bad-key")
-        assert res.status_code == 200
-        data = res.json()
-        assert data["valid"] is False
+        assert "enabled" not in json.dumps(data)
 
 
 class TestBridgeSSEStream:
@@ -445,7 +427,10 @@ class TestBridgeRequestModels:
     def test_generate_spec_request_defaults(self):
         from mcp_bridge import GenerateSpecRequest
         req = GenerateSpecRequest(text="test")
-        assert req.abaqus_release == "2024"
+        # Empty, not a year: a literal default silently stamped a release the
+        # machine may not have onto every generated spec. Callers that say
+        # nothing get the probed release instead.
+        assert req.abaqus_release == ""
         assert req.llm_backend == "template"
         assert req.anthropic_key == ""
         assert req.openai_key == ""

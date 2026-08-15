@@ -12,7 +12,7 @@ def test_syntaxcheck_builds_command_writes_log_and_parses_warnings(tmp_path, mon
     workdir = tmp_path / "work"
     calls = []
 
-    def fake_run(cmd, cwd, capture_output, text, timeout):
+    def fake_run(cmd, cwd, capture_output, text, timeout, **kwargs):
         calls.append(
             {
                 "cmd": cmd,
@@ -60,7 +60,7 @@ def test_syntaxcheck_reports_dat_errors_even_with_zero_returncode(tmp_path, monk
     inp_path = tmp_path / "bad.inp"
     inp_path.write_text("*Heading\n", encoding="utf-8")
 
-    def fake_run(cmd, cwd, capture_output, text, timeout):
+    def fake_run(cmd, cwd, capture_output, text, timeout, **kwargs):
         workdir = tmp_path / "work"
         (workdir / "bad_syntaxcheck.dat").write_text(
             "***ERROR: UNKNOWN KEYWORD\n",
@@ -82,7 +82,7 @@ def test_syntaxcheck_missing_abaqus_raises_structured_error(tmp_path, monkeypatc
     inp_path = tmp_path / "model.inp"
     inp_path.write_text("*Heading\n", encoding="utf-8")
 
-    def fake_run(cmd, cwd, capture_output, text, timeout):
+    def fake_run(cmd, cwd, capture_output, text, timeout, **kwargs):
         raise FileNotFoundError("abaqus")
 
     monkeypatch.setattr(syntaxcheck_module.subprocess, "run", fake_run)

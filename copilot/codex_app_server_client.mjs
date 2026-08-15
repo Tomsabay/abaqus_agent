@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import process from 'node:process';
 
@@ -41,9 +43,28 @@ function sanitizeEnv(sourceEnv) {
   return env;
 }
 
+function resolveCodexSpawn() {
+  // Windows spawn() does not consult PATHEXT (ENOENT for the npm "codex" .cmd
+  // shim) and Node >=18.20 refuses to spawn .cmd files without shell:true
+  // (EINVAL, CVE-2024-27980). Bypass the shim: run codex.js with this node.
+  if (process.platform !== 'win32') return { command: 'codex', prefixArgs: [] };
+  for (const dir of (process.env.PATH || '').split(';')) {
+    if (!dir) continue;
+    const shimTarget = join(dir, 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
+    if (existsSync(shimTarget)) {
+      return { command: process.execPath, prefixArgs: [shimTarget] };
+    }
+    if (existsSync(join(dir, 'codex.exe'))) {
+      return { command: join(dir, 'codex.exe'), prefixArgs: [] };
+    }
+  }
+  return { command: 'codex', prefixArgs: [] };
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const proc = spawn('codex', ['app-server', '--stdio'], {
+  const codex = resolveCodexSpawn();
+  const proc = spawn(codex.command, [...codex.prefixArgs, 'app-server', '--stdio'], {
     cwd: opts.cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
     env: sanitizeEnv(process.env),

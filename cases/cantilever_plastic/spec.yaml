@@ -1,0 +1,41 @@
+meta:
+  abaqus_release: "2021"
+  model_name: "CantileverPlastic"
+  units: "mm_MPa_t"
+  description: "Elastic-perfectly-plastic cantilever driven past its plastic limit load (BUILD_SPEC W15, lesson 4.4 non-convergence case)"
+
+geometry:
+  type: cantilever_block
+  L: 100.0   # mm
+  W: 10.0
+  H: 10.0
+  seed_size: 5.0
+
+material:
+  name: Steel
+  E: 210000.0   # MPa
+  nu: 0.3
+  yield: 235.0      # MPa
+  hardening: 0.0    # elastic-perfectly-plastic on purpose: no hardening to arrest the collapse
+
+analysis:
+  solver: standard
+  step_type: Static
+  cpus: 1
+
+bc_load:
+  fixed_face: "z=0"
+  load_face:  "z=L"
+  load_type:  concentrated_force
+  value: -5000.0   # N downward at the tip centre node; ~8.5x the 587.5 N plastic limit load
+  direction: 2
+
+outputs:
+  kpis:
+    - name: U_tip
+      type: nodal_displacement
+      location: tip_center
+      component: U2
+    - name: MISES_MAX
+      type: field_max
+      location: whole_model

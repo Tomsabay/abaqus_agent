@@ -49,7 +49,8 @@ def upgrade_odb_if_needed(
     ]
 
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=300)
     except FileNotFoundError:
         return {"upgrade_required": None, "upgraded": False,
                 "original_path": str(odb_path), "output_path": str(odb_path),

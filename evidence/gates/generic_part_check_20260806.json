@@ -1,0 +1,121 @@
+{
+  "schema": "generic_part_check/1",
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "source": "generic_part_check_20260806",
+  "items": [
+    {
+      "id": "generic_flange_volume",
+      "status": "pass",
+      "identity": "pi*(30^2-4^2)*10 + pi*(10^2-4^2)*15",
+      "note": "seven Line calls and one BaseSolidRevolve, dispatched by name. No branch anywhere in this repo knows what a flange is.",
+      "theory_volume": 31730.085801256915,
+      "measured_volume": 31730.0714107,
+      "relative_deviation": 4.53530349925923e-07,
+      "seconds": 1.2
+    },
+    {
+      "id": "generic_fillet_uses_the_tuple_shim",
+      "status": "pass",
+      "identity": "dV = 2*pi*r^3*(5/3 - pi/2), Pappus on the two slivers",
+      "note": "the corner radius cancels because one filleted edge is concave and the other convex, so this number is not fitted to anything.",
+      "theory_volume": 31734.904770143927,
+      "measured_volume": 31734.903408,
+      "relative_deviation": 4.292257809764835e-08,
+      "seconds": 1.3
+    },
+    {
+      "id": "generic_cut_through_a_datum_plane",
+      "status": "pass",
+      "identity": "two through holes remove 2*pi*r^2*t",
+      "note": "the top of this flange is an annulus, so every edge on it is a circle and there is nothing straight to orient a sketch against. The named cut_extrude refuses this part outright; a datum plane needs no edge at all.",
+      "theory_volume": 31164.59912361075,
+      "measured_volume": 31164.6037857,
+      "relative_deviation": 1.4959567525362133e-07,
+      "seconds": 1.3
+    },
+    {
+      "id": "generic_refuses_an_unknown_method",
+      "status": "pass",
+      "mutation": "BaseSolidRevolve -> BaseSolidRevolv",
+      "aborted": true,
+      "seconds": 1.0
+    },
+    {
+      "id": "generic_refuses_an_unknown_keyword",
+      "status": "pass",
+      "mutation": "angle= -> angel=",
+      "aborted": true,
+      "seconds": 1.0
+    },
+    {
+      "id": "generic_refuses_a_wrong_volume",
+      "status": "pass",
+      "mutation": "expect.volume x 1.1",
+      "aborted": true,
+      "seconds": 1.1
+    },
+    {
+      "id": "generic_refuses_a_cut_that_missed",
+      "status": "pass",
+      "mutation": "bolt circle radius 20 -> 50, past the 30 mm flange",
+      "note": "measured directly: with the holes off the solid Abaqus returns 0, raises nothing, and leaves the volume byte-identical to the un-drilled part.",
+      "aborted": true,
+      "seconds": 1.1
+    },
+    {
+      "id": "generic_refuses_a_transposed_cut",
+      "status": "pass",
+      "mutation": "sketchUpEdge axis XAXIS -> ZAXIS",
+      "note": "the holes move 90 degrees around the axis and the volume changes by 1.5e-7 relative, which is faceting. Faces, edges, vertices and cylindrical_faces are all identical. On a symmetric part no global measure can tell the two models apart.",
+      "blind_volume": 31164.6012984,
+      "correct_volume": 31164.59912361075,
+      "cylinders_aborted": true,
+      "volume_and_counts_passed": true,
+      "seconds": 2.4
+    },
+    {
+      "id": "generic_matches_the_named_op",
+      "status": "pass",
+      "identity": "60 x 100 x 5 = 30000.0 either way",
+      "note": "four Line calls and a BaseSolidExtrude against rect + extrude. The named ops stay because they are shorter, not because they can do anything the generic path cannot.",
+      "generic_volume": 30000.0,
+      "named_volume": 30000.0,
+      "seconds": 2.9
+    },
+    {
+      "id": "generic_part_solves_end_to_end",
+      "status": "pass",
+      "identity": "sum(RF2) at the clamp = -pressure * area",
+      "relative_deviation": 0.0,
+      "applied_n": 600.0,
+      "measured_n": 600.0,
+      "seconds": 29.6
+    },
+    {
+      "id": "generic_big_bore_survives_its_own_instrument",
+      "status": "pass",
+      "identity": "a through bore's cylindrical face is centred on the sketch circle at mid-depth, exactly",
+      "note": "the offset here is the instrument's, not the geometry's: the same probe measured zero error at r = 4, 12, 50 and 100 in this same plate, so the error is a property of how Abaqus tessellates a large face and not of the cut.",
+      "seconds": 3.2,
+      "bore_radius": 300.0,
+      "stated_centroid": [
+        380.0,
+        470.0,
+        30.0
+      ],
+      "measured_offset": 0.070931,
+      "old_flat_default": 0.05,
+      "new_default": 0.6,
+      "correct_position_accepted": true,
+      "old_default_refused_it": true,
+      "moved_bore_still_refused": true
+    }
+  ],
+  "counts": {
+    "total": 11,
+    "pass": 11,
+    "fail": 0,
+    "skipped": 0
+  }
+}

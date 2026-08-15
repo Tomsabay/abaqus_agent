@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import mimetypes
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,39 @@ from typing import Any
 from .templates import render_run_report_html, render_run_report_markdown
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+# BUILD_SPEC W20 criterion 7, route 乙 (declared degradation): the packaged bundle
+# excludes Playwright/Chromium on purpose (packaging/abaqus_agent.spec), so the PDF
+# entry is disabled there instead of failing halfway through a render. This single
+# constant is both the UI's disabled-entry text and the exception message, so the
+# two cannot drift apart.
+PDF_FROZEN_NOTICE = "打包版不含 PDF 导出，请用 Word 另存为 PDF"
+PDF_ALTERNATIVE_HINT = (
+    "计算书请用 reporting/build_docx_report.py 生成 .docx 后在 Word 里「另存为 PDF」；"
+    "开发环境（非打包版）安装 abaqus-agent[pdf] 后仍可直接导出 PDF。"
+)
+
+
+def is_frozen_bundle() -> bool:
+    """True inside a PyInstaller bundle (dist\\AbaqusAgent-portable backend exe)."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def pdf_export_capability() -> dict[str, Any]:
+    """UI contract for the PDF entry: enabled, or disabled with the exact text.
+
+    A UI must render ``notice`` verbatim on the greyed-out entry; the same string
+    is what ``render_html_to_pdf`` raises in a frozen bundle.
+    """
+    frozen = is_frozen_bundle()
+    return {
+        "available": not frozen,
+        "disabled": frozen,
+        "notice": PDF_FROZEN_NOTICE if frozen else "",
+        "hint": PDF_ALTERNATIVE_HINT if frozen else "",
+        "reason": "frozen_bundle_excludes_chromium" if frozen else "",
+        "formats_available": ["md", "html", "zip"] if frozen else ["md", "html", "pdf", "zip"],
+    }
 
 
 def build_offline_run_report(
@@ -35,11 +69,16 @@ def build_offline_run_report(
             "status": run.get("status"),
             "model_name": _model_name(run, capsule),
             "abaqus_release": _abaqus_release(run, capsule),
+            **_solver_provenance(run, capsule),
             "capsule_path": run.get("capsule_path"),
             "result_path": run.get("result_path"),
             "workdir": run.get("workdir"),
         },
+        "demo_mode": bool(run.get("demo_mode")),
+        "kpi_notice": run.get("kpi_notice") or "",
         "kpis": run.get("kpis", {}),
+        "kpis_missing": run.get("kpis_missing", []),
+        "limitations": run.get("limitations", []),
         "regression": run.get("regression", {}),
         "contracts": run.get("contracts", {}),
         "diagnosis": run.get("diagnosis", {}),
@@ -141,6 +180,8 @@ def export_offline_run_report(
 
 def render_html_to_pdf(html: str) -> bytes:
     """Render standalone report HTML to PDF using optional Playwright."""
+    if is_frozen_bundle():
+        raise RuntimeError(PDF_FROZEN_NOTICE)
     try:
         from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright
@@ -191,8 +232,12 @@ def load_offline_run(source: str | Path) -> dict[str, Any]:
     return {
         "run_id": run_id,
         "status": result.get("status") or provenance.get("status") or "-",
+        "demo_mode": bool(result.get("demo_mode")),
+        "kpi_notice": result.get("kpi_notice") or "",
         "spec": result.get("spec", {}),
         "kpis": result.get("kpis", {}),
+        "kpis_missing": result.get("kpis_missing", []),
+        "limitations": result.get("limitations", []),
         "regression": result.get("regression", {}),
         "contracts": result.get("contracts") or capsule.get("contracts", {}),
         "diagnosis": result.get("diagnosis", {}),
@@ -232,9 +277,38 @@ def _model_name(run: dict[str, Any], capsule: dict[str, Any]) -> str:
     )
 
 
-def _abaqus_release(run: dict[str, Any], capsule: dict[str, Any]) -> str:
-    spec = run.get("spec", {})
+def _solver_provenance(run: dict[str, Any], capsule: dict[str, Any]) -> dict[str, Any]:
+    """Which solver actually produced this run, straight from the capsule.
+
+    The report template already refuses to print an Abaqus release for a
+    CalculiX run (reporting/templates.py:_solver_metric_value) — but this
+    builder never handed it the backend, so the else-branch won: a CalculiX
+    run's archived cover page read "Abaqus: 2021", taken from the spec's
+    metadata field. An archived report that names the wrong solver is a false
+    claim about how a number was obtained, which is the one thing these
+    reports exist to get right.
+    """
     provenance = capsule.get("provenance", {}) if isinstance(capsule, dict) else {}
+    backend = provenance.get("solver_backend")
+    if not backend:
+        # A run archived before the backend was recorded: say nothing rather
+        # than assume Abaqus.
+        return {"solver_backend": None, "solver_label": None}
+    if backend == "calculix":
+        release = provenance.get("solver_release")
+        return {
+            "solver_backend": backend,
+            "solver_label": "CalculiX %s" % release if release else "CalculiX",
+        }
+    return {"solver_backend": backend, "solver_label": provenance.get("solver_label")}
+
+
+def _abaqus_release(run: dict[str, Any], capsule: dict[str, Any]) -> str:
+    provenance = capsule.get("provenance", {}) if isinstance(capsule, dict) else {}
+    if provenance.get("solver_backend") == "calculix":
+        # Not "unknown" — this run had no Abaqus release, by construction.
+        return "-"
+    spec = run.get("spec", {})
     return (
         spec.get("meta", {}).get("abaqus_release")
         or provenance.get("abaqus_release")

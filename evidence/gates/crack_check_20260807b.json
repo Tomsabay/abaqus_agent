@@ -1,0 +1,92 @@
+{
+  "abaqus_release": "2021",
+  "overall": "pass",
+  "seconds": 152.7,
+  "source": "crack_check_20260807b",
+  "items": [
+    {
+      "id": "decks_written",
+      "status": "pass",
+      "note": "three decks: v_baseline, v_noseam, v_backwards_q"
+    },
+    {
+      "id": "deck_carries_the_contour_card",
+      "status": "pass",
+      "note": "`*Contour Integral` present in v_baseline.inp"
+    },
+    {
+      "id": "j_read_back",
+      "status": "pass",
+      "note": "read J from 3 odb(s)"
+    },
+    {
+      "id": "baseline_matches_the_handbook",
+      "status": "pass",
+      "note": "J = 2.5033 vs handbook 2.5576 (-2.12%), contours 2.4685 2.5013 2.5032 2.5033 2.5033 2.5033",
+      "measured_j": 2.503265619277954,
+      "handbook_j": 2.557608007347708,
+      "error_fraction": -0.02124734826980306
+    },
+    {
+      "id": "baseline_is_path_independent",
+      "status": "pass",
+      "note": "contours 2..6 spread 7.74e-04 of their mean",
+      "spread": 0.0007739750660193587
+    },
+    {
+      "id": "extractor_returns_the_outermost_contour",
+      "status": "pass",
+      "note": "contour_integral_j -> 2.503266, the outermost contour"
+    },
+    {
+      "id": "unseparated_crack_is_nothing_and_refused",
+      "status": "pass",
+      "note": "J = -1.4e-16 -3.8e-16 -2.1e-15 -1.6e-15 -4.2e-15 -1.3e-14 -- round-off, not a crack. Job COMPLETED with no warning; extractor refuses and names the missing SEAM rather than the sign, though every value is negative",
+      "contours": [
+        -1.3530843112619095e-16,
+        -3.8337388819087437e-16,
+        -2.105954299835844e-15,
+        -1.56472057533108e-15,
+        -4.165071065820314e-15,
+        -1.3298390166838203e-14
+      ]
+    },
+    {
+      "id": "reversed_q_is_negative_and_refused",
+      "status": "pass",
+      "note": "J = -2.5033 (right magnitude, wrong sign), job COMPLETED with no warning; extractor refuses on the sign",
+      "contours": [
+        -2.4684836864471436,
+        -2.501328468322754,
+        -2.503185272216797,
+        -2.503253698348999,
+        -2.503265142440796,
+        -2.503265619277954
+      ]
+    },
+    {
+      "id": "path_independence_alone_would_have_passed_it",
+      "status": "pass",
+      "note": "the reversed-q run is as path-independent as the correct one (7.74e-04 vs 7.74e-04), so convergence cannot distinguish them -- the sign is the only tell"
+    },
+    {
+      "id": "spec_authored_j_matches_the_scripted_baseline",
+      "status": "pass",
+      "note": "the v2 dialect authored the same rig and got J = 2.503265619277954 against this gate's own CAE script at 2.503265619277954 (status COMPLETED). Same model, not a similar one -- the comparison is against the scripted baseline rather than the handbook, because the handbook would not notice a model that was merely close.",
+      "measured_j": 2.503265619277954,
+      "reference_j": 2.503265619277954
+    },
+    {
+      "id": "spec_authored_without_a_seam_is_still_refused",
+      "status": "pass",
+      "note": "seam removed: job COMPLETED, J_TIP not delivered, extractor said \"J_TIP: contour integral 'JOUT_CRACK_TIP' came back at -1.21e-16, -1.09e-16, -5.29e-16, 7.98e-17, -1.3e-15, 1.06e-15 on all 6 contours, which is nothing (below 1e-12). Measured on Abaqus 2021: that is \"",
+      "readback": "J_TIP: contour integral 'JOUT_CRACK_TIP' came back at -1.21e-16, -1.09e-16, -5.29e-16, 7.98e-17, -1.3e-15, 1.06e-15 on all 6 contours, which is nothing (below 1e-12). Measured on Abaqus 2021: that is what a crack whose line was never SEPARATED gives -- the seam is missing, so the 'crack' runs throug"
+    }
+  ],
+  "counts": {
+    "total": 11,
+    "pass": 11,
+    "fail": 0,
+    "skipped": 0
+  }
+}

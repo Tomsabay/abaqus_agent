@@ -1,0 +1,2234 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="ds">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="page.title"></title>
+<!-- Tokens live in ONE file shared with the tools page (/). -->
+<link rel="stylesheet" href="/static/design-system.css">
+<!-- Engine before markup: register() below applies to an already-parsed body. -->
+<script src="/static/i18n.js"></script>
+<script>
+/* Stand-in, used only when the line above failed to load (missing file behind
+   a reverse proxy, a CSP that blocks it, a packaging slip). Without it the
+   page's own script block — ~4000 lines, all of it — dies on a ReferenceError
+   at its first statement, and an engineering tool becomes a static shell with
+   no working buttons. Serving the default language with no switch is a fair
+   degradation; that is not.
+   Deliberately minimal: registers, looks up, stamps the DOM once. No
+   persistence, no switching, no events. Exercised by
+   scripts/run_i18n_ui_check.py, which loads each page with this file blocked. */
+window.I18N = window.I18N || (function () {
+  var d = {}, LANG = 'zh';
+  function look(k) { return (d[LANG] && d[LANG][k]) || (d.zh && d.zh[k]) || k; }
+  function t(k, p) {
+    var s = look(k);
+    return p ? s.replace(/\{(\w+)\}/g, function (w, n) { return n in p ? p[n] : w; }) : s;
+  }
+  function apply(root) {
+    var scope = root || document;
+    if (!scope.querySelectorAll) return;
+    scope.querySelectorAll('[data-i18n]').forEach(function (el) {
+      if (el.__i18nWrote === undefined || el.textContent === el.__i18nWrote) {
+        el.textContent = el.__i18nWrote = t(el.getAttribute('data-i18n'));
+      }
+    });
+    scope.querySelectorAll('[data-i18n-attr]').forEach(function (el) {
+      el.getAttribute('data-i18n-attr').split(',').forEach(function (pair) {
+        var b = pair.split(':');
+        if (b.length === 2) el.setAttribute(b[0].trim(), t(b[1].trim()));
+      });
+    });
+  }
+  return {
+    lang: LANG, supported: [LANG], degraded: true,
+    // Merge per language, never replace -- same contract as the real engine.
+    // The page registers its catalogue, then loadBackendMessages() registers
+    // server-composed strings on top; an assignment here threw the catalogue
+    // away on that second call, so with i18n.js missing every label on the
+    // page read as its raw key.
+    register: function (c) {
+      Object.keys(c || {}).forEach(function (lang) {
+        var block = c[lang] || {}, into = d[lang] = d[lang] || {};
+        Object.keys(block).forEach(function (k) { into[k] = block[k]; });
+      });
+      apply();
+    },
+    t: t, apply: apply, reclaim: function (el) { if (el) delete el.__i18nWrote; },
+    setLang: function () {}, toggle: function () {}, onChange: function () {},
+    missingKeys: function () { return []; }, resetMissing: function () {}
+  };
+})();
+</script>
+<link rel="stylesheet" href="/static/workbench.css">
+<link rel="stylesheet" href="/static/workbench_chat.css">
+</head>
+<body>
+
+<header id="topbar">
+  <div class="brand"><em>ABQ</em>▸AGENT<span class="brand-sub">Workbench</span></div>
+  <select id="session-select" data-i18n-attr="title:top.session"></select>
+  <button id="btn-new-session">＋ <span data-i18n="top.newSession"></span></button>
+  <div class="topbar-spacer"></div>
+  <!-- Shows the language you would switch TO, not the one you are in — the
+       label has to be readable to someone who cannot read the current UI.
+       Same id, same .ds-lang-toggle primitive and same top-bar slot as the
+       tools page, so the control does not move or change shape between the
+       two pages. -->
+  <button class="ds-lang-toggle" id="btn-lang" data-i18n="lang.toggle"
+          data-i18n-attr="title:lang.toggle.hint,aria-label:lang.toggle.hint"></button>
+  <!-- The way back. These two pages used to have no link between them in
+       either direction. -->
+  <a class="topbar-link" href="/" data-i18n-attr="title:top.tools.hint"><span data-i18n="top.tools"></span> ↗</a>
+  <div class="led-group">
+    <div class="led" id="led-server"><i></i><span data-i18n="led.server"></span></div>
+    <div class="led" id="led-abaqus"><i></i>Abaqus</div>
+    <div class="led" id="led-claude"><i></i>Claude</div>
+  </div>
+</header>
+
+<div id="layout">
+
+  <aside id="left">
+    <div class="pane-title">
+      <span data-i18n="pane.model"></span>
+      <span style="display:flex;gap:5px;align-items:center">
+        <span class="tree-dialect" id="tree-dialect"></span>
+        <button id="tree-clear" style="display:none" data-i18n="tree.clear"
+                data-i18n-attr="title:tree.clear.hint"></button>
+      </span>
+    </div>
+    <div id="model-tree"></div>
+    <div class="pane-title" data-i18n="pane.runs"></div>
+    <div id="run-list"></div>
+  </aside>
+
+  <main id="center">
+    <div id="tabbar">
+      <div class="tab active" data-view="spec">spec.yaml</div>
+      <div class="tab" data-view="diff"><span data-i18n="tab.diff"></span><span class="badge"></span></div>
+      <div class="tab" data-view="results"><span data-i18n="tab.results"></span><span class="badge"></span></div>
+    </div>
+
+    <div id="workarea">
+      <div class="workview active" id="view-spec">
+        <!--
+          The model taking shape while it is still being written. Drawn in the
+          browser from the half-written spec, so the pane stops being empty for
+          the minutes the draft takes. Labelled as a sketch because that is what
+          it is: no CAE has seen it yet.
+        -->
+        <div id="live-geom-card" style="display:none">
+          <div class="vp-diff-head">
+            <span class="vp-title"><span class="vp-icon">◧</span><span data-i18n="live.title"></span></span>
+            <span class="live-tag" data-i18n="live.tag"></span>
+            <div class="vp-stats" id="live-geom-stats"></div>
+          </div>
+          <div id="live-geom-canvas"></div>
+        </div>
+        <!--
+          At rest this pane was a 1000px void of grid lines with one grey
+          sentence in the middle: the product looked unfinished before it had
+          done anything. An empty state is the first screen every new user
+          sees, so it now says what this thing does, what it will do to your
+          machine, and gives three one-click ways in.
+        -->
+        <div id="spec-empty" class="onboard">
+          <div class="onboard-inner">
+            <div class="onboard-rule"></div>
+            <h1 data-i18n="onboard.h1"></h1>
+            <p class="onboard-sub">
+              <span data-i18n="onboard.sub.a"></span><code>spec.yaml</code><span data-i18n="onboard.sub.b"></span>
+            </p>
+
+            <div class="onboard-steps">
+              <div class="onboard-step"><b>01</b><span data-i18n="onboard.step1"></span><em data-i18n="onboard.step1.where"></em></div>
+              <div class="onboard-step"><b>02</b><span data-i18n="onboard.step2"></span><em data-i18n="onboard.step2.where"></em></div>
+              <div class="onboard-step"><b>03</b><span data-i18n="onboard.step3"></span><em data-i18n="onboard.step3.where"></em></div>
+            </div>
+
+            <div class="onboard-label" data-i18n="onboard.label"></div>
+            <div class="onboard-cards" id="onboard-cards">
+              <button class="onboard-card" data-seed="" data-i18n-attr="data-seed:seed.cantilever">
+                <span class="oc-title" data-i18n="onboard.card1.title"></span>
+                <span class="oc-desc" data-i18n="onboard.card1.desc"></span>
+                <span class="oc-meta" data-i18n="onboard.card1.meta"></span>
+              </button>
+              <button class="onboard-card" data-seed="" data-i18n-attr="data-seed:seed.plateHole">
+                <span class="oc-title" data-i18n="onboard.card2.title"></span>
+                <span class="oc-desc" data-i18n="onboard.card2.desc"></span>
+                <span class="oc-meta">Kt ≈ 3</span>
+              </button>
+              <button class="onboard-card" data-seed="" data-i18n-attr="data-seed:seed.modal3">
+                <span class="oc-title" data-i18n="onboard.card3.title"></span>
+                <span class="oc-desc" data-i18n="onboard.card3.desc"></span>
+                <span class="oc-meta" data-i18n="onboard.card3.meta"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="spec-code" style="display:none"></div>
+      </div>
+
+      <div class="workview" id="view-diff">
+        <div id="diff-head" style="display:none">
+          <span class="note" id="diff-note"></span>
+          <button class="danger" id="btn-reject" data-i18n="diff.reject"></button>
+          <button class="primary" id="btn-accept"><span data-i18n="diff.accept"></span> ▶</button>
+        </div>
+        <div id="vp-diff-card" style="display:none">
+          <div class="vp-diff-head">
+            <span class="vp-title"><span class="vp-icon">◧</span><span data-i18n="vp.preview"></span></span>
+            <span class="vp-stage" data-i18n="vp.stage"></span>
+            <div class="vp-stats" id="vp-diff-stats"></div>
+            <button class="vp-btn" id="vp-pick-mode"
+                    data-i18n-attr="title:vp.pickMode.hint"></button>
+            <button class="vp-btn" id="vp-diff-reset" data-i18n="vp.reset"
+                    data-i18n-attr="title:vp.reset.hint"></button>
+          </div>
+          <div id="vp-diff-canvas"></div>
+          <div id="vp-slider-panel" style="display:none"></div>
+        </div>
+        <div id="diff-empty" class="placeholder">
+          <div class="glyph">±</div>
+          <div data-i18n="diff.empty"></div>
+        </div>
+        <div id="diff-body"></div>
+      </div>
+
+      <div class="workview" id="view-results">
+        <div id="results-empty" class="placeholder">
+          <div class="glyph">◈</div>
+          <div data-i18n="results.empty"></div>
+        </div>
+        <div id="results-inner" style="display:none"></div>
+      </div>
+    </div>
+
+    <div id="console" class="collapsed">
+      <div id="console-head">
+        <span class="ct" data-i18n="console.title"></span>
+        <div id="stage-chips"></div>
+        <span id="solve-elapsed"></span>
+      </div>
+      <div id="console-body"></div>
+    </div>
+  </main>
+
+  <aside id="right">
+    <div class="pane-title" data-i18n="pane.chat"></div>
+    <div id="chat-scroll"></div>
+    <div id="typing"><span data-i18n="chat.typing"></span><span class="dots"></span><span id="typing-elapsed"></span></div>
+    <div id="composer">
+      <div id="quick-row">
+        <!-- The chip label IS the seed prompt: the click handler copies
+             textContent into the composer. -->
+        <button class="quick" data-i18n="seed.cantilever"></button>
+        <button class="quick" data-i18n="seed.plateHole"></button>
+        <button class="quick" data-i18n="seed.modal2"></button>
+      </div>
+      <div id="chat-refs"></div>
+      <textarea id="chat-input" data-i18n-attr="placeholder:chat.placeholder"></textarea>
+      <div id="composer-foot">
+        <select id="backend-select">
+          <option value="auto" data-i18n="backend.auto"></option>
+          <option value="claude_cli" data-i18n="backend.claude"></option>
+          <option value="template" data-i18n="backend.template"></option>
+        </select>
+        <span class="hint" data-i18n="chat.hint"></span>
+        <button class="primary" id="btn-send" data-i18n="chat.send"></button>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<footer id="statusbar">
+  <span class="sb-item"><i class="sb-dot" id="sb-dot"></i><span id="sb-conn"></span></span>
+  <span class="sb-item"><span data-i18n="sb.solver"></span> <b id="sb-release">—</b></span>
+  <span class="sb-item" id="sb-run"></span>
+  <span class="sb-spacer"></span>
+  <span class="sb-item sb-dim" id="sb-session">—</span>
+  <span class="sb-item sb-dim" data-i18n="sb.sendHint"></span>
+</footer>
+
+<div id="toast-wrap"></div>
+
+<script src="/static/vendor/three.min.js"></script>
+<script src="/static/vendor/OrbitControls.js"></script>
+<script src="/static/workbench_viewport.js"></script>
+<!-- The catalogue, after the engine and before anything that calls t(). -->
+<script src="/static/workbench_i18n.js"></script>
+<script src="/static/workbench_livegeom.js"></script>
+<script src="/static/workbench_chat.js"></script>
+<script>
+'use strict';
+
+const t = (key, params) => I18N.t(key, params);
+
+/* A refusal comes off the API as a key plus parameters, not as finished prose,
+   because it is written into result.json and read back later — possibly by
+   someone reading in the other language. Render it here, against the backend's
+   own catalogue (fetched from /api/i18n/messages), and fall back to the
+   Chinese the server already composed if the catalogue has not arrived. */
+function limitationText(l) {
+  if (!l) return '';
+  /* A limitation is sometimes a plain sentence, not a {feature,value,reason}
+     record — runner/dat_warnings.limitation_lines() has written strings into
+     this same list since it was added. Without this line every one of them
+     rendered as an EMPTY card: `l.reason` on a string is undefined, so the
+     text came out '' and limitationLine() returned " = ：". The channel that
+     exists to make a degraded run impossible to miss was showing a blank box.
+     Measured in node before the fix; test_limitation_line_renders_strings. */
+  if (typeof l === 'string') return l;
+  if (!l.reason_key) return l.reason || '';
+  let out = I18N.t(l.reason_key, l.reason_params || {});
+  if (out === l.reason_key) return l.reason || out;      // key not in catalogue
+  if (l.suffix_key) out += I18N.t(l.suffix_key, l.reason_params || {});
+  return out;
+}
+
+/* The separator belongs to the sentence: a full-width colon in an English
+   refusal reads as a typo, and a half-width one in Chinese reads as sloppy. */
+function limitationLine(l) {
+  if (typeof l === 'string') return l;
+  const sep = I18N.lang === 'zh' ? '：' : ': ';
+  return (l.feature || '') + ' = ' + (l.value || '') + sep + limitationText(l);
+}
+
+/* Register the backend catalogue on top of the page's own. Same engine, same
+   keys, so a refusal reads in whichever language the user picked. */
+async function loadBackendMessages(lang) {
+  try {
+    // Relative: this page is served by the same process it talks to, and it
+    // has no configurable API base the way the tools page does.
+    const res = await fetch(`/api/i18n/messages?lang=${encodeURIComponent(lang)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    I18N.register({ [data.lang]: data.messages });
+  } catch { /* offline: the server-composed Chinese still shows */ }
+}
+
+/* ── State ─────────────────────────────────────────────────────── */
+const state = {
+  sid: null,
+  session: null,
+  es: null,
+  pollTimer: null,
+  watchingRun: null,
+  activeRun: null,     // run shown in results view
+  logCount: {},        // stage_id -> rendered log lines
+  solveStart: null,
+  elapsedTimer: null,
+  typingTimer: null,
+  tree: null,          // last /tree payload, kept so a language switch repaints
+  treeOpen: {},        // row id -> expanded; survives a repaint
+  treeSel: null,       // row id currently emphasised in the viewport
+  chatRefs: [],        // @-mentions attached to the NEXT message: {ref,label}
+                       // or viewport picks: {kind:'selector',selector,label,note}
+  liveStream: null,    // the ONE in-flight SSE generation's DOM handles
+                       // {sid,node,userNode,pre,think,stageEl}; gates new sends
+  planBusy: false,     // a /plan/confirm is in flight; disables the sheet card
+  lastStage: null,     // last `stage` event, so the thinking block knows what
+                       // to label the answer when it starts
+  liveGeom: null,      // browser-drawn sketch of the half-written spec; owns a
+                       // WebGL context, so it must be disposed, not dropped
+  pickMode: 'part',    // what a viewport click means: 'part' | 'face'
+  runnerCfg: null,     // solver resources for accept; null = server defaults
+  treeKey: null,       // the spec text the tree was built from
+  // The named surfaces/sets and what joins them, from the preview `meta`
+  // event. Null until a preview has been built, and null for an .inp-derived
+  // payload that never had a CAE session — which is not the same as empty.
+  previewAssembly: null,
+};
+
+// Thunks, not strings: the label has to be looked up at render time, and
+// spelling the key out literally is what lets the i18n check see it is used.
+const STAGE_SHORT = {
+  validate_spec: () => t('stage.validate_spec'),
+  build_model: () => t('stage.build_model'),
+  syntaxcheck: () => t('stage.syntaxcheck'),
+  submit_job: () => t('stage.submit_job'),
+  monitor_job: () => t('stage.monitor_job'),
+  extract_kpis: () => t('stage.extract_kpis'),
+  physics_contracts: () => t('stage.physics_contracts'),
+};
+const STAGE_ORDER = Object.keys(STAGE_SHORT);
+const stageShort = (sid) => (STAGE_SHORT[sid] ? STAGE_SHORT[sid]() : sid);
+// REFUSED is terminal: the backend looked at the spec and declined to solve it
+// (agent/ccx_orchestrator.py). Omitting it left such a run spinning forever —
+// finishWatch never fired and showRun kept drawing the progress bar.
+const TERMINAL = ['COMPLETED', 'FAILED', 'ABORTED', 'ERROR', 'REFUSED'];
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+  (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg, isError = false) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' error' : '');
+  el.textContent = msg;
+  $('toast-wrap').appendChild(el);
+  setTimeout(() => el.remove(), 4200);
+}
+
+async function api(path, opts = {}) {
+  const resp = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (!resp.ok) {
+    let detail = resp.statusText;
+    try { detail = JSON.stringify((await resp.json()).detail); } catch (e) { /* keep statusText */ }
+    throw new Error(`${resp.status} ${detail}`);
+  }
+  return resp.json();
+}
+
+// POST to an SSE endpoint and stream events to onEvent(eventName, dataObj).
+// EventSource only supports GET, so we do fetch+ReadableStream by hand and
+// split on the SSE "\n\n" record separator. Throws on HTTP != 200.
+async function apiStream(path, body, { onEvent, signal } = {}) {
+  const resp = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+    body: JSON.stringify(body || {}),
+    signal,
+  });
+  if (!resp.ok) {
+    // Surface the JSON `detail` body the way api() does — otherwise a spec
+    // validation failure reads as a bare "400 Bad Request" with the actual
+    // schema errors thrown away.
+    let detail = resp.statusText;
+    try { detail = JSON.stringify((await resp.json()).detail); } catch (e) { /* keep statusText */ }
+    throw new Error(`${resp.status} ${detail}`);
+  }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    while (true) {
+      const sep = buf.indexOf('\n\n');
+      if (sep < 0) break;
+      const raw = buf.slice(0, sep);
+      buf = buf.slice(sep + 2);
+      let ev = 'message'; let dataStr = '';
+      for (const line of raw.split('\n')) {
+        if (line.startsWith('event: ')) ev = line.slice(7);
+        else if (line.startsWith('data: ')) dataStr += line.slice(6);
+      }
+      let data = null;
+      try { data = dataStr ? JSON.parse(dataStr) : null; } catch (_) { data = dataStr; }
+      onEvent && onEvent(ev, data);
+    }
+  }
+}
+
+/* ── Status bar ────────────────────────────────────────────────── */
+/* Mirrors state the app already tracks; nothing here owns any state, so
+   the panes above stay the single source of truth. */
+function sbSet(slot, text, ok) {
+  const el = document.getElementById('sb-' + slot);
+  if (!el) return;
+  el.textContent = text;
+  if (slot === 'conn') {
+    const dot = document.getElementById('sb-dot');
+    if (dot) dot.className = 'sb-dot ' + (ok === undefined ? '' : ok ? 'on' : 'off');
+  }
+}
+
+function sbSyncRun() {
+  const active = document.querySelector('.run-item.active');
+  const item = document.getElementById('sb-run');
+  if (!item) return;
+  const running = document.querySelector('.run-dot.RUNNING, .run-dot.PENDING');
+  if (running) {
+    const name = running.closest('.run-item')?.querySelector('.run-name')?.textContent || '';
+    item.textContent = t('sb.solving', { name });
+    item.classList.add('busy');
+    return;
+  }
+  item.classList.remove('busy');
+  const name = active?.querySelector('.run-name')?.textContent;
+  const rid = active?.querySelector('.run-id-badge')?.textContent;
+  item.textContent = name ? (name + (rid ? ' · ' + rid : '')) : t('sb.noRun');
+}
+
+// The status-bar slots whose text is computed, not typed. What is remembered is
+// the thunk, not the sentence, so a language switch re-renders them without
+// re-fetching /health.
+function sbSetDyn(slot, render, ok) {
+  state.sbText = state.sbText || {};
+  state.sbText[slot] = { render, ok };
+  sbSet(slot, render(), ok);
+}
+
+function sbRefreshText() {
+  for (const [slot, rec] of Object.entries(state.sbText || {})) {
+    sbSet(slot, rec.render(), rec.ok);
+  }
+}
+
+function initStatusBar() {
+  const list = document.getElementById('run-list');
+  if (list) new MutationObserver(sbSyncRun).observe(list, {
+    childList: true, subtree: true, attributes: true, attributeFilter: ['class'],
+  });
+  const sel = document.getElementById('session-select');
+  const syncSession = () => {
+    const label = sel?.selectedOptions?.[0]?.textContent?.trim();
+    sbSet('session', label || '—');
+  };
+  sel?.addEventListener('change', syncSession);
+  new MutationObserver(syncSession).observe(sel, { childList: true, subtree: true });
+  syncSession();
+  sbSetDyn('conn', () => t('sb.connecting'));
+  sbSyncRun();
+}
+
+/* ── Boot ──────────────────────────────────────────────────────── */
+async function boot() {
+  try {
+    const health = await api('/health');
+    state.health = health;
+    setLed('led-server', true);
+    // The LED means "a solver can run", not "Abaqus is installed" — CalculiX
+    // counts, and the label right next to it says which one and that it is a
+    // reduced feature set.
+    const hasSolver = !!(health.abaqus_available || health.calculix_available);
+    setLed('led-abaqus', hasSolver);
+    $('led-abaqus').lastChild.textContent =
+      health.solver_backend === 'calculix' ? 'CalculiX' : 'Abaqus';
+    sbSetDyn('conn', hasSolver ? () => t('sb.conn.ok') : () => t('sb.conn.serverOnly'), true);
+    if (health.solver_backend === 'calculix') {
+      sbSetDyn('release', () => t('sb.release.degraded',
+        { label: health.solver_label || 'CalculiX' }));
+    } else if (health.abaqus_release) {
+      sbSetDyn('release', () => t('sb.release.abaqus', { release: health.abaqus_release }));
+    } else {
+      sbSetDyn('release', health.abaqus_available
+        ? () => t('sb.release.ready') : () => t('sb.release.none'));
+    }
+  } catch (e) {
+    setLed('led-server', false);
+    sbSetDyn('conn', () => t('sb.conn.off'), false);
+    toast(t('toast.serverDown', { msg: e.message }), true);
+  }
+  // claude LED lights up lazily after the first chat reports its backend
+  await refreshSessions();
+  const sessions = await api('/api/workbench/sessions');
+  if (sessions.sessions.length > 0) {
+    await loadSession(sessions.sessions[0].session_id);
+  } else {
+    const created = await api('/api/workbench/sessions', { method: 'POST', body: JSON.stringify({}) });
+    await refreshSessions();
+    await loadSession(created.session_id);
+  }
+}
+
+function setLed(id, on) {
+  const el = $(id);
+  el.classList.toggle('on', on === true);
+  el.classList.toggle('off', on === false);
+}
+
+async function refreshSessions() {
+  const data = await api('/api/workbench/sessions');
+  const sel = $('session-select');
+  sel.innerHTML = '';
+  for (const s of data.sessions) {
+    const opt = document.createElement('option');
+    opt.value = s.session_id;
+    opt.textContent = t('session.option', { title: s.title, count: s.run_count });
+    sel.appendChild(opt);
+  }
+  if (state.sid) sel.value = state.sid;
+}
+
+function resetRunViews() {
+  state.activeRun = null;
+  if (state.viewport) { state.viewport.dispose(); state.viewport = null; }
+  $('results-inner').style.display = 'none';
+  $('results-inner').innerHTML = '';
+  $('results-empty').style.display = 'flex';
+  document.querySelector('.tab[data-view="results"]').classList.remove('has-badge');
+  $('console-body').innerHTML = '';
+  $('stage-chips').innerHTML = '';
+  $('solve-elapsed').textContent = '';
+  $('console').classList.add('collapsed');
+  switchTab('spec');
+}
+
+async function loadSession(sid) {
+  stopWatching();
+  state.sid = sid;
+  state.session = await api(`/api/workbench/sessions/${sid}`);
+  $('session-select').value = sid;
+  resetRunViews();
+  renderAll();
+  const active = (state.session.runs || []).find(r => !TERMINAL.includes(r.status));
+  if (active) watchRun(active.run_id);
+}
+
+
+/* ── Model tree ────────────────────────────────────────────────────
+   Built server-side from the spec (workbench/model_tree.py) because this page
+   has no YAML parser, and a second grammar here would drift from the one that
+   actually builds the model.
+
+   Drawn for INVALID specs too, on purpose. A spec that fails schema validation
+   is exactly when someone wants to see what it thinks it says; refusing to draw
+   it hides the answer at the moment it is wanted. The pane says so instead. */
+
+const TREE_GROUP_LABEL = {
+  materials: () => t('tree.g.materials'), parts: () => t('tree.g.parts'),
+  assembly: () => t('tree.g.assembly'), interactions: () => t('tree.g.interactions'),
+  steps: () => t('tree.g.steps'), outputs: () => t('tree.g.outputs'),
+  geometry: () => t('tree.g.geometry'),
+};
+
+// The swatch beside an instance has to be the colour that instance actually is
+// in the viewport, so it comes from the viewport's own palette function rather
+// than a copy. Index is the order the backend listed instances in, which is the
+// order the mesh parts arrive in.
+function treeSwatch(idx) {
+  if (!window.WBViewport || !WBViewport.colorFor) return null;
+  return WBViewport.colorFor({}, idx);
+}
+
+// "Lower:face@y=max" names the instance before the colon. Enough to emphasise
+// both bodies of a contact pair without the surface facets.
+function selectorInstances(list) {
+  const out = [];
+  for (const sel of list || []) {
+    const s = String(sel);
+    const i = s.indexOf(':');
+    if (i > 0) out.push(s.slice(0, i));
+  }
+  return out;
+}
+
+function treeRowKeys(row) {
+  if (row.instance) return [row.instance];
+  return selectorInstances(row.selectors);
+}
+
+/* The faces a tie or a contact pair actually joined.
+   Resolved through the preview's own overlay, never by re-deriving a surface
+   name from the row: the builder calls a named tie's surfaces NAME_MAIN and
+   NAME_SEC (runner/build_v2.py:_interactions) and spelling that rule a second
+   time here is how the two drift. The overlay lists both forms already, keyed
+   by the interaction name, and every name in it was checked against the
+   assembly before it was sent. */
+function treeRowRegions(row) {
+  const asm = state.previewAssembly;
+  if (!asm || !row || !String(row.id).startsWith('inter:')) return [];
+  const name = String(row.id).slice('inter:'.length);
+  const inter = (asm.interactions || []).find(it => String(it.name) === name);
+  if (!inter) return [];
+  const byName = new Map((asm.surfaces || []).map(s => [String(s.name), s]));
+  return (inter.surfaces || []).map(n => byName.get(String(n))).filter(Boolean);
+}
+
+/* What the highlight cannot show, said out loud.
+   The preview mesh is an exterior CORNER-node triangulation, so a quadratic
+   element's midside nodes are not in it and a region holding them lights up
+   partially however it is drawn. A partial highlight that says nothing reads
+   as the whole surface, which is exactly the wrong answer for someone checking
+   whether their selector caught the right faces. */
+function regionShortfall(regions) {
+  const notes = [];
+  for (const r of regions) {
+    const total = Number(r.node_count) || 0;
+    const drawn = Number(r.drawn_nodes) || 0;
+    if (!r.parts || !r.parts.length) {
+      notes.push(t('tree.regionNothing', { name: r.name }));
+    } else if (r.capped) {
+      notes.push(t('tree.regionCapped', { name: r.name }));
+    } else if (total && drawn < total) {
+      notes.push(t('tree.regionPartial',
+                   { name: r.name, drawn: String(drawn), total: String(total) }));
+    }
+  }
+  return notes;
+}
+
+/* One place decides what the viewport shows for the current selection, so the
+   click path and the "mesh finished streaming" path cannot disagree. */
+function applyTreeSelection(opts) {
+  const vp = viewportForTree();
+  if (!vp) return [];
+  if (!state.treeSel) {
+    vp.clearEmphasis();
+    if (vp.clearRegions) vp.clearRegions();
+    return [];
+  }
+  const row = findTreeRow(state.treeSel);
+  if (!row) return [];
+  vp.emphasize(treeRowKeys(row));
+  const regions = treeRowRegions(row);
+  if (vp.showRegions) vp.showRegions(regions);
+  const notes = regions.length ? regionShortfall(regions) : [];
+  if (notes.length && opts && opts.announce) toast(notes[0]);
+  return regions;
+}
+
+async function refreshTree() {
+  const host = $('model-tree');
+  if (!host) return;
+  if (!state.sid) { host.innerHTML = ''; state.tree = null; return; }
+  const pending = state.session && state.session.pending;
+  const specText = (pending && pending.spec_yaml)
+    || (state.session && state.session.current_spec_yaml) || '';
+  if (specText === state.treeKey && state.tree) { renderTree(); return; }
+  state.treeKey = specText;
+  if (!specText) { state.tree = null; renderTree(); return; }
+  try {
+    state.tree = await api('/api/workbench/sessions/' + state.sid + '/tree',
+                           { method: 'POST', body: JSON.stringify({}) });
+  } catch (e) {
+    state.tree = { tree: null, spec_ok: false, problems: [String(e.message || e)] };
+  }
+  renderTree();
+}
+
+function renderTree() {
+  const host = $('model-tree');
+  if (!host) return;
+  const payload = state.tree;
+  const badge = $('tree-dialect');
+  const clearBtn = $('tree-clear');
+  if (clearBtn) clearBtn.style.display = state.treeSel ? '' : 'none';
+  if (!payload || !payload.tree || !payload.tree.groups.length) {
+    if (badge) badge.textContent = '';
+    host.innerHTML = '<div class="tree-hint">' + esc(t('tree.empty')) + '</div>';
+    return;
+  }
+  const tree = payload.tree;
+  if (badge) badge.textContent = tree.dialect === 'unknown' ? '' : tree.dialect;
+
+  const out = [];
+  if (!payload.spec_ok) {
+    out.push('<div class="tree-problems">' + esc(t('tree.badSpec')) + '</div>');
+  }
+  if ((tree.unknown_keys || []).length) {
+    out.push('<div class="tree-problems">' + esc(
+      t('tree.unknownKeys').replace('{keys}', tree.unknown_keys.join(', '))) + '</div>');
+  }
+
+  // The viewport colours mesh parts in the order the instances arrive, so a
+  // swatch has to be indexed by the instance's position in the assembly and
+  // nothing else. A part is never drawn on its own — it shows the colour of
+  // its first instance, which is the colour it will actually appear in.
+  const instColor = {}, partColor = {};
+  const assemblyGroup = tree.groups.find(g => g.id === 'assembly');
+  ((assemblyGroup && assemblyGroup.rows) || []).forEach((row, i) => {
+    if (!row.instance) return;
+    instColor[row.instance] = treeSwatch(i);
+    const partName = row.part || row.detail;
+    if (partName && !(partName in partColor)) partColor[partName] = instColor[row.instance];
+  });
+  // v1 has no assembly block at all; its one geometry row is the whole model.
+  const soloColor = assemblyGroup && assemblyGroup.rows.length ? null : treeSwatch(0);
+
+  for (const group of tree.groups) {
+    const label = TREE_GROUP_LABEL[group.id] ? TREE_GROUP_LABEL[group.id]() : group.label;
+    out.push('<div class="tree-group"><span>' + esc(label) +
+             '</span><span class="gc">' + group.count + '</span></div>');
+    if (!group.rows.length) {
+      out.push('<div class="tree-row" data-depth="0"><span class="tree-caret"></span>' +
+               '<span class="tree-detail">—</span></div>');
+      continue;
+    }
+    for (const row of group.rows) {
+      let swatch = null;
+      if (row.kind === 'instance') swatch = instColor[row.instance] || null;
+      else if (row.kind === 'part') swatch = partColor[row.label] || soloColor;
+      out.push(treeRowHtml(row, 0, swatch));
+    }
+  }
+  host.innerHTML = out.join('');
+
+  host.querySelectorAll('.tree-caret[data-toggle]').forEach(el => {
+    el.onclick = (ev) => {
+      ev.stopPropagation();
+      const id = el.getAttribute('data-toggle');
+      state.treeOpen[id] = !state.treeOpen[id];
+      renderTree();
+    };
+  });
+  host.querySelectorAll('.tree-row.clickable').forEach(el => {
+    el.onclick = () => selectTreeRow(el.getAttribute('data-row'));
+  });
+  host.querySelectorAll('.tree-at').forEach(el => {
+    el.onclick = (ev) => { ev.stopPropagation(); addChatRef(el.getAttribute('data-at')); };
+  });
+}
+
+function treeRowHtml(row, depth, swatch) {
+  const kids = row.children || [];
+  const facts = row.facts || [];
+  const canOpen = kids.length > 0 || facts.length > 0;
+  const open = !!state.treeOpen[row.id];
+  const keys = treeRowKeys(row);
+  const cls = ['tree-row'];
+  if (row.warn) cls.push('warn');
+  if (keys.length) cls.push('clickable');
+  if (state.treeSel === row.id) cls.push('on');
+  const caret = canOpen
+    ? '<span class="tree-caret" data-toggle="' + esc(row.id) + '">' +
+      (open ? '▾' : '▸') + '</span>'
+    : '<span class="tree-caret"></span>';
+  const dot = swatch
+    ? '<span class="tree-swatch" style="background:' + esc(swatch) + '"></span>' : '';
+  // Only rows the server stamped with a spec path can be mentioned — a row
+  // without one is a diagnostic, and @-ing it would 400 on send anyway.
+  const held = state.chatRefs.some(r => r.ref === row.id);
+  const at = row.path
+    ? '<span class="tree-at' + (held ? ' held' : '') + '" data-at="' + esc(row.id) +
+      '" title="' + esc(t('chat.atTitle')) + '">@</span>'
+    : '';
+  const parts = [
+    '<div class="' + cls.join(' ') + '" data-depth="' + depth +
+    '" data-row="' + esc(row.id) + '">' + caret + dot +
+    '<span class="tree-label">' + esc(row.label) + '</span>' +
+    '<span class="tree-detail">' + esc(row.detail || '') + '</span>' + at + '</div>',
+  ];
+  if (open) {
+    if (facts.length) {
+      parts.push('<div class="tree-facts">' + facts.map(
+        (kv) => '<div><span class="k">' + esc(kv[0]) + '</span><span class="v">' +
+                esc(kv[1]) + '</span></div>'
+      ).join('') + '</div>');
+    }
+    for (const kid of kids) parts.push(treeRowHtml(kid, Math.min(depth + 1, 2), null));
+  }
+  return parts.join('');
+}
+
+function viewportForTree() {
+  return state.previewViewport && state.previewViewport.emphasize
+    ? state.previewViewport : null;
+}
+
+function findTreeRow(rowId) {
+  const walk = (rows) => {
+    for (const r of rows || []) {
+      if (r.id === rowId) return r;
+      const hit = walk(r.children);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  if (!state.tree || !state.tree.tree) return null;
+  for (const g of state.tree.tree.groups) {
+    const hit = walk(g.rows);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/* One @ per object per message; a second click on the same row removes it,
+   which is what the chip's × does too. The composer text is NOT parsed — the
+   chips are the machine-readable selection, the @Name in the text is for the
+   human and the model to read. */
+function addChatRef(rowId) {
+  const row = findTreeRow(rowId);
+  if (!row || !row.path) return;
+  const i = state.chatRefs.findIndex(r => r.ref === rowId);
+  if (i >= 0) { state.chatRefs.splice(i, 1); renderChatRefs(); renderTree(); return; }
+  state.chatRefs.push({ ref: row.id, label: row.label });
+  // Mentioning is pointing, so the viewport highlight follows it.
+  if (state.treeSel !== rowId) { state.treeSel = rowId; applyTreeSelection({ announce: true }); }
+  const input = $('chat-input');
+  const mention = '@' + row.label + ' ';
+  if (!input.value.includes('@' + row.label)) {
+    const pos = input.selectionStart != null ? input.selectionStart : input.value.length;
+    input.value = input.value.slice(0, pos) + mention + input.value.slice(pos);
+  }
+  renderChatRefs();
+  renderTree();
+  input.focus();
+  toast(t('chat.refAdded', { name: row.label }));
+}
+
+function removeChatRef(index) {
+  // By position, not by ref: selector chips have no row id.
+  state.chatRefs.splice(index, 1);
+  renderChatRefs();
+  renderTree();
+}
+
+/* Clicking a body in the 3D preview is the same gesture as clicking its tree
+   row's @: highlight follows, a chip lands on the composer, a second click
+   removes it. The key the viewport reports IS the instance name the tree keyed
+   its row on (workbench_viewport.js handleKey), so the lookup is an id, not a
+   label match. part: is the fallback for a single-part preview drawn from a
+   spec with no assembly block. */
+function viewportPickPart(key, info) {
+  if (state.pickMode === 'face') { viewportPickFace(key, info); return; }
+  const row = findTreeRow('inst:' + key) || findTreeRow('part:' + key);
+  if (!row || !row.path) {
+    // A preview body with no mentionable row (custom_inp ELSET parts, v1
+    // blocks). Saying so beats a click that appears to do nothing.
+    toast(t('chat.pickNoRow', { name: key }));
+    return;
+  }
+  addChatRef(row.id);
+}
+
+/* Face mode: the hit triangle resolves against pick_faces — the geometric
+   faces CAE itself measured at preview time — and the mention it produces is
+   a SELECTOR generated from those measurements, never a face index. An index
+   is a name only this CAE session understands; a box survives a rebuild. */
+function viewportPickFace(key, info) {
+  const pf = findPickFace(info ? info.partIndex : null,
+                          info ? info.faceIndex : null);
+  if (!pf) {
+    toast(t('chat.pickNoFace', { name: key }));
+    return;
+  }
+  const gen = faceSelectorFor(pf);
+  addSelectorRef(gen.selector, gen.label, gen.note);
+  // Light the face itself so the click has a visible answer. Transient by
+  // design: the next tree selection redraws regions over it.
+  const vp = viewportForTree();
+  if (vp && vp.showRegions && state.chatRefs.some(r => r.selector === gen.selector)) {
+    vp.showRegions([{ name: gen.label, color: 0xffb830, parts: pf.parts }]);
+  }
+}
+
+function findPickFace(partIndex, triIndex) {
+  if (partIndex == null || triIndex == null) return null;
+  const rows = (state.previewAssembly && state.previewAssembly.pick_faces) || [];
+  for (const row of rows) {
+    for (const entry of row.parts || []) {
+      if (entry.part === partIndex && (entry.tris || []).includes(triIndex)) {
+        return row;
+      }
+    }
+  }
+  return null;
+}
+
+/* The generated selector is the face's own measured bbox, verbatim — the box
+   form pads by span*1e-4 at resolve time (core/selectors.py), so faces on the
+   box's skin are caught without the generator inventing slack. The hit count
+   is computed here the same way (which same-instance faces fit the padded
+   box) and goes in the note; the build re-asserts the count for real before
+   anything solves. Plural when >1: a singular selector asserts exactly one
+   and would stop the build — honest, but the note should warn first.
+   Radius is quoted when CAE measured one; normal is NOT used to claim
+   planarity, because on Abaqus 2021 getNormal() answers on a cylinder too
+   (measured: plate_hole_v2 hole face, normal at the seed vertex). */
+function faceSelectorFor(pf) {
+  const fmt = v => String(Number(Number(v).toPrecision(9)));
+  const lo = pf.bbox[0], hi = pf.bbox[1];
+  const same = ((state.previewAssembly && state.previewAssembly.pick_faces) || [])
+    .filter(r => r.instance === pf.instance);
+  let span = 0;
+  for (const r of same) {
+    for (let i = 0; i < 3; i++) span = Math.max(span, r.bbox[1][i] - r.bbox[0][i]);
+  }
+  const tol = Math.max(1e-6, span * 1e-4);
+  const hits = same.filter(r =>
+    r.bbox[0][0] >= lo[0] - tol && r.bbox[0][1] >= lo[1] - tol
+    && r.bbox[0][2] >= lo[2] - tol && r.bbox[1][0] <= hi[0] + tol
+    && r.bbox[1][1] <= hi[1] + tol && r.bbox[1][2] <= hi[2] + tol).length;
+  const word = hits > 1 ? 'faces' : 'face';
+  const selector = pf.instance + ':' + word + '@box='
+    + lo.map(fmt).join(',') + ',' + hi.map(fmt).join(',');
+  let note = t('chat.faceNote', { inst: pf.instance, n: String(hits || 1) });
+  if (pf.radius != null) {
+    note += t('chat.faceNoteRadius', { r: fmt(pf.radius) });
+  }
+  return { selector, label: pf.instance + ':face#' + pf.face, note };
+}
+
+/* Selector chips ride the same rail as tree-ref chips; a second pick of the
+   same face removes it, like the tree @. */
+function addSelectorRef(selector, label, note) {
+  const i = state.chatRefs.findIndex(r => r.selector === selector);
+  if (i >= 0) { state.chatRefs.splice(i, 1); renderChatRefs(); return; }
+  state.chatRefs.push({ kind: 'selector', selector, label, note });
+  const input = $('chat-input');
+  if (!input.value.includes('@' + label)) {
+    const pos = input.selectionStart != null ? input.selectionStart : input.value.length;
+    input.value = input.value.slice(0, pos) + '@' + label + ' ' + input.value.slice(pos);
+  }
+  renderChatRefs();
+  input.focus();
+  toast(t('chat.refAdded', { name: label }));
+}
+
+function updatePickModeBtn() {
+  const btn = $('vp-pick-mode');
+  if (btn) btn.textContent = t(state.pickMode === 'face'
+                               ? 'vp.pickMode.face' : 'vp.pickMode.part');
+}
+
+/* Both preview builders (initial stream and slider rebuild) come through here,
+   so a viewport that can pick is never created without the handler that makes
+   picking mean something. */
+function createPreviewViewport(canvas, meta) {
+  const vp = WBViewport.createStreaming(canvas, meta);
+  vp.onPick = viewportPickPart;
+  updatePickModeBtn();
+  return vp;
+}
+
+function renderChatRefs() {
+  const host = $('chat-refs');
+  if (!host) return;
+  host.classList.toggle('has', state.chatRefs.length > 0);
+  host.innerHTML = state.chatRefs.map((r, i) =>
+    '<span class="chat-ref"' +
+    (r.selector ? ' title="' + esc(r.selector) + '"' : '') + '>@' +
+    esc(r.label) +
+    '<span class="rm" data-rm="' + i + '">×</span></span>').join('');
+  host.querySelectorAll('.rm').forEach(el => {
+    el.onclick = () => removeChatRef(Number(el.getAttribute('data-rm')));
+  });
+}
+
+function selectTreeRow(rowId) {
+  const row = findTreeRow(rowId);
+  if (!row) return;
+  const vp = viewportForTree();
+  if (state.treeSel === rowId) {
+    state.treeSel = null;
+    applyTreeSelection();
+  } else {
+    state.treeSel = rowId;
+    if (vp) {
+      applyTreeSelection({ announce: true });
+    } else {
+      // Say why nothing happened rather than leaving a click that looks broken.
+      toast(t('tree.noViewport'));
+    }
+  }
+  renderTree();
+}
+
+function clearTreeSelection() {
+  state.treeSel = null;
+  applyTreeSelection();
+  renderTree();
+}
+
+/* ── Rendering ─────────────────────────────────────────────────── */
+function renderAll() {
+  renderChat();
+  renderSpec();
+  renderDiff();
+  renderRuns();
+  refreshTree();
+}
+
+
+function highlightYamlLine(line) {
+  if (/^\s*#/.test(line)) return `<span class="yaml-comment">${esc(line)}</span>`;
+  const m = line.match(/^(\s*-?\s*)([\w.]+)(:)(.*)$/);
+  if (!m) return esc(line);
+  let val = m[4];
+  let valHtml;
+  if (/^\s*["'].*["']\s*$/.test(val)) valHtml = `<span class="yaml-str">${esc(val)}</span>`;
+  else if (/^\s*-?[\d.eE+-]+\s*$/.test(val) && val.trim() !== '') valHtml = `<span class="yaml-num">${esc(val)}</span>`;
+  else valHtml = esc(val);
+  return `${esc(m[1])}<span class="yaml-key">${esc(m[2])}</span>${esc(m[3])}${valHtml}`;
+}
+
+function renderSpec() {
+  const yamlText = state.session.current_spec_yaml;
+  const codeEl = $('spec-code');
+  const hasSpec = !!yamlText;
+  // A live sketch also counts as "not empty": a render landing mid-stream must
+  // not push the onboarding hero back under the drawing.
+  $('spec-empty').style.display = (hasSpec || state.liveGeom) ? 'none' : 'flex';
+  codeEl.style.display = hasSpec ? 'grid' : 'none';
+  if (!hasSpec) return;
+  const rows = [];
+  yamlText.split('\n').forEach((line, i) => {
+    rows.push(`<div class="ln">${i + 1}</div><div class="lc">${highlightYamlLine(line)}</div>`);
+  });
+  codeEl.innerHTML = rows.join('');
+}
+
+// Split out of renderDiff so a language switch can repaint the one translated
+// line without re-entering renderDiff — which would kick off another preview
+// build, i.e. another `abaqus cae noGUI`, for a proposal already on screen.
+function renderDiffNote(p) {
+  $('diff-note').innerHTML = `<span class="lbl">${esc(t('diff.note.label'))}</span>
+    <span class="prop">${esc(p.proposal_id)}</span>
+    <span class="backend">${esc(p.backend)}</span>
+    <span class="tip">${esc(t('diff.note.tip'))}</span>`;
+}
+
+function renderDiff() {
+  const p = state.session.pending;
+  const has = !!p;
+  $('diff-head').style.display = has ? 'flex' : 'none';
+  $('diff-empty').style.display = has ? 'none' : 'flex';
+  $('diff-body').innerHTML = '';
+  document.querySelector('.tab[data-view="diff"]').classList.toggle('has-badge', has);
+  if (!has) {
+    // Tear down any lingering preview viewport when the proposal is gone.
+    if (state.previewViewport) {
+      state.previewViewport.dispose();
+      state.previewViewport = null;
+      state.previewAssembly = null;
+    }
+    state.previewProposalId = null;
+    $('vp-diff-card').style.display = 'none';
+    return;
+  }
+  renderDiffNote(p);
+  const frag = document.createDocumentFragment();
+  for (const raw of p.diff.split('\n')) {
+    const div = document.createElement('div');
+    let cls = 'dline';
+    if (raw.startsWith('+++') || raw.startsWith('---')) cls += ' meta';
+    else if (raw.startsWith('@@')) cls += ' hunk';
+    else if (raw.startsWith('+')) cls += ' add';
+    else if (raw.startsWith('-')) cls += ' del';
+    else cls += ' ctx';
+    div.className = cls;
+    div.textContent = raw === '' ? ' ' : raw;
+    frag.appendChild(div);
+  }
+  $('diff-body').appendChild(frag);
+  // Fire-and-forget the preview build; guarded by proposal id so quick edits
+  // don't stack requests. The mesh appears above the diff when ready.
+  initPreviewViewport(p.proposal_id);
+}
+
+async function initPreviewViewport(proposalId) {
+  if (!proposalId) return;
+  // Guard on the proposal id alone: previewViewport stays null for the whole
+  // 8-15s build, so also testing it would let a re-render start a second stream
+  // (and a second CAE build) on the same spec.
+  if (state.previewProposalId === proposalId && state.previewStreaming) return;
+  if (state.previewProposalId === proposalId && state.previewViewport) return;
+
+  // Cancel any stream still running for a superseded proposal. Without this the
+  // orphaned stream keeps its server-side CAE build alive and its events race
+  // the new one — on a single-licence machine that means two concurrent
+  // `abaqus cae noGUI` processes.
+  if (state.previewAbort) {
+    try { state.previewAbort.abort(); } catch (e) { /* already settled */ }
+  }
+  const abort = new AbortController();
+  state.previewAbort = abort;
+
+  const card = $('vp-diff-card');
+  const canvas = $('vp-diff-canvas');
+  card.style.display = 'block';
+  setVpStats(buildingStatsHtml);
+  if (state.previewViewport) {
+    state.previewViewport.dispose();
+    state.previewViewport = null;
+    state.previewAssembly = null;
+  }
+  canvas.innerHTML = '';
+  // The slider panel belongs to the PREVIOUS proposal. Leaving it on screen
+  // lets a drag rewrite the NEW proposal's spec_yaml with the old proposal's
+  // YAML, so "接受并求解" would submit something different from the diff shown.
+  resetSliderPanel();
+  state.previewProposalId = proposalId;
+  state.previewStreaming = true;
+
+  if (typeof THREE === 'undefined' || !window.WBViewport) {
+    setVpStats(() => vpErrorHtml(t('vp.noComponent')));
+    return;
+  }
+
+  // Bind a reset-view button once per proposal.
+  const resetBtn = $('vp-diff-reset');
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      if (state.previewViewport && state.previewViewport.resetView) {
+        state.previewViewport.resetView();
+      }
+    };
+  }
+
+  const staleGuard = () => state.session?.pending?.proposal_id !== proposalId
+                           || state.previewAbort !== abort;
+  let metaSeen = null; let added = 0;
+  const url = `/api/workbench/sessions/${state.sid}/preview/stream`;
+
+  try {
+    await apiStream(url, {}, {
+      signal: abort.signal,
+      onEvent: (ev, data) => {
+        if (staleGuard()) return;
+        if (ev === 'build') {
+          setVpStats(buildingStatsHtml);
+        } else if (ev === 'meta') {
+          metaSeen = data;
+          state.previewViewport = createPreviewViewport(canvas, data);
+          state.previewAssembly = data.assembly || null;
+          // A tree row selected before the mesh existed has to take
+          // effect the moment it does, or the click looks ignored. Bodies
+          // only: the surface facets index into part geometry that has not
+          // streamed in yet, so they go on at 'done'.
+          if (state.treeSel) {
+            const row = findTreeRow(state.treeSel);
+            if (row) state.previewViewport.emphasize(treeRowKeys(row));
+          }
+          setVpStats(() => previewStatsHtml(data, 0, data.part_count));
+        } else if (ev === 'part' && metaSeen) {
+          // A viewport swapped in by applySliders() comes from the legacy
+          // create() path and has no addPart — never assume the shape.
+          const vp = state.previewViewport;
+          if (vp && typeof vp.addPart === 'function') {
+            vp.addPart(data.part, data.index);
+            added++;
+          }
+          setVpStats(() => previewStatsHtml(metaSeen, added, data.total));
+        } else if (ev === 'done' && metaSeen) {
+          setVpStats(() => previewStatsHtml(metaSeen) + buildTagHtml(metaSeen, data.elapsed_s));
+          const vp = state.previewViewport;
+          if (vp && vp.finalize) vp.finalize();
+          // Every part is in, so a selected interaction can now be drawn as
+          // the facets it actually joined rather than as two dimmed bodies.
+          applyTreeSelection();
+          if (vp && vp.setDeform) vp.setDeform(0);
+          // Slider panel — direct spec.geometry edits with instant three.js scaling.
+          renderSliderPanel(state.session.pending.spec_yaml);
+        } else if (ev === 'error') {
+          setVpStats(() => vpErrorHtml(t('vp.previewFailed', { msg: data.error || 'error' })));
+        }
+      },
+    });
+  } catch (e) {
+    // An aborted stream is an expected outcome, not a failure to report — and a
+    // superseded stream must never overwrite the current proposal's stats bar.
+    if (e.name !== 'AbortError' && !staleGuard()) {
+      setVpStats(() => vpErrorHtml(t('vp.previewFailed', { msg: e.message || 'error' })));
+    }
+  } finally {
+    if (state.previewAbort === abort) state.previewStreaming = false;
+  }
+}
+
+const buildingStatsHtml = () =>
+  `<span class="vp-stat-item" style="color:var(--text3)">${esc(t('vp.building'))}</span>`;
+// .vp-err is a state hook, not decoration: "the preview failed" had no
+// selector at all, so anything waiting on the viewport (the recorder, a
+// future e2e check) could only wait for the canvas — which never arrives on
+// this path, turning a 3-second failure into a full-length timeout.
+const vpErrorHtml = (msg) =>
+  `<span class="vp-stat-item vp-err">${esc(msg)}</span>`;
+const buildTagHtml = (meta, elapsedS) => (meta.cached
+  ? `<span class="vp-stat-item">◐ <b>${esc(t('vp.cacheHit'))}</b></span>`
+  : `<span class="vp-stat-item">◔ <b>${elapsedS}s</b> ${esc(t('vp.buildTime'))}</span>`);
+
+// The stats bar is remembered as a thunk, not as HTML: a language switch has to
+// repaint a preview that finished streaming minutes ago, and re-running the
+// stream would mean a second `abaqus cae noGUI` build.
+function setVpStats(render) {
+  state.vpStatsRender = render;
+  const el = $('vp-diff-stats');
+  if (el) el.innerHTML = render();
+}
+
+function repaintVpStats() {
+  const card = $('vp-diff-card');
+  if (state.vpStatsRender && card && card.style.display !== 'none') {
+    setVpStats(state.vpStatsRender);
+  }
+}
+
+// Stats bar shared by every preview path. Elements and render triangles are
+// deliberately different labels: a CAE surface dump gives us triangles only, and
+// calling those 单元 would put a wrong number in front of the user.
+function previewStatsHtml(meta, added, total) {
+  const cachedTag = meta.cached ? ` · <b>${esc(t('vp.cacheHit'))}</b>` : '';
+  const partTag = (typeof added === 'number' && typeof total === 'number')
+    ? `<span class="vp-stat-item">▤ <b>${added}/${total}</b> part${cachedTag}</span>`
+    : `<span class="vp-stat-item">▤ <b>${meta.part_count}</b> part</span>`;
+  const nodeTag = `<span class="vp-stat-item">▩ <b>${(meta.node_count || 0).toLocaleString()}</b> ${esc(t('vp.nodes'))}</span>`;
+  const sizeTag = (meta.element_count === null || meta.element_count === undefined)
+    ? `<span class="vp-stat-item">△ <b>${(meta.triangle_count || 0).toLocaleString()}</b> ${esc(t('vp.surfaceTris'))}</span>`
+    : `<span class="vp-stat-item">△ <b>${meta.element_count.toLocaleString()}</b> ${esc(t('vp.elements'))}</span>`;
+  let html = partTag + nodeTag + sizeTag;
+  // Parse warnings ride the stats bar itself, because every event handler
+  // (meta / part / done, in both preview paths) rewrites stats.innerHTML —
+  // a separate element would be erased by whichever handler fired last. A
+  // partial render without these reads as the complete model.
+  for (const p of (meta.problems || [])) {
+    html += `<div class="vp-parse-warn">⚠ ${esc(String(p))}</div>`;
+  }
+  return html;
+}
+
+// Wipe the slider panel and its backing state so a previous proposal's sliders
+// can never write into the current proposal's spec.
+function resetSliderPanel() {
+  const panel = $('vp-slider-panel');
+  if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }
+  state.sliderFields = null;
+  state.sliderBaseYaml = null;
+}
+
+/* ── Parametric slider panel ────────────────────────────────────────
+ * Parse the spec YAML for numeric fields inside geometry:, render one
+ * range slider per field. Dragging updates state.session.pending.spec_yaml
+ * (in-memory) and scales the three.js mesh for immediate visual feedback.
+ * "应用" sends the new spec to /preview to fetch a real remeshed geometry.
+ */
+
+// Numeric spec.geometry fields we recognize + axis they scale (for cantilever_block).
+const SLIDER_FIELDS = {
+  L: { label: () => t('slider.L'), axis: 'z', unit: 'mm' },
+  W: { label: () => t('slider.W'), axis: 'x', unit: 'mm' },
+  H: { label: () => t('slider.H'), axis: 'y', unit: 'mm' },
+  R: { label: () => t('slider.R'), axis: null, unit: 'mm' },
+  seed_size: { label: () => t('slider.seed'), axis: null, unit: 'mm', reload: true },
+};
+
+function parseGeometrySection(specYaml) {
+  // Extract the `geometry:` block and pull numeric leaf fields.
+  const lines = specYaml.split('\n');
+  const out = {};
+  let inside = false, indent = null;
+  for (const raw of lines) {
+    if (/^geometry:\s*$/.test(raw)) { inside = true; continue; }
+    if (inside) {
+      const m = raw.match(/^(\s+)(\w+):\s*([\d.eE+-]+)\s*$/);
+      if (m) {
+        if (indent === null) indent = m[1].length;
+        if (m[1].length !== indent) continue;   // nested block, skip
+        if (SLIDER_FIELDS[m[2]]) {
+          out[m[2]] = { value: parseFloat(m[3]), orig: parseFloat(m[3]) };
+        }
+      } else if (/^\S/.test(raw)) {
+        // reached the next top-level key
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+function patchYamlNumber(yaml, key, newVal) {
+  // Replace the FIRST "  key: <num>" line's value under geometry:.
+  // Coarse but safe — spec YAML has no arithmetic and field names are unique
+  // within geometry:.
+  const re = new RegExp(`^(\\s+${key}:\\s*)([\\d.eE+-]+)(\\s*)$`, 'm');
+  const formatted = Number.isInteger(newVal) ? String(newVal) : String(+newVal.toFixed(3));
+  return yaml.replace(re, `$1${formatted}$3`);
+}
+
+// keepFields re-renders the panel around values the user has already dragged —
+// the language switch repaints the labels and must not silently reset the spec
+// the accept button is about to submit.
+function renderSliderPanel(specYaml, keepFields) {
+  const panel = $('vp-slider-panel');
+  const fields = keepFields || parseGeometrySection(specYaml);
+  const keys = Object.keys(fields);
+  if (keys.length === 0) {
+    // Clear the backing state too — a hidden panel whose sliderBaseYaml still
+    // points at an older proposal is exactly how the wrong spec gets submitted.
+    resetSliderPanel();
+    return;
+  }
+  panel.style.display = 'block';
+  state.sliderFields = fields;
+  state.sliderBaseYaml = specYaml;
+
+  let html = `<div class="sp-title"><span class="dot"></span>${esc(t('slider.title'))}<span class="sp-hint">
+    ${esc(t('slider.hint'))}</span></div>`;
+  for (const key of keys) {
+    const f = fields[key];
+    const meta = SLIDER_FIELDS[key];
+    // Range anchored to the proposed value, not the dragged one, so a repaint
+    // does not move the scale under the handle.
+    const min = Math.max(0.01, f.orig * 0.2).toFixed(2);
+    const max = (f.orig * 3).toFixed(2);
+    const step = f.orig < 5 ? 0.1 : 1;
+    const changed = Math.abs(f.value - f.orig) > 1e-6;
+    html += `<div class="sp-row" data-field="${esc(key)}">
+      <span class="sp-label">${esc(meta.label())}</span>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${f.value}"
+             oninput="onSliderInput('${esc(key)}', this.value)">
+      <span class="sp-val${changed ? ' changed' : ''}" id="sp-val-${esc(key)}">${
+        Number.isInteger(f.value) ? f.value : f.value.toFixed(2)} ${esc(meta.unit)}</span>
+    </div>`;
+  }
+  html += `<div class="sp-actions">
+    <button id="sp-reset">${esc(t('slider.reset'))}</button>
+    <button id="sp-apply">${esc(t('slider.apply'))}</button>
+    <button class="primary" id="sp-accept">${esc(t('diff.accept'))} ▶</button>
+    <span class="sp-status" id="sp-status"></span>
+  </div>`;
+  panel.innerHTML = html;
+
+  $('sp-reset').onclick = resetSliders;
+  $('sp-apply').onclick = applySliders;
+  $('sp-accept').onclick = () => submitAccept(true);
+}
+
+function onSliderInput(key, valStr) {
+  const val = parseFloat(valStr);
+  const f = state.sliderFields[key];
+  if (!f) return;
+  f.value = val;
+  const meta = SLIDER_FIELDS[key];
+  const valEl = $('sp-val-' + key);
+  if (valEl) {
+    valEl.textContent = (Number.isInteger(val) ? val : val.toFixed(2)) + ' ' + meta.unit;
+    valEl.classList.toggle('changed', Math.abs(val - f.orig) > 1e-6);
+  }
+  // Instant visual: scale the mesh axis matching this field (cantilever_block).
+  if (meta.axis && state.previewViewport && state.previewViewport.setAxisScale) {
+    state.previewViewport.setAxisScale(meta.axis, val / f.orig);
+  }
+  // Persist to the in-memory spec so subsequent "接受并求解" uses the new values.
+  const patched = patchYamlNumber(state.sliderBaseYaml, key, val);
+  state.session.pending.spec_yaml = mergeSliderPatches(patched);
+}
+
+function mergeSliderPatches(baseYaml) {
+  let out = baseYaml;
+  for (const [key, f] of Object.entries(state.sliderFields || {})) {
+    out = patchYamlNumber(out, key, f.value);
+  }
+  return out;
+}
+
+function resetSliders() {
+  if (!state.sliderFields) return;
+  for (const [key, f] of Object.entries(state.sliderFields)) {
+    f.value = f.orig;
+    const input = document.querySelector(`.sp-row[data-field="${key}"] input`);
+    if (input) input.value = f.orig;
+    const valEl = $('sp-val-' + key);
+    if (valEl) {
+      valEl.textContent = f.orig + ' ' + SLIDER_FIELDS[key].unit;
+      valEl.classList.remove('changed');
+    }
+    const meta = SLIDER_FIELDS[key];
+    if (meta.axis && state.previewViewport && state.previewViewport.setAxisScale) {
+      state.previewViewport.setAxisScale(meta.axis, 1);
+    }
+  }
+  state.session.pending.spec_yaml = state.sliderBaseYaml;
+  const s = $('sp-status'); if (s) s.textContent = t('slider.status.reset');
+}
+
+// Rebuild the real geometry from the edited spec. This goes through the SAME
+// streaming endpoint as the initial preview: sharing one code path means both
+// produce a createStreaming handle, so a rebuild landing mid-stream can no
+// longer hand the part handler a viewport without addPart().
+async function applySliders() {
+  const status = $('sp-status');
+  if (state.previewStreaming) {
+    if (status) status.textContent = t('slider.status.wait');
+    return;
+  }
+  const applyBtn = $('sp-apply');
+  if (applyBtn) applyBtn.disabled = true;
+  if (status) status.textContent = t('slider.status.rebuilding');
+
+  if (state.previewAbort) {
+    try { state.previewAbort.abort(); } catch (e) { /* already settled */ }
+  }
+  const abort = new AbortController();
+  state.previewAbort = abort;
+  state.previewStreaming = true;
+
+  const canvas = $('vp-diff-canvas');
+  const url = `/api/workbench/sessions/${state.sid}/preview/stream`;
+  let metaSeen = null; let added = 0;
+
+  try {
+    await apiStream(url, { spec_yaml: state.session.pending.spec_yaml }, {
+      signal: abort.signal,
+      onEvent: (ev, data) => {
+        if (state.previewAbort !== abort) return;
+        if (ev === 'meta') {
+          metaSeen = data;
+          if (state.previewViewport) state.previewViewport.dispose();
+          canvas.innerHTML = '';
+          state.previewViewport = createPreviewViewport(canvas, data);
+          state.previewAssembly = data.assembly || null;
+          // A tree row selected before the mesh existed has to take
+          // effect the moment it does, or the click looks ignored. Bodies
+          // only: the surface facets index into part geometry that has not
+          // streamed in yet, so they go on at 'done'.
+          if (state.treeSel) {
+            const row = findTreeRow(state.treeSel);
+            if (row) state.previewViewport.emphasize(treeRowKeys(row));
+          }
+          setVpStats(() => previewStatsHtml(data, 0, data.part_count));
+        } else if (ev === 'part' && metaSeen) {
+          const vp = state.previewViewport;
+          if (vp && typeof vp.addPart === 'function') {
+            vp.addPart(data.part, data.index);
+            added++;
+          }
+          setVpStats(() => previewStatsHtml(metaSeen, added, data.total));
+        } else if (ev === 'done' && metaSeen) {
+          setVpStats(() => previewStatsHtml(metaSeen) + buildTagHtml(metaSeen, data.elapsed_s));
+          applyTreeSelection();
+          // These are real dimensions now, not a cheat scale, so re-baseline.
+          for (const [key, f] of Object.entries(state.sliderFields || {})) {
+            f.orig = f.value;
+            const valEl = $('sp-val-' + key);
+            if (valEl) valEl.classList.remove('changed');
+          }
+          state.sliderBaseYaml = state.session.pending.spec_yaml;
+          if (status) status.textContent = t('slider.status.updated');
+        } else if (ev === 'error') {
+          // A failed rebuild must not leave the previous geometry on screen —
+          // at this point it is slider-cheat-scaled, i.e. NOT the spec being
+          // shown, and with only a small "失败" text beside it the user reads
+          // it as the new model.
+          if (state.previewViewport) {
+            state.previewViewport.dispose();
+            state.previewViewport = null;
+            state.previewAssembly = null;
+          }
+          canvas.innerHTML = '';
+          setVpStats(() => vpErrorHtml(t('vp.rebuildFailed', { msg: data.error || 'error' })));
+          if (status) status.textContent = t('slider.status.failed', { msg: data.error || 'error' });
+        }
+      },
+    });
+  } catch (e) {
+    if (e.name !== 'AbortError' && state.previewAbort === abort) {
+      if (state.previewViewport) {
+        state.previewViewport.dispose();
+        state.previewViewport = null;
+        state.previewAssembly = null;
+      }
+      canvas.innerHTML = '';
+      setVpStats(() => vpErrorHtml(t('vp.rebuildFailed', { msg: e.message || 'error' })));
+      if (status) status.textContent = t('slider.status.failed', { msg: e.message || 'error' });
+    }
+  } finally {
+    if (state.previewAbort === abort) state.previewStreaming = false;
+    const btn = $('sp-apply');
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function submitAccept(useSliderSpec) {
+  const spec = useSliderSpec ? state.session.pending.spec_yaml : undefined;
+  const body = spec ? { spec_yaml: spec } : {};
+  // Solver resources for the run (cpus / timeout_seconds / backend). No UI
+  // sets this yet; the server fills measured defaults when it is absent.
+  if (state.runnerCfg) body.runner_cfg = state.runnerCfg;
+  try {
+    const data = await api(`/api/workbench/sessions/${state.sid}/accept`,
+      { method: 'POST', body: JSON.stringify(body) });
+    state.session = data.session;
+    state.activeRun = data.run_id;
+    renderAll();
+    switchTab('results');
+    showRun(data.run_id);
+  } catch (e) {
+    toast(t('toast.submitFailed', { msg: e.message }), true);
+  }
+}
+
+function renderRuns() {
+  const wrap = $('run-list');
+  wrap.innerHTML = '';
+  const runs = [...(state.session.runs || [])].reverse();
+  if (runs.length === 0) {
+    wrap.innerHTML = `<div class="empty-hint">${esc(t('runs.empty1'))}<br>${esc(t('runs.empty2'))}</div>`;
+    return;
+  }
+  for (const r of runs) {
+    const div = document.createElement('div');
+    const status = r.status || '';
+    div.className = 'run-item dot-' + status
+      + (state.activeRun === r.run_id ? ' active' : '');
+    const when = r.accepted_at ? new Date(r.accepted_at * 1000).toLocaleTimeString(
+      'zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '';
+    div.innerHTML = `<div class="rrow"><span class="run-dot ${esc(status)}"></span>
+        <span class="run-name">${esc(r.model_name || r.run_id.slice(0, 8))}</span></div>
+      <div class="run-meta">
+        <span class="run-id-badge">${esc(r.run_id.slice(0, 7))}</span>
+        <span>${esc(status || '?')}</span>
+        <span style="margin-left:auto">${when}</span>
+      </div>`;
+    div.onclick = () => showRun(r.run_id);
+    wrap.appendChild(div);
+  }
+}
+
+/* ── Chat flow ─────────────────────────────────────────────────── */
+
+async function acceptProposal() {
+  if (!state.sid) return;
+  try {
+    const data = await api(`/api/workbench/sessions/${state.sid}/accept`,
+      { method: 'POST', body: JSON.stringify({}) });
+    state.session = data.session;
+    renderAll();
+    watchRun(data.run_id);
+    await showRun(data.run_id);
+    toast(t('toast.submitted', { id: data.run_id.slice(0, 8) }));
+  } catch (e) {
+    toast(t('toast.acceptFailed', { msg: e.message }), true);
+  }
+}
+
+async function rejectProposal() {
+  if (!state.sid) return;
+  try {
+    const data = await api(`/api/workbench/sessions/${state.sid}/reject`, { method: 'POST' });
+    state.session = data.session;
+    renderAll();
+  } catch (e) {
+    toast(t('toast.rejectFailed', { msg: e.message }), true);
+  }
+}
+
+/* ── Run watching (SSE + polling fallback) ─────────────────────── */
+function stopWatching() {
+  if (state.es) { state.es.close(); state.es = null; }
+  clearInterval(state.pollTimer);
+  clearInterval(state.elapsedTimer);
+  state.pollTimer = null;
+  state.watchingRun = null;
+}
+
+function watchRun(runId) {
+  stopWatching();
+  state.watchingRun = runId;
+  state.activeRun = runId;
+  state.logCount = {};
+  state.solveStart = Date.now();
+  $('console').classList.remove('collapsed');
+  $('console-body').innerHTML = '';
+  state.lastStages = {};
+  renderStageChips(state.lastStages);
+  clearInterval(state.elapsedTimer);
+  state.elapsedTimer = setInterval(() => {
+    $('solve-elapsed').textContent = `${Math.round((Date.now() - state.solveStart) / 1000)}s`;
+  }, 1000);
+
+  try {
+    state.es = new EventSource(`/api/run/${runId}/stream`);
+    state.es.onmessage = (ev) => {
+      const payload = JSON.parse(ev.data);
+      if (payload.event === 'done') { finishWatch(runId); return; }
+      applyRunUpdate(payload);
+      if (TERMINAL.includes(payload.status)) finishWatch(runId);
+    };
+    state.es.onerror = () => {
+      if (state.es) { state.es.close(); state.es = null; }
+      startPolling(runId);
+    };
+  } catch (e) {
+    startPolling(runId);
+  }
+}
+
+function startPolling(runId) {
+  if (state.pollTimer || state.watchingRun !== runId) return;
+  state.pollTimer = setInterval(async () => {
+    try {
+      const run = await api(`/api/run/${runId}`);
+      applyRunUpdate(run);
+      if (TERMINAL.includes(run.status)) finishWatch(runId);
+    } catch (e) { /* keep trying until terminal or user navigates away */ }
+  }, 2000);
+}
+
+async function finishWatch(runId) {
+  stopWatching();
+  try {
+    await showRun(runId);
+    state.session = await api(`/api/workbench/sessions/${state.sid}`);
+    renderRuns();
+    renderChat();
+    const rec = (state.session.runs || []).find(r => r.run_id === runId);
+    const ok = rec && rec.status === 'COMPLETED';
+    toast(ok ? t('toast.solveOk') : t('toast.solveBad'), !ok);
+  } catch (e) {
+    toast(t('toast.resultsFailed', { msg: e.message }), true);
+  }
+}
+
+function applyRunUpdate(payload) {
+  state.lastStages = payload.stages || {};
+  renderStageChips(state.lastStages);
+  const fill = $('solve-fill');
+  if (fill) {
+    const pct = payload.progress_pct || 0;
+    fill.style.width = pct + '%';
+    const pctEl = $('solve-pct');
+    if (pctEl) pctEl.textContent = pct + '%';
+    const running = Object.entries(payload.stages || {}).find(([, s]) => s.status === 'running');
+    const nameEl = $('solve-stage-name');
+    if (nameEl && running) {
+      nameEl.textContent = t('solve.currentStage', { name: running[1].desc || running[0] });
+    }
+  }
+  const body = $('console-body');
+  let appended = false;
+  for (const sid of STAGE_ORDER) {
+    const st = (payload.stages || {})[sid];
+    if (!st) continue;
+    const logs = st.logs || [];
+    const seen = state.logCount[sid] || 0;
+    for (let i = seen; i < logs.length; i++) {
+      const line = document.createElement('div');
+      line.className = 'clog';
+      const lv = logs[i].level || 'info';
+      line.innerHTML = `<span class="stg">[${esc(stageShort(sid))}]</span> <span class="lv-${esc(lv)}">${esc(logs[i].text)}</span>`;
+      body.appendChild(line);
+      appended = true;
+    }
+    state.logCount[sid] = logs.length;
+  }
+  while (body.children.length > 600) body.removeChild(body.firstChild);
+  if (appended) body.scrollTop = body.scrollHeight;
+}
+
+function renderStageChips(stages) {
+  const wrap = $('stage-chips');
+  wrap.innerHTML = '';
+  for (const sid of STAGE_ORDER) {
+    const st = stages[sid] || {};
+    const span = document.createElement('span');
+    span.className = 'schip ' + (st.status || '');
+    span.textContent = stageShort(sid);
+    wrap.appendChild(span);
+  }
+}
+
+/* ── Results view ──────────────────────────────────────────────── */
+function fmtNum(v) {
+  if (v === null || v === undefined) return '—';
+  if (typeof v !== 'number') return esc(v);
+  if (v !== 0 && (Math.abs(v) < 1e-2 || Math.abs(v) >= 1e5)) return v.toExponential(3);
+  return Number(v.toPrecision(5)).toString();
+}
+
+async function showRun(runId) {
+  state.activeRun = runId;
+  state.resultsStale = false;
+  renderRuns();
+  switchTab('results');
+  let run = null;
+  try { run = await api(`/api/run/${runId}`); } catch (e) { /* server may have restarted */ }
+  const rec = (state.session.runs || []).find(r => r.run_id === runId) || {};
+  const inner = $('results-inner');
+  $('results-empty').style.display = 'none';
+  inner.style.display = 'block';
+  document.querySelector('.tab[data-view="results"]').classList.add('has-badge');
+
+  const status = (run && run.status) || rec.status || 'UNKNOWN';
+  const ok = status === 'COMPLETED';
+  const running = !TERMINAL.includes(status);
+  const kpis = (run && Object.keys(run.kpis || {}).length ? run.kpis : rec.kpis) || {};
+  const visuals = run ? extractVisuals(run) : (rec.visuals || []).map(n => ({ file: n }));
+  const animVideo = run ? extractAnimation(run) : (rec.animation || null);
+  const elapsed = run && run.finished_at && run.started_at
+    ? `${Math.round(run.finished_at - run.started_at)}s` : '';
+
+  let html = `
+    <div class="status-banner ${ok ? 'ok' : running ? '' : 'bad'}">
+      <span class="st">${running ? '◌ ' + esc(t('results.solving')) : ok ? '✓ ' + status : '✗ ' + status}</span>
+      <span class="sub">run ${esc(runId.slice(0, 8))}${elapsed ? esc(t('results.elapsed', { elapsed })) : ''}${run ? '' : esc(t('results.archived'))}</span>
+    </div>`;
+
+  // Which solver produced this run, and what it could not do. Never let an
+  // absent云图 section or a differently-defined number read as a full solve.
+  const backend = (run && run.backend) || rec.backend || {};
+  const backendLabel = backend.label || 'Abaqus';
+  const limitations = (run && run.limitations) || rec.limitations || [];
+  const provenance = (run && run.kpi_provenance) || rec.kpi_provenance || {};
+  // KPIs the spec asked for that never came back (#73(b)). Not an error
+  // channel — the run can be COMPLETED and still have entries here.
+  const kpisMissing = (run && run.kpis_missing) || rec.kpis_missing || [];
+
+  if (running) {
+    const pct = (run && run.progress_pct) || 0;
+    html += `
+      <div class="solve-track"><div class="solve-fill" id="solve-fill" style="width:${pct}%"></div></div>
+      <div id="solve-stage-label"><span id="solve-stage-name">${esc(t('solve.inProgress', { label: backendLabel }))}</span>
+        <span class="pct" id="solve-pct">${pct}%</span></div>`;
+  }
+
+  if (backend.backend === 'calculix') {
+    let items = limitations.map(l => `<li>${esc(limitationLine(l))}</li>`).join('');
+    if (run && run.visuals_notice) items += `<li>${esc(run.visuals_notice)}</li>`;
+    html += `<div class="backend-banner">
+      <b>${esc(t('backend.fallback.title', { label: backendLabel }))}</b>
+      ${esc(t('backend.fallback.body'))}
+      ${items ? '<ul>' + items + '</ul>' : ''}</div>`;
+  }
+  if (status === 'REFUSED') {
+    const reasons = limitations.map(l => `<li>${esc(limitationLine(l))}</li>`).join('');
+    html += `<div class="backend-banner">
+      <b>${esc(t('backend.refused.title'))}</b>
+      ${esc(t('backend.refused.body', { label: backendLabel }))}
+      ${reasons ? '<ul>' + reasons + '</ul>' : ''}</div>`;
+  }
+
+  const kpiNames = Object.keys(kpis);
+  if (kpiNames.length || kpisMissing.length) {
+    let kpiLabel = backend.backend === 'calculix'
+      ? esc(t('results.kpi.backend', { label: backendLabel })) : esc(t('results.kpi.real'));
+    // The denominator, next to the heading. `kpiNames.length` alone is the
+    // count of what was delivered with nothing to compare it against, so two
+    // of three tiles read exactly like two of two.
+    if (kpisMissing.length) {
+      kpiLabel += ' · ' + esc(t('kpi.missing.count', {
+        delivered: kpiNames.length, total: kpiNames.length + kpisMissing.length }));
+    }
+    html += '<div class="sec-label">' + kpiLabel + '</div><div id="kpi-grid">';
+    kpiNames.forEach((name, i) => {
+      // KPI values can legitimately be 0 — never `|| {}` a falsy number away.
+      const k = kpis[name];
+      const isObj = k !== null && typeof k === 'object';
+      const val = isObj ? k.value : k;
+      const unit = (isObj && k.unit) ? k.unit : '';
+      // A number whose definition differs from Abaqus carries that label
+      // everywhere it is shown; dropping it in one hop is the quiet lie.
+      const prov = provenance[name];
+      const flag = (prov && prov.abaqus_equivalent === false)
+        ? `<span class="kpi-flag">${esc(t('kpi.flag', {
+            definition: prov.definition || '', source: prov.source || '' }))}</span>`
+        : '';
+      html += `<div class="kpi-card" style="animation-delay:${i * 60}ms">
+        <div class="kpi-name">${esc(name)}</div>
+        <div class="kpi-value">${fmtNum(val)}<span class="kpi-unit">${esc(unit)}</span></div>
+        ${flag}
+      </div>`;
+    });
+    kpisMissing.forEach((m, i) => {
+      const name = (typeof m === 'string') ? m : (m.name || '-');
+      const why = (typeof m === 'string') ? '' : (m.reason || '');
+      html += `<div class="kpi-card kpi-missing" style="animation-delay:${(kpiNames.length + i) * 60}ms">
+        <div class="kpi-name">${esc(name)}</div>
+        <div class="kpi-value">${esc(t('kpi.missing.value'))}</div>
+        <span class="kpi-why">${esc(why || t('kpi.missing.why'))}</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  if (!running) html += gradingSection(run || rec);
+
+  html += '<div id="diag-slot"></div><div id="cmp-slot"></div><div id="vp-slot"></div>';
+
+  if (animVideo) {
+    html += `<div class="sec-label">${esc(t('results.anim'))}</div>
+      <div class="anim-card">
+        <video controls loop muted preload="metadata"
+               src="/api/run/${esc(runId)}/artifact/anim.mp4"
+               onerror="this.closest('.anim-card').style.display='none'"></video>
+        <div class="cap">${esc(t('results.anim.cap', { file: animVideo }))}</div>
+      </div>`;
+  }
+
+  if (visuals.length) {
+    html += `<div class="sec-label">${esc(t('results.visuals'))}</div><div id="visual-grid">`;
+    visuals.forEach((v, i) => {
+      const name = v.file || '';
+      const label = v.label || name;
+      html += `<div class="visual-card" style="animation-delay:${i * 80}ms">
+        <img src="/api/run/${esc(runId)}/artifact/${esc(name)}" alt="${esc(label)}"
+             onerror="this.closest('.visual-card').style.display='none'">
+        <div class="cap">${esc(label)}</div>
+      </div>`;
+    });
+    html += '</div>';
+  } else if (ok) {
+    // Say the real reason. On the CalculiX fallback it is not a missing plot
+    // config — that solver writes no .odb at all, so there is nothing to plot.
+    const noVisualsWhy = (run && run.visuals_notice) || t('results.noVisuals');
+    html += `<div class="sec-label">${esc(t('results.visuals.plain'))}</div>`
+          + '<div class="empty-hint" style="margin:0">' + esc(noVisualsWhy) + '</div>';
+  }
+
+  inner.innerHTML = html;
+  if (ok) {
+    renderCompare(runId).catch(() => {});
+    initViewport(runId).catch(() => {});
+  }
+  // Deliberately NOT gated on `!ok`. A run can reach COMPLETED while a KPI was
+  // refused (the extractor omits it and records the reason) or while the
+  // regression verdict failed — in both cases the banner is green and the KPI
+  // grid is quietly one row shorter. Gating this panel on failure alone would
+  // make a refusal *less* visible than the wrong number it replaced.
+  if (!running && (!ok || hasReportableProblem(run, rec))) {
+    renderDiagnosis(runId, run, rec).catch(() => {});
+  }
+}
+
+// Three-state on purpose. `passed === null` (or an attached reason) means the
+// check did not run, which is neither of the other two: before this existed the
+// workbench showed no verdict at all, so a run with no expected.json was
+// visually indistinguishable from one whose every KPI matched its baseline.
+function gradeCard(label, verdict, why) {
+  const cls = verdict === true ? 'g-pass' : verdict === false ? 'g-fail' : 'g-none';
+  const text = verdict === true ? t('grade.pass')
+             : verdict === false ? t('grade.fail') : t('grade.notGraded');
+  return `<div class="grade-card">
+    <div class="grade-name">${esc(label)}</div>
+    <div class="grade-verdict ${cls}">${esc(text)}</div>
+    ${why ? `<span class="grade-why">${esc(why)}</span>` : ''}
+  </div>`;
+}
+
+function gradingSection(src) {
+  const s = src || {};
+  const reg = s.regression, con = s.contracts;
+  // A demo run solved nothing, so there is nothing to grade; saying NOT GRADED
+  // there would compete with the demo banner for the same message.
+  if (s.demo_mode) return '';
+  // An empty object means this run predates the verdict wiring. Say nothing
+  // rather than assert NOT GRADED about a record that cannot support it.
+  const hasReg = reg && typeof reg === 'object' && ('passed' in reg);
+  const hasCon = con && typeof con === 'object' && ('passed' in con);
+  if (!hasReg && !hasCon) return '';
+
+  let cards = '';
+  if (hasReg) {
+    const why = reg.not_compared_reason
+      || (reg.blocked_by_integrity && reg.blocked_by_integrity.note) || '';
+    cards += gradeCard(t('grade.regression'), reg.passed, why);
+  }
+  if (hasCon) {
+    cards += gradeCard(t('grade.contracts'), con.passed, con.not_checked_reason || '');
+  }
+  return `<div class="sec-label">${esc(t('grade.head'))}</div>
+    <div id="grade-grid">${cards}</div>`;
+}
+
+function hasReportableProblem(run, rec) {
+  const src = run || rec || {};
+  if (src.error || src.kpi_notice) return true;
+  if ((src.limitations || []).length) return true;
+  if (src.regression && src.regression.passed === false) return true;
+  const stages = src.stages || {};
+  for (const key in stages) {
+    const logs = (stages[key] || {}).logs || [];
+    if (logs.some(l => l.level === 'error' || l.level === 'warn')) return true;
+  }
+  return false;
+}
+
+// The one place problems become visible. Four separate mechanisms feed it —
+// solver-doctor findings, the raw solver error, KPI refusals, and backend
+// limitations — because before this existed each of them wrote to the live
+// console, which watchRun clears and showRun never repopulates. Anything
+// written there was effectively invisible the moment you clicked away.
+async function renderDiagnosis(runId, run, rec) {
+  const slot = $('diag-slot');
+  if (!slot) return;
+  const src = run || rec || {};
+
+  let diag = null;
+  try { diag = await api('/api/run/' + encodeURIComponent(runId) + '/doctor'); }
+  catch (e) { diag = null; }
+
+  const err = (diag && diag.error) || src.error || null;
+  const notice = (diag && diag.kpi_notice) || src.kpi_notice || '';
+  const findings = (diag && diag.findings) || [];
+  const limitations = (diag && diag.limitations) || src.limitations || [];
+
+  const kpiProblems = [];
+  const stages = src.stages || {};
+  for (const key in stages) {
+    ((stages[key] || {}).logs || []).forEach(l => {
+      if (l.level === 'error' || l.level === 'warn') kpiProblems.push(l.text);
+    });
+  }
+
+  if (!err && !notice && !findings.length && !limitations.length && !kpiProblems.length) {
+    slot.innerHTML = '';
+    return;
+  }
+
+  let html = `<div class="sec-label">${esc(t('diag.label'))}</div>`;
+
+  // Raw error first and always. A matched pattern is an interpretation; the
+  // solver's own words are the evidence, and the user must be able to see
+  // both and disagree with us.
+  if (err) {
+    const code = err.error_code || err.code || '';
+    const msg = err.message || (typeof err === 'string' ? err : JSON.stringify(err));
+    html += `<div class="diag-card sev-error">
+      <div class="diag-head"><span class="dt">${esc(code || t('diag.solveFailed'))}</span></div>
+      <div class="diag-body"><pre style="white-space:pre-wrap;margin:0">${esc(msg)}</pre>`;
+    if (err.log_snippet) {
+      html += `<div class="dl" style="margin-top:8px">${esc(t('diag.rawOutput'))}</div>
+        <pre style="white-space:pre-wrap;margin:0">${esc(err.log_snippet)}</pre>`;
+    }
+    html += '</div></div>';
+  }
+
+  if (notice) {
+    html += `<div class="diag-card sev-info"><div class="diag-body">${esc(notice)}</div></div>`;
+  }
+
+  findings.forEach(f => {
+    const sev = f.severity === 'error' ? 'sev-error' : 'sev-info';
+    html += `<div class="diag-card ${sev}">
+      <div class="diag-head"><span class="dt">${esc(f.category || f.title || t('diag.label'))}</span>
+        <span class="conf">${esc(f.source_file || '')}</span></div>
+      <div class="diag-body">${esc(f.message || '')}`;
+    if (f.explanation) html += `<div class="dl" style="margin-top:6px">${esc(f.explanation)}</div>`;
+    if (f.recommendation) html += `<div class="diag-fix">${esc(f.recommendation)}</div>`;
+    html += '</div></div>';
+  });
+
+  if (kpiProblems.length) {
+    html += '<div class="diag-card sev-info"><div class="diag-body">'
+          + kpiProblems.map(problem => '<div>' + esc(problem) + '</div>').join('') + '</div></div>';
+  }
+
+  limitations.forEach(l => {
+    /* A string limitation has no feature/value to head the card with, so it
+       gets the sentence alone rather than a `<b></b> = ` stub. */
+    const head = (typeof l === 'string')
+      ? '' : `<b>${esc(l.feature || '')}</b> = ${esc(l.value || '')}`;
+    html += `<div class="diag-card sev-info"><div class="diag-body">
+      ${head}<div class="dl">${esc(limitationText(l))}</div>
+    </div></div>`;
+  });
+
+  // Say so rather than leaving a suggestive blank. "No pattern matched" is a
+  // real answer; a diagnosis we did not actually derive would not be.
+  if (err && !findings.length) {
+    html += '<div class="empty-hint" style="margin:0">' + esc(t('diag.noPattern')) + '</div>';
+  }
+
+  slot.innerHTML = html;
+}
+
+// Two ways a result mesh can be untrustworthy, both of which used to render as
+// confident pixels.
+//
+// legacy — a run directory is never regenerated (its id hashes the spec, not
+//   the exporter), so every mesh.json written before instance scoping is still
+//   on disk and still draws the wrong assembly. Measured on the bearing block:
+//   63% of the exterior surface deleted, the Cap missing entirely, and a Mises
+//   legend understating the peak by a factor of two. Nothing in the payload
+//   said so.
+// broken — self-contradiction. A colour buffer sized from node_count while the
+//   triangles index past it does not throw in WebGL; it paints the wrong
+//   thing. Same for a displacement array that does not match the node array,
+//   and for a triangle whose corners belong to two different instances.
+function meshTrustNotes(mesh) {
+  const fmt = mesh.format || 'unknown';
+  const legacy = (fmt === 'unknown' || /mesh\/1$/.test(fmt))
+    ? t('vp.legacyMesh', { fmt }) : '';
+
+  const why = [];
+  const coords = (mesh.nodes || []).length;
+  if (mesh.node_count * 3 !== coords) {
+    why.push(`node_count ${mesh.node_count} vs ${coords / 3} coordinates`);
+  }
+  if (mesh.displacement && mesh.displacement.length
+      && mesh.displacement.length !== coords) {
+    why.push(`displacement ${mesh.displacement.length} vs nodes ${coords}`);
+  }
+  if (mesh.cross_instance_tris) {
+    why.push(`${mesh.cross_instance_tris} triangles span two instances`);
+  }
+  return { legacy, broken: why.length ? t('vp.brokenMesh', { why: why.join('; ') }) : '' };
+}
+
+async function initViewport(runId) {
+  if (state.viewport) { state.viewport.dispose(); state.viewport = null; }
+  if (typeof THREE === 'undefined' || !window.WBViewport) return;
+  let mesh;
+  try {
+    const resp = await fetch(`/api/run/${runId}/artifact/mesh.json`);
+    if (!resp.ok) return;
+    mesh = await resp.json();
+  } catch (e) { return; }
+  if (!mesh || !mesh.nodes || !mesh.nodes.length || state.activeRun !== runId) return;
+
+  const slot = $('vp-slot');
+  if (!slot) return;
+  const fields = Object.keys(mesh.fields || {});
+  const fieldLabel = (f) => f === 'mises' ? t('field.mises') : t('field.u');
+  const modalNote = mesh.is_modal
+    ? t('vp.modalNote', { mode: mesh.mode, freq: fmtNum(mesh.frequency) }) : '';
+  const trust = meshTrustNotes(mesh);
+
+  slot.innerHTML = `
+    <div class="sec-label">${esc(t('vp.section'))}${esc(modalNote)}${esc(trust.legacy)}${esc(trust.broken)}</div>
+    <div id="vp-card">
+      <div id="vp-canvas"></div>
+      <div class="vp-legend"><span id="vp-max"></span><div class="vp-grad"></div><span id="vp-min"></span></div>
+      <div id="vp-controls">
+        <select id="vp-field">${fields.map(f =>
+          `<option value="${esc(f)}">${esc(fieldLabel(f))}</option>`).join('')}</select>
+        <label class="vp-lab"><input type="checkbox" id="vp-deform"
+          ${mesh.is_modal ? 'checked' : ''}> ${esc(mesh.is_modal ? t('vp.modeAnim') : t('vp.showDeform'))}</label>
+        <span class="vp-meta">${esc(t('vp.meta', { nodes: mesh.node_count, tris: mesh.tri_count }))}</span>
+      </div>
+    </div>`;
+
+  const updateLegend = (fname) => {
+    const f = mesh.fields[fname];
+    $('vp-max').textContent = f ? fmtNum(f.max) : '';
+    $('vp-min').textContent = f ? fmtNum(f.min) : '';
+  };
+  try {
+    const vp = WBViewport.create($('vp-canvas'), mesh);
+    state.viewport = vp;
+    const defaultField = mesh.fields.mises ? 'mises' : fields[0];
+    $('vp-field').value = defaultField;
+    updateLegend(defaultField);
+    $('vp-field').addEventListener('change', (e) => {
+      vp.setField(e.target.value);
+      updateLegend(e.target.value);
+    });
+    $('vp-deform').addEventListener('change', (e) => {
+      if (mesh.is_modal) vp.setPlaying(e.target.checked);
+      else vp.setDeform(e.target.checked ? vp.autoScale : 0);
+    });
+    if (!mesh.is_modal) { vp.setDeform(0); }
+  } catch (e) {
+    slot.innerHTML = '';
+  }
+}
+
+function extractAnimation(run) {
+  const anim = (run.orchestrator_result || {}).animation || {};
+  return anim.video ? String(anim.video).split(/[\\/]/).pop() : null;
+}
+
+function extractVisuals(run) {
+  const out = [];
+  for (const entry of ((run.orchestrator_result || {}).visuals || [])) {
+    if (typeof entry === 'string') out.push({ file: entry.split(/[\\/]/).pop() });
+    else if (entry && typeof entry === 'object') {
+      const raw = entry.file || entry.path || entry.png || '';
+      if (raw) out.push({ file: String(raw).split(/[\\/]/).pop(), label: entry.label || entry.name });
+    }
+  }
+  return out;
+}
+
+async function renderCompare(runId) {
+  const runs = state.session.runs || [];
+  const idx = runs.findIndex(r => r.run_id === runId);
+  const prev = runs.slice(0, idx).reverse().find(r => r.status === 'COMPLETED');
+  if (!prev) return;
+  const diff = await api(`/api/run/${prev.run_id}/diff/${runId}`);
+  const entries = ((diff.sections || {}).kpis || {}).kpis || [];
+  if (!entries.length) return;
+  let rows = '';
+  for (const e of entries) {
+    const rel = (typeof e.rel_delta === 'number') ? (e.rel_delta * 100).toFixed(1) + '%' : '—';
+    rows += `<tr><td>${esc(e.name)}</td><td>${fmtNum(e.before)}</td><td>${fmtNum(e.after)}</td>
+      <td>${rel}</td><td><span class="chip ${esc(e.status)}">${esc(e.status)}</span></td></tr>`;
+  }
+  $('cmp-slot').innerHTML = `
+    <div class="sec-label">${esc(t('cmp.label', {
+      before: prev.run_id.slice(0, 8), after: runId.slice(0, 8) }))}</div>
+    <table class="cmp"><thead><tr><th>KPI</th><th>${esc(t('cmp.before'))}</th><th>${esc(t('cmp.after'))}</th><th>Δ%</th><th>${esc(t('cmp.verdict'))}</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+/* ── Tabs & wiring ─────────────────────────────────────────────── */
+function switchTab(view) {
+  document.querySelectorAll('.tab').forEach(tab =>
+    tab.classList.toggle('active', tab.dataset.view === view));
+  document.querySelectorAll('.workview').forEach(v =>
+    v.classList.toggle('active', v.id === 'view-' + view));
+  if (view === 'diff') document.querySelector('.tab[data-view="diff"]').classList.remove('has-badge');
+  if (view === 'results') document.querySelector('.tab[data-view="results"]').classList.remove('has-badge');
+  // A language switch cannot cheaply re-render a results pane the user is not
+  // looking at (showRun refetches and would yank the tab under them), so the
+  // stale pane is repainted the moment it comes back into view.
+  if (view === 'results' && state.resultsStale && state.activeRun) {
+    state.resultsStale = false;
+    showRun(state.activeRun).catch(() => {});
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab =>
+  tab.addEventListener('click', () => switchTab(tab.dataset.view)));
+
+/* ── Language ──────────────────────────────────────────────────────
+ * data-i18n covers the static chrome; everything below was written into
+ * the DOM by JS and has to be rebuilt by hand. Panels the user is not
+ * looking at are marked stale instead of re-fetched.
+ */
+$('btn-lang').addEventListener('click', () => I18N.toggle());
+
+I18N.onChange((lang) => {
+  // Refusal wording lives in the backend catalogue, which arrives over the
+  // network, so the re-render below has to wait for it — otherwise the banner
+  // repaints with the old language's entries still registered.
+  loadBackendMessages(lang).then(() => {
+    if (state.activeRun && $('view-results')?.classList.contains('active')) {
+      showRun(state.activeRun).catch(() => {});
+    }
+  });
+  sbRefreshText();
+  sbSyncRun();
+  if (state.lastStages) renderStageChips(state.lastStages);
+  if (state.session) {
+    renderChat();
+    renderRuns();
+    if (state.session.pending) renderDiffNote(state.session.pending);
+  }
+  if (state.sliderFields && state.sliderBaseYaml) {
+    renderSliderPanel(state.sliderBaseYaml, state.sliderFields);
+  }
+  repaintVpStats();
+  refreshSessions().catch(() => {});
+  if (state.activeRun) {
+    const onResults = $('view-results')?.classList.contains('active');
+    if (onResults) showRun(state.activeRun).catch(() => {});
+    else state.resultsStale = true;
+  }
+});
+
+$('btn-send').addEventListener('click', sendMessage);
+$('chat-input').addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') sendMessage();
+});
+document.querySelectorAll('.quick').forEach(q =>
+  q.addEventListener('click', () => { $('chat-input').value = q.textContent; $('chat-input').focus(); }));
+// The onboarding cards are the same affordance at the size a first-time user
+// actually notices. A starter card that only decorates would be worse than no
+// card at all, so they load the prompt exactly like the chips do.
+document.querySelectorAll('.onboard-card').forEach(card =>
+  card.addEventListener('click', () => {
+    $('chat-input').value = card.dataset.seed || '';
+    $('chat-input').focus();
+  }));
+$('tree-clear').addEventListener('click', clearTreeSelection);
+$('vp-pick-mode').addEventListener('click', () => {
+  state.pickMode = state.pickMode === 'face' ? 'part' : 'face';
+  updatePickModeBtn();
+});
+updatePickModeBtn();
+$('btn-accept').addEventListener('click', acceptProposal);
+$('btn-reject').addEventListener('click', rejectProposal);
+$('btn-new-session').addEventListener('click', async () => {
+  const created = await api('/api/workbench/sessions', { method: 'POST', body: JSON.stringify({}) });
+  await refreshSessions();
+  await loadSession(created.session_id);
+});
+$('session-select').addEventListener('change', (e) => loadSession(e.target.value));
+$('console-head').addEventListener('click', () => $('console').classList.toggle('collapsed'));
+
+initStatusBar();
+loadBackendMessages(I18N.lang);
+boot();
+</script>
+</body>
+</html>

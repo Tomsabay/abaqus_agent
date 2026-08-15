@@ -70,9 +70,44 @@ def _load_structured(path: str | Path) -> Any:
     return yaml.safe_load(text)
 
 
+def normalize_contracts(items: Any) -> list[dict[str, Any]]:
+    """Validate and normalize an already-parsed list of contracts.
+
+    For contracts that arrive as data rather than as a file: embedded in a
+    spec, or handed to the orchestrator directly. Same rules either way, so
+    there is one definition of what a contract is.
+    """
+    if isinstance(items, dict):
+        items = items.get("contracts", [])
+    if items is None:
+        return []
+    if not isinstance(items, list):
+        raise ValueError("contracts must be a list")
+    return [_normalize_contract(item) for item in items]
+
+
 def _normalize_contract(contract: Any) -> dict[str, Any]:
+    """`check:` and `type:` are the same field under two names.
+
+    contracts/evaluator.py has always read `contract.get("check") or
+    contract.get("type")`, and the repo ships both dialects: every file under
+    examples/contracts/ says `type:`, cases/cantilever/contracts.yaml says
+    `check:`. This loader used to demand `type:`, so it raised ValueError on
+    the only contract file the cases actually ship -- reachable from
+    evidence/offline.py and evidence/real_smoke_contract_diff.py, both of
+    which take the path from their caller.
+
+    Neither key is a fail-open: evaluator's `.get("type", "range")` default
+    turns a misspelled kind into a range check, which then reports on whatever
+    min/max the contract happens not to have.
+    """
     if not isinstance(contract, dict):
         raise ValueError("each contract must be an object")
-    if "type" not in contract:
-        raise ValueError("each contract must define type")
-    return dict(contract)
+    kind = contract.get("check") or contract.get("type")
+    if not kind:
+        raise ValueError(
+            "each contract must define check (or its older spelling, type); "
+            "got keys: %s" % sorted(contract))
+    normalized = dict(contract)
+    normalized["check"] = normalized["type"] = kind
+    return normalized

@@ -1,1788 +1,72 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh" class="ds">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Abaqus Agent</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg:        #09090E;
-  --bg2:       #0F0F18;
-  --bg3:       #141420;
-  --border:    #1E1E2E;
-  --border2:   #2A2A3E;
-  --accent:    #FF6B2B;
-  --accent2:   #FF8C52;
-  --blue:      #4D8EFF;
-  --green:     #3DCC7E;
-  --yellow:    #FFB830;
-  --red:       #FF4560;
-  --text:      #E2E2F0;
-  --text2:     #8888A8;
-  --text3:     #4A4A6A;
-  --mono:      'JetBrains Mono', monospace;
-  --sans:      'IBM Plex Sans', sans-serif;
-}
-
-* { margin:0; padding:0; box-sizing:border-box; }
-
-html, body {
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-  font-size: 13px;
-  line-height: 1.5;
-  overflow: hidden;
-}
-
-/* ── Scrollbar ─────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text3); }
-
-/* ── Layout ────────────────────────────────────────────────────── */
-.app {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  grid-template-rows: 42px 1fr;
-  height: 100vh;
-}
-
-/* ── Topbar ────────────────────────────────────────────────────── */
-.topbar {
-  grid-column: 1/-1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  z-index: 100;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text);
-}
-
-.logo-icon {
-  width: 24px; height: 24px;
-  background: var(--accent);
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: white; font-weight: 900;
-  animation: pulse-logo 3s ease-in-out infinite;
-}
-
-@keyframes pulse-logo {
-  0%,100% { box-shadow: 0 0 0 0 rgba(255,107,43,0); }
-  50% { box-shadow: 0 0 12px 2px rgba(255,107,43,0.4); }
-}
-
-.topbar-spacer { flex: 1; }
-
-.status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 6px var(--green);
-  animation: blink 2s ease-in-out infinite;
-}
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-.topbar-info {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  letter-spacing: 0.05em;
-}
-
-/* ── Sidebar ────────────────────────────────────────────────────── */
-.sidebar {
-  background: var(--bg2);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0;
-  overflow-y: auto;
-}
-
-.nav-section {
-  padding: 12px 12px 4px;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  color: var(--text3);
-  text-transform: uppercase;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--text2);
-  transition: all 0.15s;
-  border-left: 2px solid transparent;
-  user-select: none;
-}
-
-.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
-
-.nav-item.active {
-  color: var(--accent);
-  background: rgba(255,107,43,0.08);
-  border-left-color: var(--accent);
-}
-
-.nav-icon {
-  font-size: 13px;
-  width: 16px;
-  text-align: center;
-  opacity: 0.7;
-}
-
-.nav-badge {
-  margin-left: auto;
-  background: var(--accent);
-  color: white;
-  font-size: 9px;
-  font-family: var(--mono);
-  padding: 1px 5px;
-  border-radius: 10px;
-  font-weight: 700;
-}
-
-/* ── Main content ───────────────────────────────────────────────── */
-.main {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel {
-  display: none;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-.panel.active { display: flex; }
-
-/* ── Panel header ───────────────────────────────────────────────── */
-.panel-header {
-  padding: 14px 20px 10px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.panel-title {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--text2);
-  text-transform: uppercase;
-}
-
-.panel-title span {
-  color: var(--accent);
-  margin-right: 6px;
-}
-
-/* ── Prompt panel ───────────────────────────────────────────────── */
-.prompt-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.input-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--text3);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.nl-input {
-  width: 100%;
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  padding: 12px 14px;
-  color: var(--text);
-  font-family: var(--sans);
-  font-size: 13px;
-  resize: none;
-  outline: none;
-  transition: border-color 0.2s;
-  min-height: 80px;
-}
-
-.nl-input:focus { border-color: var(--accent); }
-.nl-input::placeholder { color: var(--text3); }
-
-.quick-examples {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip {
-  padding: 4px 10px;
-  border: 1px solid var(--border2);
-  border-radius: 20px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(255,107,43,0.06);
-}
-
-.btn-row {
-  display: flex;
-  gap: 8px;
-}
-
-.btn {
-  padding: 8px 18px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  transition: all 0.15s;
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: white;
-}
-.btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
-.btn-primary:active { transform: translateY(0); }
-
-.btn-secondary {
-  background: transparent;
-  color: var(--text2);
-  border: 1px solid var(--border2);
-}
-.btn-secondary:hover { border-color: var(--text3); color: var(--text); }
-
-.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
-
-/* ── Spec editor ─────────────────────────────────────────────────── */
-.spec-container {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 16px 20px;
-  gap: 12px;
-}
-
-.code-editor {
-  flex: 1;
-  position: relative;
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.code-editor textarea {
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  border: none;
-  padding: 14px;
-  padding-left: 52px;
-  color: #A8D8A8;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.7;
-  resize: none;
-  outline: none;
-  tab-size: 2;
-  position: absolute;
-  top: 0; left: 0;
-}
-
-.line-numbers {
-  position: absolute;
-  top: 0; left: 0;
-  width: 44px;
-  padding: 14px 8px;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--text3);
-  text-align: right;
-  pointer-events: none;
-  border-right: 1px solid var(--border);
-  user-select: none;
-}
-
-.spec-meta {
-  display: flex;
-  gap: 16px;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-}
-
-.meta-val {
-  color: var(--green);
-  font-weight: 500;
-}
-
-/* ── Pipeline panel ──────────────────────────────────────────────── */
-.pipeline-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.stage {
-  display: flex;
-  gap: 16px;
-  position: relative;
-}
-
-.stage:not(:last-child)::before {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 32px;
-  bottom: -2px;
-  width: 1px;
-  background: var(--border2);
-  z-index: 0;
-}
-
-.stage.done:not(:last-child)::before { background: var(--green); opacity: 0.4; }
-.stage.running:not(:last-child)::before { background: var(--blue); opacity: 0.4; }
-.stage.error:not(:last-child)::before { background: var(--red); opacity: 0.4; }
-
-.stage-indicator {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--border2);
-  background: var(--bg2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text3);
-  flex-shrink: 0;
-  z-index: 1;
-  margin-top: 10px;
-  transition: all 0.3s;
-  position: relative;
-}
-
-.stage.done .stage-indicator {
-  border-color: var(--green);
-  background: rgba(61,204,126,0.12);
-  color: var(--green);
-}
-.stage.running .stage-indicator {
-  border-color: var(--blue);
-  background: rgba(77,142,255,0.12);
-  color: var(--blue);
-  animation: spin-ring 1.2s linear infinite;
-}
-.stage.error .stage-indicator {
-  border-color: var(--red);
-  background: rgba(255,69,96,0.12);
-  color: var(--red);
-}
-
-@keyframes spin-ring {
-  0% { box-shadow: 0 0 0 0 rgba(77,142,255,0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(77,142,255,0.1); }
-  100% { box-shadow: 0 0 0 0 rgba(77,142,255,0); }
-}
-
-.stage-body {
-  flex: 1;
-  padding: 10px 0 20px;
-}
-
-.stage-name {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text);
-  letter-spacing: 0.03em;
-}
-
-.stage.done .stage-name { color: var(--green); }
-.stage.running .stage-name { color: var(--blue); }
-.stage.error .stage-name { color: var(--red); }
-
-.stage-desc {
-  font-size: 11px;
-  color: var(--text3);
-  margin-top: 2px;
-}
-
-.stage-time {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  margin-top: 4px;
-}
-
-.stage-log {
-  margin-top: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 8px 10px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text2);
-  line-height: 1.6;
-  max-height: 160px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.log-line { white-space: pre; }
-.log-ok { color: var(--green); }
-.log-warn { color: var(--yellow); }
-.log-err, .log-error { color: var(--red); }
-.log-info { color: var(--blue); }
-
-/* ── Pipeline summary bar ───────────────────────────────────────── */
-.pipeline-summary {
-  flex-shrink: 0;
-  padding: 10px 20px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.progress-bar-wrap {
-  flex: 1;
-  height: 4px;
-  background: var(--border2);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--blue));
-  border-radius: 2px;
-  transition: width 0.6s ease;
-  width: 0%;
-}
-
-.pipeline-pct {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text2);
-  min-width: 36px;
-}
-
-/* ── KPI panel ───────────────────────────────────────────────────── */
-.kpi-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.kpi-card {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.2s;
-}
-
-.kpi-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-}
-
-.kpi-card.pass::before { background: var(--green); }
-.kpi-card.fail::before { background: var(--red); }
-.kpi-card.info::before { background: var(--blue); }
-.kpi-card.pending::before { background: var(--border2); }
-
-.kpi-card:hover { border-color: var(--border2); }
-
-.kpi-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.kpi-value {
-  font-family: var(--mono);
-  font-size: 26px;
-  font-weight: 300;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.kpi-value.pass { color: var(--green); }
-.kpi-value.fail { color: var(--red); }
-.kpi-value.info { color: var(--blue); }
-.kpi-value.pending { color: var(--text3); }
-
-.kpi-unit {
-  font-size: 11px;
-  color: var(--text3);
-  margin-left: 4px;
-  font-weight: 400;
-  font-family: var(--sans);
-}
-
-.kpi-comparison {
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--text3);
-}
-
-.kpi-comparison .expected { color: var(--text2); }
-.kpi-comparison .err { color: var(--yellow); }
-
-.kpi-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 3px;
-  letter-spacing: 0.06em;
-}
-
-.kpi-badge.pass { background: rgba(61,204,126,0.15); color: var(--green); }
-.kpi-badge.fail { background: rgba(255,69,96,0.15); color: var(--red); }
-.kpi-badge.info { background: rgba(77,142,255,0.15); color: var(--blue); }
-
-/* ── Benchmark table ─────────────────────────────────────────────── */
-.bench-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.bench-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.bench-table thead tr {
-  border-bottom: 1px solid var(--border2);
-}
-
-.bench-table th {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  color: var(--text3);
-  text-transform: uppercase;
-  padding: 8px 12px;
-  text-align: left;
-  font-weight: 400;
-}
-
-.bench-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
-
-.bench-table tbody tr {
-  transition: background 0.1s;
-}
-.bench-table tbody tr:hover { background: rgba(255,255,255,0.02); }
-
-.case-name {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text);
-}
-
-.case-type {
-  font-size: 10px;
-  color: var(--text3);
-  margin-top: 2px;
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-.status-pill.pass { background: rgba(61,204,126,0.12); color: var(--green); }
-.status-pill.fail { background: rgba(255,69,96,0.12); color: var(--red); }
-.status-pill.pending { background: rgba(136,136,168,0.1); color: var(--text3); }
-.status-pill.running { background: rgba(77,142,255,0.12); color: var(--blue); }
-
-.dot { width:5px; height:5px; border-radius:50%; background:currentColor; }
-
-.kpi-inline {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text2);
-}
-
-.elapsed {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text3);
-}
-
-.reg-pass { color: var(--green); font-family: var(--mono); font-size: 11px; }
-.reg-fail { color: var(--red);   font-family: var(--mono); font-size: 11px; }
-.reg-na   { color: var(--text3); font-family: var(--mono); font-size: 11px; }
-
-/* ── Offline Evidence panel ─────────────────────────────────────── */
-.evidence-area {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1.1fr);
-  gap: 16px;
-}
-
-.evidence-column {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.evidence-box {
-  min-width: 0;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.evidence-box-head {
-  padding: 9px 12px;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--text3);
-  text-transform: uppercase;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.evidence-box-body {
-  padding: 12px;
-}
-
-.evidence-textarea {
-  width: 100%;
-  min-height: 92px;
-  background: var(--bg);
-  border: 1px solid var(--border2);
-  border-radius: 5px;
-  padding: 10px;
-  color: #A8D8A8;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.6;
-  resize: vertical;
-  outline: none;
-}
-
-.evidence-textarea:focus,
-.evidence-input:focus {
-  border-color: var(--accent);
-}
-
-.evidence-input {
-  width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--border2);
-  border-radius: 5px;
-  padding: 8px 10px;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 11px;
-  outline: none;
-}
-
-.evidence-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.evidence-status {
-  margin-left: auto;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-}
-
-.evidence-verdict {
-  display: grid;
-  grid-template-columns: 120px repeat(3, 1fr);
-  gap: 10px;
-}
-
-.evidence-stat {
-  min-height: 72px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.evidence-stat-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: var(--text3);
-  text-transform: uppercase;
-}
-
-.evidence-stat-value {
-  margin-top: 8px;
-  font-family: var(--mono);
-  font-size: 20px;
-  line-height: 1;
-  color: var(--text2);
-}
-
-.evidence-stat.pass .evidence-stat-value { color: var(--green); }
-.evidence-stat.fail .evidence-stat-value { color: var(--red); }
-.evidence-stat.warn .evidence-stat-value { color: var(--yellow); }
-
-.evidence-paths {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  word-break: break-all;
-}
-
-.evidence-paths span {
-  color: var(--text2);
-}
-
-.artifact-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.artifact-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  color: var(--accent);
-  background: var(--bg);
-  text-decoration: none;
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-}
-
-.artifact-link:hover {
-  border-color: var(--accent);
-  background: rgba(0, 217, 255, 0.08);
-}
-
-.evidence-recent {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.evidence-recent-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.85fr);
-  gap: 8px;
-  align-items: center;
-  padding: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.evidence-recent-main {
-  min-width: 0;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.evidence-recent-meta {
-  margin-top: 4px;
-  color: var(--text3);
-}
-
-.evidence-recent-links {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.case-memory-pick {
-  min-height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  color: var(--text2);
-  background: var(--bg3);
-  font-family: var(--mono);
-  font-size: 10px;
-  cursor: pointer;
-}
-
-.case-memory-pick:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.evidence-report {
-  flex: 1;
-  min-height: 0;
-  background: var(--bg);
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  padding: 12px;
-  color: var(--text2);
-  font-family: var(--mono);
-  font-size: 10px;
-  line-height: 1.6;
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-@media (max-width: 980px) {
-  .evidence-area {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
+<title data-i18n="page.title">Abaqus Agent</title>
+<!--
+  Tokens live in ONE file shared with /workbench. This page used to carry its
+  own :root block that had drifted into a different product: near-black
+  #09090E ground, purple-tinted greys, JetBrains Mono + IBM Plex Sans pulled
+  from Google's CDN. Same application, two skins — and an engineering tool
+  that phones out to fonts.googleapis.com on every load, which also fails on
+  the air-gapped workstations this is meant to run on.
+-->
+<link rel="stylesheet" href="/static/design-system.css">
+<script src="/static/i18n.js"></script>
+<script>
+/* Stand-in, used only when the line above failed to load (missing file behind
+   a reverse proxy, a CSP that blocks it, a packaging slip). Without it the
+   page's own script block — ~4000 lines, all of it — dies on a ReferenceError
+   at its first statement, and an engineering tool becomes a static shell with
+   no working buttons. Serving the default language with no switch is a fair
+   degradation; that is not.
+   Deliberately minimal: registers, looks up, stamps the DOM once. No
+   persistence, no switching, no events. Exercised by
+   scripts/run_i18n_ui_check.py, which loads each page with this file blocked. */
+window.I18N = window.I18N || (function () {
+  var d = {}, LANG = 'zh';
+  function look(k) { return (d[LANG] && d[LANG][k]) || (d.zh && d.zh[k]) || k; }
+  function t(k, p) {
+    var s = look(k);
+    return p ? s.replace(/\{(\w+)\}/g, function (w, n) { return n in p ? p[n] : w; }) : s;
   }
-  .evidence-verdict {
-    grid-template-columns: repeat(2, 1fr);
+  function apply(root) {
+    var scope = root || document;
+    if (!scope.querySelectorAll) return;
+    scope.querySelectorAll('[data-i18n]').forEach(function (el) {
+      if (el.__i18nWrote === undefined || el.textContent === el.__i18nWrote) {
+        el.textContent = el.__i18nWrote = t(el.getAttribute('data-i18n'));
+      }
+    });
+    scope.querySelectorAll('[data-i18n-attr]').forEach(function (el) {
+      el.getAttribute('data-i18n-attr').split(',').forEach(function (pair) {
+        var b = pair.split(':');
+        if (b.length === 2) el.setAttribute(b[0].trim(), t(b[1].trim()));
+      });
+    });
   }
-}
-
-@media (max-width: 760px) {
-  .evidence-recent-row {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-  .evidence-recent-links {
-    justify-content: flex-start;
-  }
-}
-
-@media (max-width: 720px) {
-  html, body {
-    overflow: hidden;
-  }
-
-  .app {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 42px auto minmax(0, 1fr);
-  }
-
-  .topbar {
-    min-width: 0;
-    padding: 0 10px;
-    gap: 8px;
-  }
-
-  .topbar-info,
-  .topbar > span[style*="border2"] {
-    display: none;
-  }
-
-  .sidebar {
-    grid-row: 2;
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 8px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .sidebar .nav-section,
-  .sidebar > div[style*="flex:1"],
-  .sidebar > div[style*="border-top"] {
-    display: none;
-  }
-
-  .nav-item {
-    flex: 0 0 auto;
-    padding: 7px 10px;
-    border-left: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 5px;
-    white-space: nowrap;
-  }
-
-  .nav-item.active {
-    border-left-color: transparent;
-    border-bottom-color: var(--accent);
-  }
-
-  .main {
-    grid-row: 3;
-    min-width: 0;
-  }
-
-  .panel-header,
-  .prompt-area,
-  .spec-container,
-  .pipeline-area,
-  .bench-area,
-  .kpi-area,
-  .evidence-area,
-  .settings-area {
-    padding: 12px;
-  }
-
-  .prompt-area > div > div[style*="display:flex"],
-  .btn-row,
-  .settings-field-row {
-    flex-wrap: wrap;
-  }
-
-  .prompt-area select,
-  .btn-row .btn,
-  .settings-field-row .btn,
-  .settings-field-row .settings-input {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .evidence-area {
-    gap: 12px;
-  }
-
-  .evidence-actions {
-    align-items: stretch;
-  }
-
-  .evidence-actions .btn {
-    flex: 1 1 150px;
-  }
-
-  .evidence-status {
-    flex: 1 0 100%;
-    margin-left: 0;
-  }
-
-  .artifact-link,
-  .case-memory-pick {
-    min-width: 0;
-  }
-}
-
-@media (max-width: 460px) {
-  .evidence-verdict {
-    grid-template-columns: 1fr;
-  }
-
-  .evidence-box-head {
-    flex-wrap: wrap;
-  }
-}
-
-/* ── Toast ───────────────────────────────────────────────────────── */
-.toast-wrap {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 9999;
-}
-
-.toast {
-  padding: 10px 16px;
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  animation: slide-in 0.2s ease;
-  max-width: 320px;
-}
-
-@keyframes slide-in {
-  from { transform: translateX(20px); opacity: 0; }
-  to   { transform: translateX(0);   opacity: 1; }
-}
-
-.toast.info  { border-left: 3px solid var(--blue);  }
-.toast.ok    { border-left: 3px solid var(--green); }
-.toast.error { border-left: 3px solid var(--red);   }
-
-/* ── Scan-line overlay ───────────────────────────────────────────── */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.03) 2px,
-    rgba(0,0,0,0.03) 4px
-  );
-  pointer-events: none;
-  z-index: 10000;
-}
-
-/* ── Run button animation ─────────────────────────────────────────── */
-.btn-run-glow {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-run-glow::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-  transform: translateX(-100%);
-}
-
-.btn-run-glow:hover::after {
-  animation: shimmer 0.6s ease;
-}
-
-@keyframes shimmer {
-  to { transform: translateX(100%); }
-}
-
-/* ── Empty state ─────────────────────────────────────────────────── */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  gap: 8px;
-  color: var(--text3);
-}
-
-.empty-icon {
-  font-size: 32px;
-  opacity: 0.3;
-}
-
-.empty-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-}
-
-/* ── Section title ───────────────────────────────────────────────── */
-.section-title {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text3);
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.section-title::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-/* ── Validation result ───────────────────────────────────────────── */
-.validation-result {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 10px 12px;
-  font-family: var(--mono);
-  font-size: 11px;
-}
-
-.v-ok   { color: var(--green); }
-.v-err  { color: var(--red); }
-.v-item { padding: 2px 0; }
-
-/* ── YAML syntax highlight overlay ──────────────────────────────── */
-#spec-highlight {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%;
-  height: 100%;
-  padding: 14px;
-  padding-left: 52px;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.7;
-  pointer-events: none;
-  white-space: pre;
-  overflow: hidden;
-  tab-size: 2;
-  margin: 0;
-  border: none;
-  background: transparent;
-  color: transparent;
-  box-sizing: border-box;
-  word-wrap: normal;
-}
-
-/* Make the textarea transparent so highlight shows through */
-.code-editor textarea {
-  color: transparent !important;
-  caret-color: #A8D8A8;
-  position: absolute;
-  top: 0; left: 0;
-  z-index: 2;
-  background: transparent;
-}
-
-/* ── Log cursor blink ────────────────────────────────────────────── */
-.log-cursor { animation: blink-cur 0.8s step-end infinite; }
-@keyframes blink-cur { 0%,100%{opacity:1} 50%{opacity:0} }
-
-/* ── Settings panel ─────────────────────────────────────────────── */
-.settings-area {
-  padding: 20px 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  max-width: 640px;
-}
-
-.settings-group {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.settings-group-header {
-  padding: 10px 16px;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text3);
-}
-
-.settings-row {
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border-bottom: 1px solid var(--border);
-}
-
-.settings-row:last-child { border-bottom: none; }
-
-.settings-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text2);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.settings-label .badge {
-  font-size: 9px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  color: var(--text3);
-}
-
-.settings-label .badge.ok { background: rgba(61,204,126,0.1); border-color: rgba(61,204,126,0.3); color: var(--green); }
-.settings-label .badge.missing { background: rgba(255,69,96,0.1); border-color: rgba(255,69,96,0.3); color: var(--red); }
-
-.settings-field-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.settings-input {
-  flex: 1;
-  background: var(--bg);
-  border: 1px solid var(--border2);
-  border-radius: 4px;
-  padding: 7px 10px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text);
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.settings-input:focus { border-color: var(--accent); }
-
-.settings-desc {
-  font-size: 10px;
-  color: var(--text3);
-  font-family: var(--mono);
-  line-height: 1.5;
-}
-
-.btn-settings-save {
-  padding: 8px 20px;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  letter-spacing: 0.04em;
-}
-
-.btn-settings-save:hover { opacity: 0.85; }
-
-.btn-test {
-  padding: 7px 12px;
-  background: transparent;
-  border: 1px solid var(--border2);
-  border-radius: 4px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text2);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.15s, color 0.15s;
-}
-
-.btn-test:hover { border-color: var(--blue); color: var(--blue); }
-
-.settings-status {
-  font-family: var(--mono);
-  font-size: 10px;
-  padding: 6px 16px;
-  color: var(--text3);
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
-}
-
-/* ── History panel ───────────────────────────────────────────────── */
-.history-area {
-  padding: 20px 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.history-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  gap: 8px;
-  color: var(--text3);
-  font-family: var(--mono);
-  font-size: 11px;
-}
-
-.history-card {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px 16px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.history-card:hover {
-  border-color: var(--border2);
-  background: var(--bg2);
-}
-
-.history-card-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.history-run-id {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text3);
-}
-
-.history-model {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text);
-  font-weight: 500;
-  flex: 1;
-}
-
-.history-card-meta {
-  display: flex;
-  gap: 16px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-}
-
-.history-kpis {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text2);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.history-kpi-chip {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 2px 8px;
-  font-size: 10px;
-}
-
-.history-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.btn-history-clear {
-  padding: 4px 10px;
-  background: transparent;
-  border: 1px solid var(--border2);
-  border-radius: 3px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  cursor: pointer;
-}
-
-.btn-history-clear:hover { color: var(--red); border-color: var(--red); }
-
-/* ── KPI sparkline ───────────────────────────────────────────────── */
-.kpi-sparkline-wrap {
-  width: 100%;
-  background: #0F0F18;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 16px 8px;
-}
-
-.kpi-sparkline-title {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text3);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-#kpi-sparkline-canvas {
-  display: block;
-  width: 100%;
-  height: 160px;
-}
-
-/* ── CAE Copilot panel ─────────────────────────────────────────── */
-.copilot-workspace {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
-  background:
-    linear-gradient(90deg, rgba(255,107,43,0.08), transparent 30%),
-    radial-gradient(circle at 80% 12%, rgba(77,142,255,0.12), transparent 28%),
-    var(--bg);
-}
-
-.copilot-left,
-.copilot-right {
-  min-width: 0;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.copilot-left {
-  border-right: 1px solid var(--border);
-  background: rgba(15,15,24,0.72);
-}
-
-.copilot-kicker {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--accent);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.copilot-headline {
-  margin-top: 10px;
-  font-size: 32px;
-  line-height: 1.08;
-  font-weight: 600;
-  max-width: 460px;
-}
-
-.copilot-subline {
-  margin-top: 12px;
-  color: var(--text2);
-  font-size: 13px;
-  max-width: 460px;
-}
-
-.copilot-chat {
-  margin-top: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.copilot-message {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  background: rgba(20,20,32,0.84);
-}
-
-.copilot-message.user {
-  border-color: rgba(255,107,43,0.55);
-  background: rgba(255,107,43,0.08);
-}
-
-.copilot-message.assistant {
-  border-color: rgba(77,142,255,0.45);
-}
-
-.copilot-message-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--text3);
-  letter-spacing: 0.1em;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-}
-
-.copilot-input {
-  min-height: 120px;
-  width: 100%;
-  border: 1px solid var(--border2);
-  border-radius: 8px;
-  background: #0B0B12;
-  color: var(--text);
-  padding: 12px;
-  resize: vertical;
-  outline: none;
-  font-family: var(--sans);
-  font-size: 14px;
-}
-
-.copilot-input:focus { border-color: var(--accent); }
-
-.copilot-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-  align-items: center;
-}
-
-.copilot-select {
-  background: var(--bg3);
-  color: var(--text);
-  border: 1px solid var(--border2);
-  border-radius: 5px;
-  padding: 7px 9px;
-  font-family: var(--mono);
-  font-size: 10px;
-}
-
-.copilot-status-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.copilot-status {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(15,15,24,0.76);
-  padding: 12px;
-}
-
-.copilot-status-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.copilot-status-value {
-  margin-top: 6px;
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--green);
-  overflow-wrap: anywhere;
-}
-
-.copilot-plan {
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.copilot-action {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(20,20,32,0.9);
-  padding: 14px;
-}
-
-.copilot-action-top {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.copilot-action-index {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 11px;
-  flex: 0 0 auto;
-}
-
-.copilot-action-title {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.copilot-action-detail {
-  margin-top: 4px;
-  color: var(--text2);
-  font-size: 12px;
-}
-
-.copilot-code {
-  margin-top: 10px;
-  max-height: 160px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: #A8D8A8;
-  background: #07070B;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px;
-}
-
-.copilot-result {
-  margin-top: 16px;
-  border: 1px solid rgba(61,204,126,0.35);
-  border-radius: 8px;
-  padding: 14px;
-  background: rgba(61,204,126,0.07);
-  color: var(--text2);
-}
-
-.copilot-guide {
-  margin-top: 12px;
-  border: 1px solid rgba(77,142,255,0.3);
-  border-radius: 8px;
-  background: rgba(77,142,255,0.06);
-  padding: 14px;
-}
-
-.copilot-guide-title {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.copilot-guide-steps {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.copilot-guide-step {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  color: var(--text2);
-  font-size: 12px;
-}
-
-.copilot-guide-step-index {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(77,142,255,0.22);
-  color: var(--blue);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 10px;
-}
-
-.copilot-guide-code {
-  margin-top: 4px;
-  display: block;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 900px) {
-  .copilot-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    overflow-y: auto;
-  }
-  .copilot-left,
-  .copilot-right {
-    overflow: visible;
-  }
-  .copilot-left {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-  .copilot-status-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-</style>
+  return {
+    lang: LANG, supported: [LANG], degraded: true,
+    // Merge per language, never replace -- same contract as the real engine.
+    // The page registers its catalogue, then loadBackendMessages() registers
+    // server-composed strings on top; an assignment here threw the catalogue
+    // away on that second call, so with i18n.js missing every label on the
+    // page read as its raw key.
+    register: function (c) {
+      Object.keys(c || {}).forEach(function (lang) {
+        var block = c[lang] || {}, into = d[lang] = d[lang] || {};
+        Object.keys(block).forEach(function (k) { into[k] = block[k]; });
+      });
+      apply();
+    },
+    t: t, apply: apply, reclaim: function (el) { if (el) delete el.__i18nWrote; },
+    setLang: function () {}, toggle: function () {}, onChange: function () {},
+    missingKeys: function () { return []; }, resetMissing: function () {}
+  };
+})();
+</script>
+<link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
 
@@ -1797,35 +81,64 @@ body::after {
     <span style="color:var(--border2);font-size:16px;margin:0 4px">|</span>
     <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">CAE Copilot MVP</span>
     <div class="topbar-spacer"></div>
-    <div class="status-dot"></div>
-    <span class="topbar-info">ABAQUS 2024 · Python 3.10.5</span>
+    <!-- Shows the language you would switch TO, not the one you are in — the
+         label has to be readable to someone who cannot read the current UI.
+         Same id, same .ds-lang-toggle primitive and the same slot as on the
+         workbench — first control after the spacer, read-only status readouts
+         to its right — so the control neither moves nor changes shape when you
+         cross between the two pages. -->
+    <button class="ds-lang-toggle" id="btn-lang"
+      data-i18n="lang.toggle"
+      data-i18n-attr="title:lang.toggle.hint,aria-label:lang.toggle.hint">EN</button>
     <span style="margin:0 8px;color:var(--border2)">|</span>
+    <div class="status-dot"></div>
+    <!--
+      Filled in by checkServer() from what /health reports. It used to ship
+      "ABAQUS 2024 · Python 3.10.5" as the pre-probe fallback, which was simply
+      untrue on the machine this was built on (2021, kernel Python 2.7) and on
+      most others. A placeholder that claims nothing cannot claim wrong.
+    -->
+    <span class="topbar-info">—</span>
     <span class="topbar-info" id="clock">--:--:--</span>
   </header>
 
   <!-- ── Sidebar ────────────────────────────────────────────── -->
   <nav class="sidebar">
+    <!--
+      The product's main surface used to be unreachable from here: "workbench"
+      appeared zero times in this file and zero times in the README, and the
+      two pages linked to each other not at all. This is the door.
+    -->
+    <a class="surface-switch" href="/workbench">
+      <span class="surface-switch-mark" aria-hidden="true"></span>
+      <span class="surface-switch-text">
+        <strong data-i18n="nav.surface.title">Workbench</strong>
+        <em data-i18n="nav.surface.sub">chat → spec → solve → results</em>
+      </span>
+      <span class="surface-switch-go" aria-hidden="true">→</span>
+    </a>
+
     <div class="nav-section">Copilot</div>
     <div class="nav-item active" data-panel="copilot">
       <span class="nav-icon">▣</span> CAE Copilot
     </div>
 
-    <div class="nav-section">高级</div>
+    <div class="nav-section" data-i18n="nav.section.advanced">Advanced</div>
     <div class="nav-item" data-panel="prompt">
-      <span class="nav-icon">⌘</span> 输入需求
+      <span class="nav-icon">⌘</span> <span data-i18n="nav.prompt">Requirement Input</span>
     </div>
     <div class="nav-item" data-panel="spec">
-      <span class="nav-icon">◈</span> Spec 编辑
+      <span class="nav-icon">◈</span> <span data-i18n="nav.spec">Spec Editor</span>
     </div>
     <div class="nav-item" data-panel="pipeline">
-      <span class="nav-icon">▶</span> 运行流水线
+      <span class="nav-icon">▶</span> <span data-i18n="nav.pipeline">Run Pipeline</span>
       <span class="nav-badge" id="stage-badge" style="display:none">0/6</span>
     </div>
     <div class="nav-item" data-panel="kpis">
-      <span class="nav-icon">◎</span> KPI 结果
+      <span class="nav-icon">◎</span> <span data-i18n="nav.kpis">KPI Results</span>
     </div>
 
-    <div class="nav-section" style="margin-top:8px">评估</div>
+    <div class="nav-section" style="margin-top:8px" data-i18n="nav.section.evaluation">Evaluation</div>
     <div class="nav-item" data-panel="benchmark">
       <span class="nav-icon">≡</span> Benchmark
     </div>
@@ -1836,22 +149,26 @@ body::after {
       <span class="nav-icon">!</span> Solver Doctor
     </div>
 
-    <div class="nav-section" style="margin-top:8px">工具</div>
+    <div class="nav-section" style="margin-top:8px" data-i18n="nav.section.tools">Tools</div>
     <div class="nav-item" data-panel="history">
-      <span class="nav-icon">◷</span> 运行历史
+      <span class="nav-icon">◷</span> <span data-i18n="nav.history">Run History</span>
       <span class="nav-badge" id="history-badge" style="display:none">0</span>
     </div>
     <div class="nav-item" data-panel="settings">
-      <span class="nav-icon">⚙</span> 设置
+      <span class="nav-icon">⚙</span> <span data-i18n="nav.settings">Settings</span>
     </div>
 
     <div style="flex:1"></div>
 
-    <div style="padding:12px 14px;border-top:1px solid var(--border)">
+    <!--
+      "NO LICENSE REQ" used to sit here in accent orange — a leftover from the
+      deleted premium gate that read like a warning, and stated a fact nobody
+      was asking about now that there is no gate to require anything.
+    -->
+    <div style="padding:12px 14px;border-top:1px solid var(--border)" id="sidebar-dev-badges">
       <div style="font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.8">
-        <div>CASES: 4</div>
-        <div>LOCAL SMOKE ✓</div>
-        <div style="color:var(--accent)">NO LICENSE REQ</div>
+        <div id="sidebar-case-count">CASES: -</div>
+        <div id="sidebar-solver" data-i18n="sidebar.solver.probing">Solver: probing…</div>
       </div>
     </div>
   </nav>
@@ -1865,94 +182,149 @@ body::after {
         <div class="panel-title"><span>01</span>Abaqus/CAE Copilot</div>
       </div>
       <div class="copilot-workspace">
-        <div class="copilot-left">
-          <div class="copilot-kicker">Cursor for Abaqus/CAE</div>
-          <div class="copilot-headline">像问师兄一样，让 AI 在 Abaqus 里建模、改错、准备运行。</div>
-          <div class="copilot-subline">
-            先把自然语言变成可审核动作；你确认后再交给 Abaqus 插件桥执行。模型能力走本机 Codex app-server，不消耗 DeepSeek API。
-          </div>
-
-          <div class="copilot-chat" id="copilot-chat">
-            <div class="copilot-message assistant">
-              <div class="copilot-message-label">AbaqusAgent</div>
-              <div>告诉我你想建什么模型、边界条件和想看的结果。我会先列出操作计划，再等你确认执行。</div>
+        <div class="copilot-main-grid">
+          <div class="copilot-pane copilot-pane-tree">
+            <div class="copilot-pane-title">
+              <span class="copilot-live-dot" id="copilot-tree-dot"></span>
+              <span data-i18n="copilot.pane.tree">Model Tree</span>
+              <span class="copilot-pane-stamp" id="copilot-tree-stamp"></span>
+            </div>
+            <div class="copilot-pane-body" id="copilot-model-tree">
+              <div class="copilot-pane-empty">
+                <span data-i18n="copilot.tree.empty1">Waiting for the CAE plugin to connect.</span><br>
+                <span data-i18n="copilot.tree.empty2">It syncs automatically once a plan runs, or run this from the Abaqus/CAE menu:</span><br>
+                <code>AbaqusAgent Copilot: Sync Model To Sidecar</code>
+              </div>
             </div>
           </div>
 
-          <div style="margin-top:16px">
-            <textarea class="copilot-input" id="copilot-input"
-              placeholder="例：帮我建一个 200mm 长、20mm 高的悬臂梁，左端固定，右端向下 100N，跑完告诉我最大位移怎么看。"></textarea>
-            <div class="copilot-toolbar">
-              <select id="copilot-backend" class="copilot-select">
-                <option value="codex">Codex 本机认证</option>
-                <option value="codex_strict">Codex 严格模式</option>
-                <option value="template">模板演示</option>
-              </select>
-              <button class="btn btn-primary" id="btn-copilot-plan">生成操作计划</button>
-              <button class="btn btn-secondary" id="btn-copilot-demo">填入示例</button>
+          <div class="copilot-pane copilot-pane-viewport">
+            <div class="copilot-pane-title">
+              <span class="copilot-live-dot" id="copilot-viewport-dot"></span>
+              <span data-i18n="copilot.pane.viewport">Viewport Snapshot</span>
+              <span class="copilot-pane-stamp" id="copilot-viewport-stamp"></span>
+            </div>
+            <div class="copilot-pane-body copilot-viewport-body" id="copilot-viewport">
+              <div class="copilot-pane-empty" style="text-align:center">
+                <span data-i18n="copilot.viewport.empty1">After every action the plugin sends an Abaqus viewport snapshot back here.</span><br>
+                <span data-i18n="copilot.viewport.empty2">You watch the model take shape live.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="copilot-pane copilot-pane-queue">
+            <div class="copilot-pane-title">
+              <span data-i18n="copilot.pane.queue">Action Queue</span>
+              <span class="copilot-pane-stamp" id="copilot-queue-stamp"></span>
+            </div>
+            <div class="copilot-pane-body">
+              <div class="copilot-plan" id="copilot-plan">
+                <div class="copilot-action">
+                  <div class="copilot-action-top">
+                    <div class="copilot-action-index">1</div>
+                    <div>
+                      <div class="copilot-action-title" data-i18n="copilot.queue.waiting">Waiting for your Abaqus request</div>
+                      <div class="copilot-action-detail" data-i18n="copilot.queue.waitingHint">The plan appears as reviewable Abaqus/CAE action cards whose status updates live.</div>
+                      <div class="copilot-action-detail" id="copilot-replay-hint" style="display:none;margin-top:6px">
+                        <span data-i18n="copilot.replayHint.pre">No Abaqus connected yet? </span><a href="#" onclick="runCopilotReplay(); return false;" style="color:var(--accent)" data-i18n="copilot.replayHint.link">▶ Watch a real recorded session first</a><span data-i18n="copilot.replayHint.post"> — modelling, an error, a one-click fix, results, end to end.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="copilot-toolbar">
+                <button class="btn btn-primary" id="btn-copilot-execute" disabled data-i18n="copilot.btn.execute">Execute / generate script</button>
+                <button class="btn btn-secondary" id="btn-copilot-refresh" disabled data-i18n="copilot.btn.refresh">Refresh plugin status</button>
+                <button class="btn btn-secondary" id="btn-copilot-package" data-i18n="copilot.btn.package">Download Alpha package</button>
+                <button class="btn btn-secondary" id="btn-copilot-copy" disabled data-i18n="copilot.btn.copy">Copy plan</button>
+              </div>
+              <div class="copilot-result" id="copilot-result" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="copilot-pane copilot-pane-errors">
+            <div class="copilot-pane-title">
+              <span class="copilot-live-dot" id="copilot-errors-dot"></span>
+              <span data-i18n="copilot.pane.errors">Error Diagnosis</span>
+            </div>
+            <div class="copilot-pane-body" id="copilot-errors">
+              <div class="copilot-pane-empty" data-i18n="copilot.errors.empty">No errors yet. When an action fails in CAE the traceback lands here, and Copilot can fix it in one click.</div>
             </div>
           </div>
         </div>
 
         <div class="copilot-right">
+          <div class="copilot-kicker">AI Copilot for Abaqus/CAE</div>
+          <div class="copilot-headline" style="font-size:22px" data-i18n="copilot.headline">Drive Abaqus in plain language: model, solve, extract results — every step reviewable.</div>
+          <div class="copilot-subline" data-i18n="copilot.subline">
+            Plain language becomes a reviewable action plan first; once you approve it, the Abaqus plugin bridge runs it on this machine, and every result and piece of engineering evidence is kept.
+          </div>
+
+          <div class="copilot-chat" id="copilot-chat">
+            <div class="copilot-message assistant">
+              <div class="copilot-message-label">AbaqusAgent</div>
+              <div data-i18n="copilot.greeting">Tell me what model you want, the boundary conditions, and the results you care about. I will lay out an action plan first and wait for you to approve it.</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px">
+            <textarea class="copilot-input" id="copilot-input"
+              data-i18n-attr="placeholder:copilot.input.placeholder"></textarea>
+            <div class="copilot-toolbar">
+              <select id="copilot-backend" class="copilot-select">
+                <option value="codex" data-i18n="copilot.backend.codex">Codex (local auth)</option>
+                <option value="codex_strict" data-i18n="copilot.backend.codexStrict">Codex (strict mode)</option>
+                <option value="template" data-i18n="copilot.backend.template">Template demo</option>
+              </select>
+              <button class="btn btn-primary" id="btn-copilot-plan" data-i18n="copilot.btn.plan">Generate action plan</button>
+              <button class="btn btn-secondary" id="btn-copilot-demo" data-i18n="copilot.btn.demo">Fill an example</button>
+              <button class="btn btn-secondary" id="btn-copilot-replay" data-i18n="copilot.btn.replay">▶ Play a real recording</button>
+              <select id="copilot-replay-select" class="copilot-select" style="display:none"></select>
+            </div>
+            <div style="margin-top:8px">
+              <select id="copilot-history-select" class="copilot-select" style="width:100%">
+                <option value="" data-i18n="copilot.history.placeholder">Session history…</option>
+              </select>
+            </div>
+          </div>
+
           <div class="copilot-status-grid">
             <div class="copilot-status">
-              <div class="copilot-status-label">模型后端</div>
-              <div class="copilot-status-value" id="copilot-status-codex">检测中</div>
+              <div class="copilot-status-label" data-i18n="copilot.status.backend">Model backend</div>
+              <div class="copilot-status-value" id="copilot-status-codex" data-i18n="copilot.status.detecting">Detecting</div>
             </div>
             <div class="copilot-status">
-              <div class="copilot-status-label">Abaqus 会话</div>
-              <div class="copilot-status-value" id="copilot-status-abaqus">检测中</div>
+              <div class="copilot-status-label" data-i18n="copilot.status.session">Abaqus session</div>
+              <div class="copilot-status-value" id="copilot-status-abaqus" data-i18n="copilot.status.detecting">Detecting</div>
             </div>
             <div class="copilot-status">
-              <div class="copilot-status-label">执行模式</div>
-              <div class="copilot-status-value" id="copilot-status-bridge">本地桥</div>
+              <div class="copilot-status-label" data-i18n="copilot.status.mode">Execution mode</div>
+              <div class="copilot-status-value" id="copilot-status-bridge" data-i18n="copilot.status.localBridge">Local bridge</div>
             </div>
           </div>
 
           <div class="copilot-guide" id="copilot-release-gate">
             <div class="copilot-guide-title">Alpha Gate</div>
-            <div class="copilot-action-detail">正在读取真实 Abaqus / 插件证据...</div>
+            <div class="copilot-action-detail" data-i18n="copilot.gate.loading">Reading real Abaqus / plugin evidence...</div>
           </div>
 
           <div class="copilot-guide" id="copilot-plugin-guide">
-            <div class="copilot-guide-title">CAE 内执行路径</div>
+            <div class="copilot-guide-title" data-i18n="copilot.guide.title">Execution path inside CAE</div>
             <div class="copilot-guide-steps">
               <div class="copilot-guide-step">
                 <div class="copilot-guide-step-index">1</div>
-                <div>安装 AbaqusAgent Copilot 插件。<code class="copilot-guide-code">abaqus-agent-copilot-install-plugin --plugin-dir &lt;ABAQUS_PLUGIN_DIR&gt;</code></div>
+                <div><span data-i18n="copilot.guide.static1">Install the AbaqusAgent Copilot plugin.</span><code class="copilot-guide-code">abaqus-agent-copilot-install-plugin --plugin-dir &lt;ABAQUS_PLUGIN_DIR&gt;</code></div>
               </div>
               <div class="copilot-guide-step">
                 <div class="copilot-guide-step-index">2</div>
-                <div>在 Abaqus/CAE 菜单打开 sidecar：<code class="copilot-guide-code">AbaqusAgent Copilot: Open Sidecar</code></div>
+                <div><span data-i18n="copilot.guide.static2">Open the sidecar from the Abaqus/CAE menu:</span><code class="copilot-guide-code">AbaqusAgent Copilot: Open Sidecar</code></div>
               </div>
               <div class="copilot-guide-step">
                 <div class="copilot-guide-step-index">3</div>
-                <div>生成计划后，在 CAE 里一键运行当前计划。<code class="copilot-guide-code">AbaqusAgent Copilot: Run Current Plan</code></div>
+                <div><span data-i18n="copilot.guide.static3">Once the plan exists, run it in CAE with one click.</span><code class="copilot-guide-code">AbaqusAgent Copilot: Run Current Plan</code></div>
               </div>
             </div>
           </div>
-
-          <div class="copilot-plan" id="copilot-plan">
-            <div class="copilot-action">
-              <div class="copilot-action-top">
-                <div class="copilot-action-index">1</div>
-                <div>
-                  <div class="copilot-action-title">等待你的 Abaqus 需求</div>
-                  <div class="copilot-action-detail">计划会显示为可审核的 Abaqus/CAE 动作卡片。</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="copilot-toolbar">
-            <button class="btn btn-primary" id="btn-copilot-execute" disabled>执行 / 生成脚本</button>
-            <button class="btn btn-secondary" id="btn-copilot-refresh" disabled>刷新插件状态</button>
-            <button class="btn btn-secondary" id="btn-copilot-package">下载 Alpha 包</button>
-            <button class="btn btn-secondary" id="btn-copilot-copy" disabled>复制计划</button>
-          </div>
-
-          <div class="copilot-result" id="copilot-result" style="display:none"></div>
         </div>
       </div>
     </section>
@@ -1960,36 +332,46 @@ body::after {
     <!-- ── Panel: Prompt ───────────────────────────────────── -->
     <section class="panel" id="panel-prompt">
       <div class="panel-header">
-        <div class="panel-title"><span>02</span>自然语言输入 → Problem Spec</div>
+        <div class="panel-title"><span>02</span><span data-i18n="panel.prompt">Natural language → Problem Spec</span></div>
       </div>
       <div class="prompt-area">
 
         <div>
-          <div class="input-label">描述你的分析需求</div>
+          <div class="input-label" data-i18n="prompt.label.describe">Describe your analysis</div>
           <textarea class="nl-input" id="nl-input" rows="3"
-            placeholder="例：分析一根100mm悬臂梁，材料为钢，端部施加1MPa均布压力，输出梁端挠度和最大Mises应力"></textarea>
+            data-i18n-attr="placeholder:prompt.input.placeholder"></textarea>
         </div>
 
         <div>
-          <div class="input-label">快速示例</div>
+          <div class="input-label" data-i18n="prompt.label.examples">Quick examples</div>
           <div class="quick-examples">
-            <div class="chip" data-text="100mm悬臂梁，钢材，端部1MPa压力，输出挠度和Mises应力">悬臂梁静力</div>
-            <div class="chip" data-text="带孔板拉伸分析，孔半径10mm，100MPa单轴拉伸，输出应力集中系数">孔板应力集中</div>
-            <div class="chip" data-text="钢梁模态分析，自由-自由边界，求前6阶固有频率">模态分析</div>
-            <div class="chip" data-text="铝块显式动力学冲击，端部位移加载2mm，输出反力">显式动力冲击</div>
+            <div class="chip" data-i18n="chip.cantilever" data-i18n-attr="data-text:chip.cantilever.text">Cantilever static</div>
+            <div class="chip" data-i18n="chip.plateHole" data-i18n-attr="data-text:chip.plateHole.text">Plate-with-hole stress concentration</div>
+            <div class="chip" data-i18n="chip.modal" data-i18n-attr="data-text:chip.modal.text">Modal analysis</div>
+            <div class="chip" data-i18n="chip.explicit" data-i18n-attr="data-text:chip.explicit.text">Explicit impact</div>
           </div>
         </div>
 
         <div>
-          <div class="input-label">Abaqus 版本</div>
+          <div class="input-label" data-i18n="prompt.label.release">Abaqus release</div>
           <div style="display:flex;gap:8px">
-            <select id="abaqus-version" style="
+            <select id="abaqus-version"
+              onchange="this.dataset.userPicked='1'" style="
               background:var(--bg3);border:1px solid var(--border2);
               color:var(--text);font-family:var(--mono);font-size:11px;
               padding:6px 10px;border-radius:4px;outline:none;cursor:pointer">
+              <!-- Full schema enum. The old list offered 2023/2024/2025 only,
+                   so anyone on 2021 (including this build's own test machine)
+                   could not pick their own release. Selection is overwritten
+                   with the probed release by applyDetectedRelease(). -->
+              <option value="2019">Abaqus 2019 (Python 2.7)</option>
+              <option value="2020">Abaqus 2020 (Python 2.7)</option>
+              <option value="2021">Abaqus 2021 (Python 2.7)</option>
+              <option value="2022">Abaqus 2022 (Python 2.7)</option>
+              <option value="2023">Abaqus 2023 (Python 2.7 legacy)</option>
               <option value="2024">Abaqus 2024 (Python 3.10)</option>
               <option value="2025">Abaqus 2025 (Python 3.10)</option>
-              <option value="2023">Abaqus 2023 (Python 2.7 legacy)</option>
+              <option value="2026">Abaqus 2026 (Python 3.10)</option>
             </select>
             <select id="llm-backend" style="
               background:var(--bg3);border:1px solid var(--border2);
@@ -1997,21 +379,20 @@ body::after {
               padding:6px 10px;border-radius:4px;outline:none;cursor:pointer">
               <option value="anthropic">Claude (Anthropic)</option>
               <option value="openai">GPT-4o (OpenAI)</option>
-              <option value="template">模板兜底 (无需API)</option>
+              <option value="template" data-i18n="prompt.backend.template">Template fallback (no API)</option>
             </select>
           </div>
         </div>
 
         <div class="btn-row">
-          <button class="btn btn-primary btn-run-glow" id="btn-gen-spec">
-            ⚡ 生成 Spec
-          </button>
-          <button class="btn btn-secondary" id="btn-clear-prompt">清空</button>
+          <button class="btn btn-primary btn-run-glow" id="btn-gen-spec"
+            data-i18n="prompt.btn.gen">⚡ Generate Spec</button>
+          <button class="btn btn-secondary" id="btn-clear-prompt" data-i18n="prompt.btn.clear">Clear</button>
         </div>
 
         <!-- Validation result area -->
         <div id="validation-area" style="display:none">
-          <div class="section-title">校验结果</div>
+          <div class="section-title" data-i18n="prompt.validation.title">Validation result</div>
           <div class="validation-result" id="validation-content"></div>
         </div>
 
@@ -2021,30 +402,25 @@ body::after {
     <!-- ── Panel: Spec ─────────────────────────────────────── -->
     <section class="panel" id="panel-spec">
       <div class="panel-header">
-        <div class="panel-title"><span>02</span>Problem Spec 编辑器</div>
+        <div class="panel-title"><span>02</span><span data-i18n="panel.spec">Problem Spec editor</span></div>
       </div>
       <div class="spec-container">
         <div class="spec-meta">
-          <div class="meta-item">模型名: <span class="meta-val" id="meta-model">—</span></div>
-          <div class="meta-item">版本: <span class="meta-val" id="meta-version">—</span></div>
-          <div class="meta-item">求解器: <span class="meta-val" id="meta-solver">—</span></div>
-          <div class="meta-item">单位: <span class="meta-val" id="meta-units">—</span></div>
+          <div class="meta-item"><span data-i18n="spec.meta.model">Model name</span>: <span class="meta-val" id="meta-model">—</span></div>
+          <div class="meta-item"><span data-i18n="spec.meta.release">Release</span>: <span class="meta-val" id="meta-version">—</span></div>
+          <div class="meta-item"><span data-i18n="spec.meta.solver">Solver</span>: <span class="meta-val" id="meta-solver">—</span></div>
+          <div class="meta-item"><span data-i18n="spec.meta.units">Units</span>: <span class="meta-val" id="meta-units">—</span></div>
         </div>
         <div class="code-editor" style="flex:1">
           <div class="line-numbers" id="line-numbers">1</div>
           <pre id="spec-highlight" aria-hidden="true"></pre>
           <textarea id="spec-editor" spellcheck="false"
-            placeholder="# 生成 Spec 后将显示在此处，可手动编辑...
-
-# 示例:
-# meta:
-#   abaqus_release: '2024'
-#   model_name: Cantilever"></textarea>
+            data-i18n-attr="placeholder:spec.editor.placeholder"></textarea>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" id="btn-validate-spec">✓ 校验 Spec</button>
-          <button class="btn btn-secondary" id="btn-goto-run">▶ 去运行</button>
-          <button class="btn btn-secondary" id="btn-copy-spec">复制</button>
+          <button class="btn btn-primary" id="btn-validate-spec" data-i18n="spec.btn.validate">✓ Validate Spec</button>
+          <button class="btn btn-secondary" id="btn-goto-run" data-i18n="spec.btn.goRun">▶ Go to run</button>
+          <button class="btn btn-secondary" id="btn-copy-spec" data-i18n="spec.btn.copy">Copy</button>
         </div>
       </div>
     </section>
@@ -2052,20 +428,20 @@ body::after {
     <!-- ── Panel: Pipeline ─────────────────────────────────── -->
     <section class="panel" id="panel-pipeline">
       <div class="panel-header">
-        <div class="panel-title"><span>03</span>运行流水线</div>
+        <div class="panel-title"><span>03</span><span data-i18n="panel.pipeline">Run pipeline</span></div>
       </div>
       <div class="pipeline-area" id="pipeline-stages">
 
         <!-- Stages will be rendered by JS -->
         <div class="empty-state" id="pipeline-empty">
           <div class="empty-icon">▷</div>
-          <div class="empty-label">点击"启动运行"开始</div>
+          <div class="empty-label" data-i18n="pipeline.empty">Press "Start run" to begin</div>
         </div>
 
       </div>
       <div class="pipeline-summary">
-        <button class="btn btn-primary btn-run-glow" id="btn-start-run">▶ 启动运行</button>
-        <button class="btn btn-secondary" id="btn-abort-run" disabled>■ 中止</button>
+        <button class="btn btn-primary btn-run-glow" id="btn-start-run" data-i18n="pipeline.btn.start">▶ Start run</button>
+        <button class="btn btn-secondary" id="btn-abort-run" disabled data-i18n="pipeline.btn.abort">■ Abort</button>
         <div class="progress-bar-wrap">
           <div class="progress-bar-fill" id="progress-bar"></div>
         </div>
@@ -2076,12 +452,12 @@ body::after {
     <!-- ── Panel: KPIs ─────────────────────────────────────── -->
     <section class="panel" id="panel-kpis">
       <div class="panel-header">
-        <div class="panel-title"><span>04</span>KPI 提取结果</div>
+        <div class="panel-title"><span>04</span><span data-i18n="panel.kpis">Extracted KPIs</span></div>
       </div>
       <div class="kpi-area" id="kpi-area">
         <div class="empty-state" id="kpi-empty">
           <div class="empty-icon">◎</div>
-          <div class="empty-label">运行完成后显示 KPI</div>
+          <div class="empty-label" data-i18n="kpi.empty">KPIs appear once a run finishes</div>
         </div>
       </div>
     </section>
@@ -2089,35 +465,35 @@ body::after {
     <!-- ── Panel: Benchmark ────────────────────────────────── -->
     <section class="panel" id="panel-benchmark">
       <div class="panel-header">
-        <div class="panel-title"><span>05</span>Benchmark 报告</div>
+        <div class="panel-title"><span>05</span><span data-i18n="panel.benchmark">Benchmark report</span></div>
       </div>
       <div class="bench-area">
-        <div class="section-title" style="margin-bottom:16px">基准算例 · 4 cases</div>
+        <div class="section-title" style="margin-bottom:16px" data-i18n="bench.section">Benchmark cases · 4 cases</div>
         <table class="bench-table" id="bench-table">
           <thead>
             <tr>
-              <th>算例</th>
-              <th>求解类型</th>
-              <th>状态</th>
-              <th>主要 KPI</th>
-              <th>耗时</th>
-              <th>回归</th>
+              <th data-i18n="bench.th.case">Case</th>
+              <th data-i18n="bench.th.type">Analysis type</th>
+              <th data-i18n="bench.th.status">Status</th>
+              <th data-i18n="bench.th.kpi">Key KPI</th>
+              <th data-i18n="bench.th.elapsed">Elapsed</th>
+              <th data-i18n="bench.th.regression">Regression</th>
             </tr>
           </thead>
           <tbody id="bench-tbody"></tbody>
         </table>
         <div class="btn-row" style="margin-top:16px">
-          <button class="btn btn-primary btn-run-glow" id="btn-bench-run">▶ 运行 Dry-run</button>
+          <button class="btn btn-primary btn-run-glow" id="btn-bench-run" data-i18n="bench.btn.run">▶ Run dry-run</button>
           <span id="bench-run-status" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></span>
         </div>
 
         <div style="margin-top:20px">
-          <div class="section-title">说明</div>
+          <div class="section-title" data-i18n="bench.notes.title">Notes</div>
           <div style="font-size:11px;color:var(--text3);line-height:1.8;font-family:var(--mono)">
-            <div>· syntaxcheck 是求解前检查；license 行为需在真实 Abaqus 环境验证</div>
-            <div>· spec 运行使用确定性 run_id；benchmark dry-run 创建独立记录</div>
-            <div>· 本地 smoke / pytest 可在无 Abaqus 环境运行</div>
-            <div>· 完整流程需要 Abaqus 2023+ 授权</div>
+            <div data-i18n="bench.note1">· syntaxcheck runs before the solve; license behaviour must be verified on a real Abaqus install</div>
+            <div data-i18n="bench.note2">· a spec run uses a deterministic run_id; a benchmark dry-run creates its own record</div>
+            <div data-i18n="bench.note3">· the local smoke / pytest suite runs without Abaqus</div>
+            <div data-i18n="bench.note4">· the full pipeline needs an Abaqus 2023+ license</div>
           </div>
         </div>
       </div>
@@ -2146,11 +522,11 @@ body::after {
               <input class="evidence-input" id="evidence-run-id" value="cantilever-ui-offline">
               <input class="evidence-input" id="evidence-input-path" value="cases/cantilever/spec.yaml">
               <div class="evidence-actions">
-                <button class="btn btn-secondary" id="btn-evidence-example">载入示例</button>
-                <button class="btn btn-primary btn-run-glow" id="btn-evidence-run">▶ 运行 Evidence</button>
-                <button class="btn btn-secondary" id="btn-evidence-gallery">生成 Demo Gallery</button>
-                <button class="btn btn-secondary" id="btn-evidence-demo-pack">生成 Demo Pack</button>
-                <button class="btn btn-secondary" id="btn-evidence-cli-smoke">运行 CLI Smoke</button>
+                <button class="btn btn-secondary" id="btn-evidence-example" data-i18n="evidence.btn.example">Load example</button>
+                <button class="btn btn-primary btn-run-glow" id="btn-evidence-run" data-i18n="evidence.btn.run">▶ Run Evidence</button>
+                <button class="btn btn-secondary" id="btn-evidence-gallery" data-i18n="evidence.btn.gallery">Build Demo Gallery</button>
+                <button class="btn btn-secondary" id="btn-evidence-demo-pack" data-i18n="evidence.btn.demoPack">Build Demo Pack</button>
+                <button class="btn btn-secondary" id="btn-evidence-cli-smoke" data-i18n="evidence.btn.cliSmoke">Run CLI Smoke</button>
                 <span class="evidence-status" id="evidence-status">READY</span>
               </div>
             </div>
@@ -2195,7 +571,7 @@ body::after {
               <input class="evidence-input" id="simdiff-id" value="cantilever-ui-simdiff">
               <textarea class="evidence-textarea" id="simdiff-tolerances" spellcheck="false" style="min-height:110px"></textarea>
               <div class="evidence-actions">
-                <button class="btn btn-primary btn-run-glow" id="btn-simdiff-run">运行 Simulation Diff</button>
+                <button class="btn btn-primary btn-run-glow" id="btn-simdiff-run" data-i18n="evidence.btn.simdiff">Run Simulation Diff</button>
                 <span class="evidence-status" id="simdiff-status">READY</span>
               </div>
             </div>
@@ -2275,7 +651,7 @@ body::after {
                   <option value="FAILED">FAILED</option>
                   <option value="UNKNOWN">UNKNOWN</option>
                 </select>
-                <button class="btn btn-secondary" id="btn-evidence-vault-refresh">刷新 Vault</button>
+                <button class="btn btn-secondary" id="btn-evidence-vault-refresh" data-i18n="evidence.btn.vaultRefresh">Refresh Vault</button>
               </div>
               <div class="evidence-recent" id="evidence-vault">
                 <div class="evidence-recent-row">
@@ -2311,7 +687,7 @@ body::after {
                   <option value="FAILED">FAILED</option>
                   <option value="UNKNOWN">UNKNOWN</option>
                 </select>
-                <button class="btn btn-secondary" id="btn-case-memory-search">搜索</button>
+                <button class="btn btn-secondary" id="btn-case-memory-search" data-i18n="evidence.btn.search">Search</button>
               </div>
               <div class="evidence-actions" style="margin-bottom:8px">
                 <input class="evidence-input" id="case-memory-diff-baseline" placeholder="baseline vault id" style="flex:1 1 130px;min-width:0">
@@ -2356,7 +732,7 @@ body::after {
                   <option value="eigenfrequency">eigenfrequency</option>
                   <option value="derived_stress_concentration">derived_stress_concentration</option>
                 </select>
-                <button class="btn btn-secondary" id="btn-kpi-recipes-refresh">刷新 Recipes</button>
+                <button class="btn btn-secondary" id="btn-kpi-recipes-refresh" data-i18n="evidence.btn.recipesRefresh">Refresh Recipes</button>
               </div>
               <div class="evidence-recent" id="kpi-recipes">
                 <div class="evidence-recent-row">
@@ -2372,7 +748,7 @@ body::after {
               <span>Report Markdown</span>
               <span id="evidence-report-size">0 chars</span>
             </div>
-            <pre class="evidence-report" id="evidence-report">运行后显示 evidence.md 内容</pre>
+            <pre class="evidence-report" id="evidence-report" data-i18n="evidence.report.empty">evidence.md appears here after a run</pre>
           </div>
         </div>
       </div>
@@ -2393,8 +769,8 @@ body::after {
             <div class="evidence-box-body" style="display:flex;flex-direction:column;gap:10px">
               <input class="evidence-input" id="doctor-job-name" value="Job-1">
               <div class="evidence-actions">
-                <button class="btn btn-secondary" id="btn-doctor-sample">载入示例</button>
-                <button class="btn btn-primary btn-run-glow" id="btn-doctor-run">诊断日志</button>
+                <button class="btn btn-secondary" id="btn-doctor-sample" data-i18n="doctor.btn.sample">Load example</button>
+                <button class="btn btn-primary btn-run-glow" id="btn-doctor-run" data-i18n="doctor.btn.run">Diagnose logs</button>
                 <span class="evidence-status" id="doctor-status">READY</span>
               </div>
             </div>
@@ -2482,7 +858,7 @@ body::after {
                   <option value="ERROR">ERROR</option>
                   <option value="WARNING">WARNING</option>
                 </select>
-                <button class="btn btn-secondary" id="btn-doctor-patterns-refresh">刷新 Patterns</button>
+                <button class="btn btn-secondary" id="btn-doctor-patterns-refresh" data-i18n="doctor.btn.patternsRefresh">Refresh Patterns</button>
               </div>
               <div class="evidence-recent" id="doctor-patterns">
                 <div class="evidence-recent-row">
@@ -2490,6 +866,29 @@ body::after {
                 </div>
               </div>
               <pre class="evidence-report" id="doctor-pattern-detail" style="margin-top:8px;max-height:180px">—</pre>
+            </div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="evidence-box-head">
+              <span data-i18n="doctor.cae.title">CAE error patterns (plugin side, plain-language diagnosis)</span>
+              <span id="doctor-cae-pattern-count">-</span>
+            </div>
+            <div class="evidence-box-body">
+              <div style="margin-bottom:10px">
+                <textarea class="evidence-input" id="doctor-cae-input" rows="3" style="width:100%;resize:vertical"
+                  data-i18n-attr="placeholder:doctor.cae.placeholder"></textarea>
+                <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+                  <button class="btn btn-primary" id="btn-doctor-cae-diagnose" data-i18n="doctor.btn.caeDiagnose">Diagnose my error</button>
+                  <span class="evidence-status" id="doctor-cae-diagnose-status"></span>
+                </div>
+                <div id="doctor-cae-diagnose-result" style="display:none;margin-top:8px" class="copilot-error-diagnosis"></div>
+              </div>
+              <div class="evidence-recent" id="doctor-cae-patterns" style="max-height:260px;overflow-y:auto">
+                <div class="evidence-recent-row">
+                  <div class="evidence-recent-main">—</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2512,7 +911,7 @@ body::after {
               <span>Doctor Markdown</span>
               <span id="doctor-report-size">0 chars</span>
             </div>
-            <pre class="evidence-report" id="doctor-report">运行后显示 Solver Doctor report</pre>
+            <pre class="evidence-report" id="doctor-report" data-i18n="doctor.report.empty">The Solver Doctor report appears here after a run</pre>
           </div>
         </div>
       </div>
@@ -2521,18 +920,18 @@ body::after {
     <!-- ── Panel: History ───────────────────────────────────── -->
     <section class="panel" id="panel-history">
       <div class="panel-header">
-        <div class="panel-title"><span>08</span>运行历史</div>
+        <div class="panel-title"><span>08</span><span data-i18n="panel.history">Run history</span></div>
       </div>
       <div class="history-area" id="history-area">
         <div class="history-header">
-          <div class="section-title" style="margin-bottom:0">历史记录</div>
-          <button class="btn-history-clear" id="btn-clear-history">清空历史</button>
+          <div class="section-title" style="margin-bottom:0" data-i18n="history.section">History</div>
+          <button class="btn-history-clear" id="btn-clear-history" data-i18n="history.btn.clear">Clear history</button>
         </div>
         <div id="history-list">
           <div class="history-empty" id="history-empty">
             <div style="font-size:32px;opacity:0.3">◷</div>
-            <div>暂无运行记录</div>
-            <div style="color:var(--text3);font-size:10px">启动运行后记录将出现在这里</div>
+            <div data-i18n="history.empty.title">No runs recorded yet</div>
+            <div style="color:var(--text3);font-size:10px" data-i18n="history.empty.hint">Records appear here once you start a run</div>
           </div>
         </div>
       </div>
@@ -2541,49 +940,49 @@ body::after {
     <!-- ── Panel: Settings ─────────────────────────────────── -->
     <section class="panel" id="panel-settings">
       <div class="panel-header">
-        <div class="panel-title"><span>09</span>设置</div>
+        <div class="panel-title"><span>09</span><span data-i18n="panel.settings">Settings</span></div>
       </div>
       <div class="settings-area">
 
         <!-- LLM Config -->
         <div class="settings-group">
-          <div class="settings-group-header">LLM 配置</div>
+          <div class="settings-group-header" data-i18n="settings.group.llm">LLM configuration</div>
 
           <div class="settings-row">
             <div class="settings-label">
               Anthropic API Key
-              <span class="badge" id="badge-anthropic">未配置</span>
+              <span class="badge" id="badge-anthropic" data-i18n="settings.badge.unset">Not configured</span>
             </div>
             <div class="settings-field-row">
               <input type="password" class="settings-input" id="input-anthropic-key"
                 placeholder="sk-ant-api03-..." autocomplete="off">
-              <button class="btn-test" id="btn-test-anthropic">测试</button>
+              <button class="btn-test" id="btn-test-anthropic" data-i18n="settings.btn.test">Test</button>
             </div>
-            <div class="settings-desc">用于 Claude (claude-sonnet-4-6) 生成 Problem Spec。<br>
-              获取：console.anthropic.com → API Keys</div>
+            <div class="settings-desc"><span data-i18n="settings.desc.anthropic1">Used by Claude (claude-sonnet-4-6) to generate the Problem Spec.</span><br>
+              <span data-i18n="settings.desc.anthropic2">Get one at: console.anthropic.com → API Keys</span></div>
           </div>
 
           <div class="settings-row">
             <div class="settings-label">
               OpenAI API Key
-              <span class="badge" id="badge-openai">未配置</span>
+              <span class="badge" id="badge-openai" data-i18n="settings.badge.unset">Not configured</span>
             </div>
             <div class="settings-field-row">
               <input type="password" class="settings-input" id="input-openai-key"
                 placeholder="sk-proj-..." autocomplete="off">
-              <button class="btn-test" id="btn-test-openai">测试</button>
+              <button class="btn-test" id="btn-test-openai" data-i18n="settings.btn.test">Test</button>
             </div>
-            <div class="settings-desc">用于 GPT-4o 生成 Problem Spec。<br>
-              获取：platform.openai.com → API keys</div>
+            <div class="settings-desc"><span data-i18n="settings.desc.openai1">Used by GPT-4o to generate the Problem Spec.</span><br>
+              <span data-i18n="settings.desc.openai2">Get one at: platform.openai.com → API keys</span></div>
           </div>
         </div>
 
         <!-- Server Config -->
         <div class="settings-group">
-          <div class="settings-group-header">服务器</div>
+          <div class="settings-group-header" data-i18n="settings.group.server">Server</div>
 
           <div class="settings-row">
-            <div class="settings-label">传输模式 (Transport)</div>
+            <div class="settings-label" data-i18n="settings.label.transport">Transport mode</div>
             <div class="settings-field-row" style="gap:16px">
               <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--text2)">
                 <input type="radio" name="transport" value="direct" id="transport-direct"> Direct API
@@ -2593,8 +992,8 @@ body::after {
               </label>
             </div>
             <div class="settings-desc">
-              Direct API: 直连 FastAPI (port 8000)。
-              MCP Bridge: 通过 MCP 协议桥接 (port 8001)。
+              <span data-i18n="settings.desc.transport1">Direct API: straight to FastAPI (port 8000).</span>
+              <span data-i18n="settings.desc.transport2">MCP Bridge: bridged over the MCP protocol (port 8001).</span>
             </div>
           </div>
 
@@ -2603,9 +1002,9 @@ body::after {
             <div class="settings-field-row">
               <input type="text" class="settings-input" id="input-server-url"
                 placeholder="http://localhost:8000">
-              <button class="btn-test" id="btn-test-server">连接测试</button>
+              <button class="btn-test" id="btn-test-server" data-i18n="settings.btn.testConn">Test connection</button>
             </div>
-            <div class="settings-desc">留空则自动检测（推荐）。修改后需刷新页面。</div>
+            <div class="settings-desc" data-i18n="settings.desc.serverUrl">Leave empty to auto-detect (recommended). Reload the page after changing it.</div>
           </div>
 
           <div class="settings-row" id="mcp-url-row">
@@ -2613,40 +1012,30 @@ body::after {
             <div class="settings-field-row">
               <input type="text" class="settings-input" id="input-mcp-url"
                 placeholder="http://localhost:8001/mcp">
-              <button class="btn-test" id="btn-test-mcp">连接测试</button>
+              <button class="btn-test" id="btn-test-mcp" data-i18n="settings.btn.testConn">Test connection</button>
             </div>
-            <div class="settings-desc">MCP Bridge 地址。留空则自动检测。</div>
+            <div class="settings-desc" data-i18n="settings.desc.mcpUrl">MCP Bridge address. Leave empty to auto-detect.</div>
           </div>
         </div>
 
-        <!-- Premium Features -->
+        <!-- Feature modules -->
         <div class="settings-group">
-          <div class="settings-group-header">Premium 功能</div>
+          <div class="settings-group-header" data-i18n="settings.group.features">Feature modules</div>
 
           <div class="settings-row">
-            <div class="settings-label">
-              License Key
-              <span class="badge" id="badge-premium">未激活</span>
-            </div>
-            <div class="settings-field-row">
-              <input type="text" class="settings-input" id="input-license-key"
-                placeholder="输入 license key 或 dev-xxx" autocomplete="off">
-              <button class="btn-test" id="btn-activate-premium">激活</button>
-            </div>
-            <div class="settings-desc">
-              dev-xxx 开头的 key 可启用所有功能（开发模式）。
+            <div class="settings-desc" data-i18n="settings.desc.features">
+              Optional analysis modules shipped with the product. No activation needed.
             </div>
           </div>
 
-          <div id="premium-features-list" style="margin-top:8px"></div>
+          <div id="feature-modules-list" style="margin-top:8px"></div>
         </div>
 
         <!-- Actions -->
         <div style="display:flex;align-items:center;gap:12px">
-          <button class="btn-settings-save" id="btn-save-settings">保存设置</button>
-          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">
-            设置保存在浏览器本地 (localStorage)，不上传服务器
-          </span>
+          <button class="btn-settings-save" id="btn-save-settings" data-i18n="settings.btn.save">Save settings</button>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)"
+            data-i18n="settings.desc.storage">Settings stay in this browser (localStorage); nothing is uploaded.</span>
         </div>
 
         <div class="settings-status" id="settings-status" style="display:none"></div>
@@ -2659,7 +1048,27 @@ body::after {
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
+<script src="/static/index_i18n.js"></script>
 <script>
+/* Chinese is the source language and the fallback: every string below was
+   written in Chinese first and the English is the translation, not the other
+   way round. A missing English entry shows the Chinese one. */
+/* The catalogue lives in /static/index_i18n.js, loaded just
+   above this script so I18N.register runs before any t(). */
+
+const t = (key, params) => I18N.t(key, params);
+
+/* Register the backend catalogue on top of the page's own. Same engine, same
+   keys, so a refusal reads in whichever language the user picked. */
+async function loadBackendMessages(lang) {
+  try {
+    const res = await fetch(`${API}/api/i18n/messages?lang=${encodeURIComponent(lang)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    I18N.register({ [data.lang]: data.messages });
+  } catch { /* offline: the server-composed Chinese still shows */ }
+}
+
 // ── Settings (localStorage) ───────────────────────────────────────
 const SETTINGS_KEY = 'abaqus_agent_settings';
 
@@ -2689,6 +1098,10 @@ const _defaultMCPAPI = _host === '127.0.0.1' || _host === 'localhost'
 let API = cfg.transport === 'mcp'
   ? (cfg.mcpServerUrl || _defaultMCPAPI)
   : (cfg.serverUrl || _defaultAPI);
+
+if (new URLSearchParams(location.search).get('demo') === '1') {
+  document.body.classList.add('demo-mode');
+}
 
 // ── State ────────────────────────────────────────────────────────
 const state = {
@@ -2774,7 +1187,7 @@ function copilotAppendMessage(role, text) {
   const box = document.createElement('div');
   box.className = `copilot-message ${role}`;
   box.innerHTML = `
-    <div class="copilot-message-label">${role === 'user' ? '你' : 'AbaqusAgent'}</div>
+    <div class="copilot-message-label">${role === 'user' ? t('copilot.msg.you') : 'AbaqusAgent'}</div>
     <div>${escapeHtml(text)}</div>
   `;
   chat.appendChild(box);
@@ -2788,16 +1201,32 @@ async function loadCopilotStatus() {
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     state.copilotStatus = data;
-    document.getElementById('copilot-status-codex').textContent =
-      data.auth_mode === 'local_codex_app_server' ? 'Codex 本机认证' : data.codex_app_server;
-    document.getElementById('copilot-status-abaqus').textContent =
-      data.abaqus_available ? '真实 Abaqus 可用' : '未检测到，使用模拟桥';
-    document.getElementById('copilot-status-bridge').textContent =
-      data.abaqus_available ? '插件桥待连接' : 'Mock 本地执行';
+    state.copilotStatusOffline = false;
+    renderCopilotStatusValues();
   } catch {
-    document.getElementById('copilot-status-codex').textContent = '后端离线';
-    document.getElementById('copilot-status-abaqus').textContent = '未知';
+    // Flag it rather than dropping the last known status: bridge_mode on the
+    // execute path reads state.copilotStatus, and a single failed poll must
+    // not silently downgrade a real Abaqus session to the mock bridge.
+    state.copilotStatusOffline = true;
+    renderCopilotStatusValues();
   }
+}
+
+// Kept apart from the fetch so switching language re-labels a status that was
+// probed minutes ago instead of leaving half the card in the old language.
+function renderCopilotStatusValues() {
+  const data = state.copilotStatus;
+  if (state.copilotStatusOffline || !data) {
+    document.getElementById('copilot-status-codex').textContent = t('copilot.status.offline');
+    document.getElementById('copilot-status-abaqus').textContent = t('copilot.status.unknown');
+    return;
+  }
+  document.getElementById('copilot-status-codex').textContent =
+    data.auth_mode === 'local_codex_app_server' ? t('copilot.backend.codex') : data.codex_app_server;
+  document.getElementById('copilot-status-abaqus').textContent =
+    data.abaqus_available ? t('copilot.status.abaqusReal') : t('copilot.status.abaqusNone');
+  document.getElementById('copilot-status-bridge').textContent =
+    data.abaqus_available ? t('copilot.status.bridgePending') : t('copilot.status.bridgeMock');
 }
 
 async function loadCopilotPluginGuide() {
@@ -2812,8 +1241,8 @@ async function loadCopilotPluginGuide() {
     const guide = document.getElementById('copilot-plugin-guide');
     if (guide) {
       guide.innerHTML = `
-        <div class="copilot-guide-title">CAE 内执行路径</div>
-        <div class="copilot-action-detail">后端离线，启动 FastAPI 后会显示插件安装和菜单动作。</div>
+        <div class="copilot-guide-title">${t('copilot.guide.title')}</div>
+        <div class="copilot-action-detail">${t('copilot.guide.offline')}</div>
       `;
     }
   }
@@ -2833,7 +1262,7 @@ async function loadCopilotReleaseGate() {
     if (gate) {
       gate.innerHTML = `
         <div class="copilot-guide-title">Alpha Gate</div>
-        <div class="copilot-action-detail">证据门禁暂不可用。</div>
+        <div class="copilot-action-detail">${t('copilot.gate.unavailable')}</div>
       `;
     }
   }
@@ -2849,7 +1278,7 @@ async function loadCopilotPackageVerify() {
     renderCopilotReleaseGate(state.copilotReleaseGate, data);
   } catch {
     state.copilotPackageVerify = {
-      verification: { overall_status: 'FAIL', error: '包自检暂不可用' },
+      verification: { overall_status: 'FAIL', error: t('copilot.gate.packageUnavailable') },
     };
     renderCopilotReleaseGate(state.copilotReleaseGate, state.copilotPackageVerify);
   }
@@ -2875,69 +1304,107 @@ function renderCopilotReleaseGate(data, packageVerify = state.copilotPackageVeri
   gate.innerHTML = `
     <div class="copilot-guide-title">Alpha Gate</div>
     <div style="margin-top:8px;color:${statusColor};font-family:var(--mono);font-size:12px">${escapeHtml(statusText)}</div>
-    <div class="copilot-action-detail" style="margin-top:6px">核心证据：${passed} PASS，${blocked} BLOCKED，${failed} FAIL。</div>
-    <div class="copilot-action-detail" style="margin-top:6px">Alpha 包自检：<span style="color:${packageColor};font-family:var(--mono)">${escapeHtml(packageStatus)}</span></div>
-    ${gui ? `<div class="copilot-action-detail" style="margin-top:6px">GUI 视觉证据：${escapeHtml(gui.status)} · ${escapeHtml(gui.evidence?.blocker || '')}</div>` : ''}
-    <div style="margin-top:10px"><a href="${API}/api/copilot/alpha-package.zip" style="color:var(--blue);font-family:var(--mono);font-size:11px">下载插件和证据包</a></div>
+    <div class="copilot-action-detail" style="margin-top:6px">${t('copilot.gate.coreEvidence', { passed, blocked, failed })}</div>
+    <div class="copilot-action-detail" style="margin-top:6px">${t('copilot.gate.packageCheck')}<span style="color:${packageColor};font-family:var(--mono)">${escapeHtml(packageStatus)}</span></div>
+    ${gui ? `<div class="copilot-action-detail" style="margin-top:6px">${t('copilot.gate.guiEvidence')}${escapeHtml(gui.status)} · ${escapeHtml(gui.evidence?.blocker || '')}</div>` : ''}
+    <div style="margin-top:10px"><a href="${API}/api/copilot/alpha-package.zip" style="color:var(--blue);font-family:var(--mono);font-size:11px">${t('copilot.gate.downloadBundle')}</a></div>
   `;
 }
 
 function renderCopilotPluginGuide(data, sessionId = '') {
   const guide = document.getElementById('copilot-plugin-guide');
   if (!guide) return;
+  state.copilotGuideSession = sessionId;
   guide.innerHTML = `
-    <div class="copilot-guide-title">CAE 内执行路径</div>
+    <div class="copilot-guide-title">${t('copilot.guide.title')}</div>
     <div class="copilot-guide-steps">
       <div class="copilot-guide-step">
         <div class="copilot-guide-step-index">1</div>
-        <div>安装插件到 Abaqus/CAE 插件目录。<code class="copilot-guide-code">${escapeHtml(data.install_command)}</code></div>
+        <div>${t('copilot.guide.step1')}<code class="copilot-guide-code">${escapeHtml(data.install_command)}</code></div>
       </div>
       <div class="copilot-guide-step">
         <div class="copilot-guide-step-index">2</div>
-        <div>如果 Abaqus 在另一台机器，设置 <code>ABAQUS_AGENT_SERVER_URL</code>。<code class="copilot-guide-code">${escapeHtml(data.remote_server_env)}</code></div>
+        <div>${t('copilot.guide.step2')}<code class="copilot-guide-code">${escapeHtml(data.remote_server_env)}</code></div>
       </div>
       <div class="copilot-guide-step">
         <div class="copilot-guide-step-index">3</div>
-        <div>打开 Abaqus 菜单：<code class="copilot-guide-code">${escapeHtml(data.open_sidecar_action)}</code></div>
+        <div>${t('copilot.guide.step3')}<code class="copilot-guide-code">${escapeHtml(data.open_sidecar_action)}</code></div>
       </div>
       <div class="copilot-guide-step">
         <div class="copilot-guide-step-index">4</div>
-        <div>生成计划后让 CAE 一键执行完整队列。<code class="copilot-guide-code">${escapeHtml(data.run_plan_action || data.execute_next_action)}</code>${sessionId ? `<code class="copilot-guide-code">当前 Session: ${escapeHtml(sessionId)}</code>` : ''}</div>
+        <div>${t('copilot.guide.step4')}<code class="copilot-guide-code">${escapeHtml(data.run_plan_action || data.execute_next_action)}</code>${sessionId ? `<code class="copilot-guide-code">${t('copilot.guide.currentSession')}${escapeHtml(sessionId)}</code>` : ''}</div>
       </div>
       <div class="copilot-guide-step">
         <div class="copilot-guide-step-index">5</div>
-        <div>需要观察每一步时再用单步/状态菜单。<code class="copilot-guide-code">${escapeHtml(data.execute_next_action)}</code><code class="copilot-guide-code">${escapeHtml(data.status_action || 'AbaqusAgent Copilot: Check Session Status')}</code></div>
+        <div>${t('copilot.guide.step5')}<code class="copilot-guide-code">${escapeHtml(data.execute_next_action)}</code><code class="copilot-guide-code">${escapeHtml(data.status_action || 'AbaqusAgent Copilot: Check Session Status')}</code></div>
       </div>
     </div>
   `;
 }
 
+let copilotTypewriterToken = null;
+
 function renderCopilotPlan(plan) {
   const planEl = document.getElementById('copilot-plan');
   const actions = plan.actions || [];
-  planEl.innerHTML = actions.map((action, index) => `
+  let html = actions.map((action, index) => `
     <div class="copilot-action">
       <div class="copilot-action-top">
         <div class="copilot-action-index">${index + 1}</div>
-        <div>
+        <div style="min-width:0;flex:1">
           <div class="copilot-action-title">${escapeHtml(action.title || action.action)}</div>
           <div class="copilot-action-detail">${escapeHtml(action.rationale || '')}</div>
         </div>
+        <div class="copilot-queue-status" id="copilot-action-status-${index}">${t('copilot.queue.pending')}</div>
       </div>
-      <div class="copilot-code">${escapeHtml(action.abaqus_python || JSON.stringify(action.params || {}, null, 2))}</div>
+      <div class="copilot-code" id="copilot-code-${index}"></div>
     </div>
   `).join('');
   if (plan.safety_notes?.length) {
-    planEl.innerHTML += `
+    html += `
       <div class="copilot-action">
-        <div class="copilot-action-title">执行前确认</div>
+        <div class="copilot-action-title">${t('copilot.plan.confirmFirst')}</div>
         <div class="copilot-action-detail">${plan.safety_notes.map(escapeHtml).join('<br>')}</div>
       </div>
     `;
   }
+  planEl.innerHTML = html;
   document.getElementById('btn-copilot-execute').disabled = !actions.length;
   document.getElementById('btn-copilot-refresh').disabled = !actions.length;
   document.getElementById('btn-copilot-copy').disabled = false;
+
+  // Cursor-style "watching it write" feel: the full script already came back from
+  // the planner in one shot, so this is a display animation, not real token streaming.
+  if (copilotTypewriterToken) copilotTypewriterToken.cancelled = true;
+  const token = { cancelled: false };
+  copilotTypewriterToken = token;
+  revealCopilotActionsTypewriter(actions, token);
+}
+
+async function revealCopilotActionsTypewriter(actions, token) {
+  for (let i = 0; i < actions.length; i++) {
+    if (token.cancelled) return;
+    const el = document.getElementById(`copilot-code-${i}`);
+    if (!el) continue;
+    const text = actions[i].abaqus_python || JSON.stringify(actions[i].params || {}, null, 2);
+    await typewriterReveal(el, text, token);
+  }
+}
+
+function typewriterReveal(el, text, token) {
+  const CHARS_PER_FRAME = 28;
+  return new Promise((resolve) => {
+    let pos = 0;
+    function tick() {
+      if (token.cancelled) { resolve(); return; }
+      pos = Math.min(text.length, pos + CHARS_PER_FRAME);
+      el.textContent = text.slice(0, pos);
+      el.scrollTop = el.scrollHeight;
+      if (pos >= text.length) { resolve(); return; }
+      requestAnimationFrame(tick);
+    }
+    tick();
+  });
 }
 
 async function activateCopilotSession(sessionId) {
@@ -2954,6 +1421,39 @@ async function loadCopilotSession(sessionId) {
   return await res.json();
 }
 
+// Labels are thunks, not strings: the table is built once at load but has to
+// read in whatever language is current when a result is rendered.
+const COPILOT_KPI_LABELS = {
+  max_displacement: [() => t('copilot.kpi.maxDisplacement'), 'mm', 4],
+  midspan_deflection: [() => t('copilot.kpi.midspanDeflection'), 'mm', 4],
+  tip_deflection: [() => t('copilot.kpi.tipDeflection'), 'mm', 4],
+  max_mises: [() => t('copilot.kpi.maxMises'), 'MPa', 2],
+  stress_concentration_kt: [() => t('copilot.kpi.kt'), '', 2],
+  first_frequency_hz: [() => t('copilot.kpi.firstFrequency'), 'Hz', 1],
+};
+
+function renderCopilotKpis(kpis) {
+  if (!kpis) return '';
+  const rows = [];
+  for (const [key, [label, unit, digits]] of Object.entries(COPILOT_KPI_LABELS)) {
+    const value = kpis[key];
+    if (typeof value === 'number') {
+      rows.push(`<div>${label()}${t('copilot.kpi.colon')}<b>${value.toFixed(digits)}${unit ? ' ' + unit : ''}</b></div>`);
+    }
+  }
+  if (Array.isArray(kpis.natural_frequencies_hz) && kpis.natural_frequencies_hz.length) {
+    const freqs = kpis.natural_frequencies_hz.map((f) => f.toFixed(1)).join(t('copilot.kpi.listSeparator'));
+    rows.push(`<div>${t('copilot.kpi.firstNModes', { n: kpis.natural_frequencies_hz.length, freqs })}</div>`);
+  }
+  if (!rows.length) return '';
+  return `
+    <div style="margin-top:8px;padding:8px 10px;border-left:3px solid var(--green);background:rgba(255,255,255,0.03);border-radius:0 6px 6px 0">
+      <div style="color:var(--green);font-weight:600;margin-bottom:2px">${t('copilot.kpi.solveResult')}${escapeHtml(kpis.job_name || '')}</div>
+      ${rows.join('')}
+    </div>
+  `;
+}
+
 function renderCopilotSessionStatus(data) {
   const result = document.getElementById('copilot-result');
   result.style.display = 'block';
@@ -2965,25 +1465,422 @@ function renderCopilotSessionStatus(data) {
     </div>
   `).join('');
   result.innerHTML = `
-    <div class="copilot-action-title">插件执行状态</div>
-    <div style="margin-top:8px">Session：<code>${escapeHtml(data.session_id)}</code></div>
-    <div style="margin-top:6px">动作：${data.completed_count}/${data.action_count} completed，${data.pending_count} pending</div>
-    ${resultLines || '<div style="margin-top:6px">还没有插件回写结果。</div>'}
+    <div class="copilot-action-title">${t('copilot.session.title')}</div>
+    <div style="margin-top:8px">${t('copilot.session.label')}<code>${escapeHtml(data.session_id)}</code></div>
+    <div style="margin-top:6px">${t('copilot.session.actions', { completed: data.completed_count, total: data.action_count, pending: data.pending_count })}</div>
+    ${resultLines || `<div style="margin-top:6px">${t('copilot.session.noResults')}</div>`}
+    ${renderCopilotKpis(data.kpis)}
   `;
 }
 
+// ── Copilot CAE workspace panes (model tree / viewport / errors) ──
+
+function copilotStamp(ts) {
+  if (!ts) return '';
+  return new Date(ts * 1000).toLocaleTimeString();
+}
+
+function updateCopilotQueueStatuses(data) {
+  const results = data.results || [];
+  const actionCount = data.action_count || 0;
+  for (let i = 0; i < actionCount; i++) {
+    const chip = document.getElementById(`copilot-action-status-${i}`);
+    if (!chip) continue;
+    const result = results.find((r) => r.action_index === i);
+    if (result && result.status === 'completed') {
+      chip.textContent = t('copilot.queue.done'); chip.className = 'copilot-queue-status done';
+    } else if (result && result.status === 'failed') {
+      chip.textContent = t('copilot.queue.failed'); chip.className = 'copilot-queue-status failed';
+    } else if (i === results.length && data.pending_count > 0) {
+      chip.textContent = t('copilot.queue.queued'); chip.className = 'copilot-queue-status pending';
+    }
+  }
+  const stamp = document.getElementById('copilot-queue-stamp');
+  if (stamp) stamp.textContent = t('copilot.queue.stamp', { completed: data.completed_count || 0, total: actionCount });
+}
+
+function renderCopilotModelTree(data) {
+  const tree = document.getElementById('copilot-model-tree');
+  if (!tree) return;
+  const models = data.models || [];
+  if (!models.length) return;
+  const group = (label, items) => (items && items.length)
+    ? `<div class="copilot-tree-group">${label} (${items.length})</div>` +
+      items.map((n) => `<div class="copilot-tree-item">└ ${escapeHtml(n)}</div>`).join('')
+    : '';
+  tree.innerHTML = models.map((m) => `
+    <div class="copilot-tree-model">
+      <div class="copilot-tree-model-name">▸ ${escapeHtml(m.name)}</div>
+      ${group('Parts', m.parts)}
+      ${group('Materials', m.materials)}
+      ${group('Sections', m.sections)}
+      ${group('Steps', m.steps)}
+      ${group('Loads', m.loads)}
+      ${group('BCs', m.bcs)}
+      ${group('Instances', m.instances)}
+      ${m.mesh_elements ? `<div class="copilot-tree-group">Mesh</div><div class="copilot-tree-item">└ ${m.mesh_elements} elements</div>` : ''}
+    </div>
+  `).join('');
+  const dot = document.getElementById('copilot-tree-dot');
+  if (dot) dot.classList.add('live');
+  const stamp = document.getElementById('copilot-tree-stamp');
+  if (stamp) stamp.textContent = copilotStamp(data.reported_at);
+}
+
+function renderCopilotViewport(sessionId, capturedAt, srcOverride) {
+  const body = document.getElementById('copilot-viewport');
+  if (!body) return;
+  const url = srcOverride
+    || `${API}/api/copilot/sessions/${encodeURIComponent(sessionId)}/viewport.png?t=${capturedAt}`;
+  body.innerHTML = `<img class="copilot-viewport-img" src="${url}" alt="Abaqus viewport snapshot">`;
+  const dot = document.getElementById('copilot-viewport-dot');
+  if (dot) dot.classList.add('live');
+  const stamp = document.getElementById('copilot-viewport-stamp');
+  if (stamp) stamp.textContent = copilotStamp(capturedAt);
+}
+
+function copilotFixError(index) {
+  const err = (state.copilotErrors || [])[index];
+  if (!err) return;
+  const trace = err.payload?.traceback || err.message || '';
+  let diagnosisLine = err.diagnosis
+    ? t('copilot.fix.diagnosis', {
+        title: err.diagnosis.title,
+        explanation: err.diagnosis.explanation,
+        suggestion: err.diagnosis.suggestion,
+      })
+    : '';
+  if (err.solver_doctor?.summary) {
+    diagnosisLine += t('copilot.fix.solverDoctor', { summary: err.solver_doctor.summary });
+  }
+  const input = document.getElementById('copilot-input');
+  input.value = t('copilot.fix.prompt', {
+    index: err.action_index + 1,
+    diagnosis: diagnosisLine,
+    trace: trace.slice(-1200),
+  });
+  // one click = fix: generate the repaired plan immediately instead of making
+  // the user find the 生成操作计划 button again
+  document.getElementById('btn-copilot-plan').click();
+}
+
+function renderCopilotErrors(errors) {
+  const box = document.getElementById('copilot-errors');
+  if (!box) return;
+  state.copilotErrors = errors;
+  const dot = document.getElementById('copilot-errors-dot');
+  if (!errors.length) {
+    if (dot) { dot.classList.remove('live'); dot.style.background = ''; }
+    box.innerHTML = `<div class="copilot-pane-empty">${t('copilot.errors.empty')}</div>`;
+    return;
+  }
+  if (dot) { dot.classList.add('live'); dot.style.background = 'var(--red)'; }
+  box.innerHTML = errors.map((err, index) => `
+    <div class="copilot-error-block">
+      <div class="copilot-error-title">${t('copilot.error.actionFailed', { index: err.action_index + 1 })} · ${copilotStamp(err.received_at)}</div>
+      ${err.diagnosis ? `
+        <div class="copilot-error-diagnosis">
+          <div class="copilot-error-diagnosis-title">${escapeHtml(err.diagnosis.title)}</div>
+          <div>${escapeHtml(err.diagnosis.explanation)}</div>
+          <div style="margin-top:4px"><b>${t('copilot.error.whatToDo')}</b>${escapeHtml(err.diagnosis.suggestion)}</div>
+        </div>
+      ` : ''}
+      ${err.solver_doctor ? `
+        <div class="copilot-error-diagnosis">
+          <div class="copilot-error-diagnosis-title">${t('copilot.error.solverDoctorTitle')} · ${escapeHtml(err.solver_doctor.primary_category || '')}</div>
+          <div>${escapeHtml(err.solver_doctor.summary || '')}</div>
+          ${(err.solver_doctor.findings || []).slice(0, 3).map((f) => `
+            <div style="margin-top:4px">· <b>${escapeHtml(f.severity || '')}</b> ${escapeHtml(f.message || '')}<br>
+            <span style="color:var(--text3)">${escapeHtml(f.recommendation || '')}</span></div>
+          `).join('')}
+        </div>
+      ` : ''}
+      <div class="copilot-error-trace">${escapeHtml((err.payload?.traceback || err.message || '').slice(-2000))}</div>
+      <div style="margin-top:8px">
+        <button class="btn btn-secondary" onclick="copilotFixError(${index})">${t('copilot.error.fixButton')}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+let copilotStream = null;
+
+async function applyCopilotSessionUpdate(sessionId, data) {
+  state.copilotSession = data;
+  renderCopilotSessionStatus(data);
+  updateCopilotQueueStatuses(data);
+  renderCopilotErrors(data.errors || []);
+  if (data.model_state_at && data.model_state_at !== state.copilotModelStateAt) {
+    state.copilotModelStateAt = data.model_state_at;
+    try {
+      const res = await fetch(`${API}/api/copilot/sessions/${encodeURIComponent(sessionId)}/model-state`);
+      if (res.ok) renderCopilotModelTree(await res.json());
+    } catch { /* transient fetch failure; next update will retry */ }
+  }
+  if (data.viewport_at && data.viewport_at !== state.copilotViewportAt) {
+    state.copilotViewportAt = data.viewport_at;
+    renderCopilotViewport(sessionId, data.viewport_at);
+  }
+}
+
+// Live-pushed workspace updates: the server checks the session every 0.3s and only
+// emits an SSE event when something actually changed, so panes light up within a
+// fraction of a second of the plugin reporting them (vs. the old 3s poll interval).
+function startCopilotPolling(sessionId) {
+  cancelCopilotReplay();
+  if (copilotStream) copilotStream.close();
+  state.copilotModelStateAt = null;
+  state.copilotViewportAt = null;
+  const stream = new EventSource(`${API}/api/copilot/sessions/${encodeURIComponent(sessionId)}/stream`);
+  stream.onmessage = (e) => {
+    if (!state.serverOnline) return;
+    const data = JSON.parse(e.data);
+    if (data.event === 'done') { stream.close(); return; }
+    applyCopilotSessionUpdate(sessionId, data);
+  };
+  stream.onerror = () => { /* EventSource auto-reconnects on transient drops */ };
+  copilotStream = stream;
+}
+
+// ── Replay mode: play back a recorded real-Abaqus session, no CAE needed ──
+// Frames come from /api/copilot/replay (written by scripts/record_copilot_replay.py)
+// and are fed through the exact same render functions the live SSE path uses.
+
+let copilotReplayToken = null;
+const REPLAY_MAX_GAP_S = 2.2;  // compress solver dead time so viewers don't wait
+const REPLAY_MIN_GAP_S = 0.12;
+
+function cancelCopilotReplay() {
+  if (copilotReplayToken) copilotReplayToken.cancelled = true;
+  copilotReplayToken = null;
+  const btn = document.getElementById('btn-copilot-replay');
+  if (btn) btn.textContent = t('copilot.btn.replay');
+}
+
+function resetCopilotPanesForReplay() {
+  document.getElementById('copilot-model-tree').innerHTML =
+    `<div class="copilot-pane-empty">${t('copilot.replay.treeWait')}</div>`;
+  document.getElementById('copilot-viewport').innerHTML =
+    `<div class="copilot-pane-empty" style="text-align:center">${t('copilot.replay.viewportWait')}</div>`;
+  document.getElementById('copilot-plan').innerHTML =
+    `<div class="copilot-pane-empty">${t('copilot.replay.planWait')}</div>`;
+  renderCopilotErrors([]);
+  const result = document.getElementById('copilot-result');
+  result.style.display = 'none';
+  result.innerHTML = '';
+  ['copilot-tree-dot', 'copilot-viewport-dot'].forEach((id) => {
+    const dot = document.getElementById(id);
+    if (dot) dot.classList.remove('live');
+  });
+  ['copilot-tree-stamp', 'copilot-viewport-stamp', 'copilot-queue-stamp'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
+  document.getElementById('copilot-chat').innerHTML = `
+    <div class="copilot-message assistant">
+      <div class="copilot-message-label">AbaqusAgent</div>
+      <div>${t('copilot.replay.intro')}</div>
+    </div>
+  `;
+}
+
+function applyCopilotReplayFrame(frame) {
+  if (frame.kind === 'chat') {
+    copilotAppendMessage(frame.role, frame.text);
+  } else if (frame.kind === 'plan') {
+    renderCopilotPlan(frame.plan);
+  } else if (frame.kind === 'session') {
+    renderCopilotSessionStatus(frame.session);
+    updateCopilotQueueStatuses(frame.session);
+    renderCopilotErrors(frame.session.errors || []);
+  } else if (frame.kind === 'model_state') {
+    renderCopilotModelTree(frame.model_state);
+  } else if (frame.kind === 'viewport') {
+    renderCopilotViewport('', frame.captured_at, `data:image/png;base64,${frame.png_base64}`);
+  }
+}
+
+async function runCopilotReplay() {
+  const picked = document.getElementById('copilot-replay-select')?.value || 'default';
+  let data;
+  try {
+    const res = await fetch(`${API}/api/copilot/replay?name=${encodeURIComponent(picked)}`);
+    if (!res.ok) {
+      const detail = (await res.json().catch(() => ({}))).detail || `HTTP ${res.status}`;
+      throw new Error(detail);
+    }
+    data = await res.json();
+  } catch (e) {
+    toast(t('toast.replay.none') + e.message, 'error');
+    return;
+  }
+  if (copilotStream) { copilotStream.close(); copilotStream = null; }
+  cancelCopilotReplay();
+  const token = { cancelled: false };
+  copilotReplayToken = token;
+  document.getElementById('btn-copilot-replay').textContent = t('copilot.btn.replayStop');
+  resetCopilotPanesForReplay();
+  toast(t('toast.replay.start', { recordedAt: data.recorded_at || '' }), 'info');
+  let prevDt = null;
+  const frames = data.frames || [];
+  const btn = document.getElementById('btn-copilot-replay');
+  for (let i = 0; i < frames.length; i++) {
+    const frame = frames[i];
+    if (token.cancelled) return;
+    const gap = prevDt === null
+      ? 0.4
+      : Math.min(REPLAY_MAX_GAP_S, Math.max(REPLAY_MIN_GAP_S, frame.dt - prevDt));
+    prevDt = frame.dt;
+    await new Promise((resolve) => setTimeout(resolve, gap * 1000));
+    if (token.cancelled) return;
+    applyCopilotReplayFrame(frame);
+    btn.textContent = t('copilot.btn.replayStopProgress', { current: i + 1, total: frames.length });
+  }
+  copilotReplayToken = null;
+  btn.textContent = t('copilot.btn.replay');
+  toast(t('toast.replay.end'), 'info');
+  copilotAppendMessage('assistant', t('copilot.replay.outro'));
+}
+
+document.getElementById('btn-copilot-replay').addEventListener('click', () => {
+  if (copilotReplayToken) {
+    cancelCopilotReplay();
+    toast(t('toast.replay.stopped'), 'info');
+    return;
+  }
+  runCopilotReplay();
+});
+
+// First-visit discovery: if recordings exist, tell viewers they can watch
+// the whole loop without installing Abaqus, and offer a scenario picker
+// when there is more than one recording.
+(async function detectCopilotReplayAvailability() {
+  try {
+    const res = await fetch(`${API}/api/copilot/replays`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const recordings = data.recordings || [];
+    if (!recordings.length) return;
+    const hint = document.getElementById('copilot-replay-hint');
+    if (hint) hint.style.display = 'block';
+    const select = document.getElementById('copilot-replay-select');
+    if (select && recordings.length > 1) {
+      select.innerHTML = recordings.map((r) =>
+        `<option value="${escapeHtml(r.name)}">${escapeHtml(r.title)}</option>`
+      ).join('');
+      select.style.display = '';
+    }
+  } catch { /* server offline; the replay button click will explain */ }
+})();
+
+// Shared restore path: auto-resume on load and the history picker both feed
+// a stored session through the exact same render pipeline.
+async function restoreCopilotSession(data, note) {
+  state.copilotPlan = data.plan;
+  renderCopilotPlan(data.plan);
+  await applyCopilotSessionUpdate(data.session_id, data.summary);
+  copilotAppendMessage('assistant', note);
+  startCopilotPolling(data.session_id);
+}
+
+// Re-attach to the last session after a page refresh or server restart:
+// sessions persist server-side, so the workspace picks up where it left off.
+(async function resumeActiveCopilotSession() {
+  try {
+    const res = await fetch(`${API}/api/copilot/sessions/active`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.plan || !(data.plan.actions || []).length) return;
+    if (copilotReplayToken) return; // never fight a running replay
+    await restoreCopilotSession(
+      data,
+      t('copilot.session.resumed', {
+        sid: data.session_id,
+        completed: data.summary.completed_count,
+        total: data.summary.action_count,
+      })
+    );
+  } catch { /* server offline or nothing to resume */ }
+})();
+
+// ── Session history picker ────────────────────────────────────────
+async function loadCopilotSessionHistory() {
+  try {
+    const res = await fetch(`${API}/api/copilot/sessions`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const select = document.getElementById('copilot-history-select');
+    if (!select) return;
+    const current = select.value;
+    const sessions = data.sessions || [];
+    select.innerHTML = `<option value="">${t('copilot.history.placeholderCount', { count: sessions.length })}</option>` + sessions.map((s) => {
+      const when = s.created_at ? new Date(s.created_at * 1000).toLocaleString() : '';
+      const label = `${when} · ${(s.user_summary || s.session_id).slice(0, 22)} · ${s.completed_count}/${s.action_count}${s.errors?.length ? ' ⚠' : ''}`;
+      return `<option value="${escapeHtml(s.session_id)}">${escapeHtml(label)}</option>`;
+    }).join('');
+    if (current) select.value = current;
+  } catch { /* server offline */ }
+}
+
+document.getElementById('copilot-history-select').addEventListener('change', async (e) => {
+  const sid = e.target.value;
+  if (!sid) return;
+  try {
+    const res = await fetch(`${API}/api/copilot/sessions/${encodeURIComponent(sid)}/full`);
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || `HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.plan || !(data.plan.actions || []).length) {
+      toast(t('toast.session.noPlan'), 'error');
+      return;
+    }
+    cancelCopilotReplay();
+    await activateCopilotSession(sid); // point the CAE plugin at it too
+    await restoreCopilotSession(
+      data,
+      t('copilot.session.switched', {
+        sid,
+        completed: data.summary.completed_count,
+        total: data.summary.action_count,
+      })
+    );
+    toast(t('toast.session.activated'), 'info');
+  } catch (err) {
+    toast(t('toast.session.loadFailed') + err.message, 'error');
+  }
+});
+
+loadCopilotSessionHistory();
+
+// Seed prompts are read at click time so they follow the current language.
+const COPILOT_EXAMPLE_PROMPTS = [
+  () => t('copilot.example.cantilever'),
+  () => t('copilot.example.simplySupported'),
+  () => t('copilot.example.plateHole'),
+  () => t('copilot.example.modal'),
+];
+let copilotExampleIndex = 0;
+
 document.getElementById('btn-copilot-demo').addEventListener('click', () => {
   document.getElementById('copilot-input').value =
-    '帮我建一个 200mm 长、20mm 高、20mm 宽的悬臂梁，材料钢，左端固定，右端向下 100N，准备运行后告诉我最大位移和最大 Mises 应力怎么看。';
+    COPILOT_EXAMPLE_PROMPTS[copilotExampleIndex % COPILOT_EXAMPLE_PROMPTS.length]();
+  copilotExampleIndex += 1;
+});
+
+// Cursor-style send: Enter submits, Shift+Enter inserts a newline.
+document.getElementById('copilot-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    document.getElementById('btn-copilot-plan').click();
+  }
 });
 
 document.getElementById('btn-copilot-plan').addEventListener('click', async () => {
   const text = document.getElementById('copilot-input').value.trim();
-  if (!text) { toast('请先输入 Abaqus 需求', 'error'); return; }
-  if (!state.serverOnline) { toast('后端离线，先启动 FastAPI 服务', 'error'); return; }
+  if (!text) { toast(t('toast.copilot.needRequest'), 'error'); return; }
+  if (!state.serverOnline) { toast(t('toast.copilot.backendOffline'), 'error'); return; }
   const btn = document.getElementById('btn-copilot-plan');
   btn.disabled = true;
-  btn.textContent = '规划中...';
+  btn.textContent = t('copilot.btn.planning');
   copilotAppendMessage('user', text);
   try {
     const res = await fetch(`${API}/api/copilot/plan`, {
@@ -2997,29 +1894,31 @@ document.getElementById('btn-copilot-plan').addEventListener('click', async () =
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     state.copilotPlan = data;
-    copilotAppendMessage('assistant', `${data.assistant_message}（后端：${data.backend}）`);
+    copilotAppendMessage('assistant', t('copilot.msg.plannedBy', { message: data.assistant_message, backend: data.backend }));
     renderCopilotPlan(data);
     try {
       const activated = await activateCopilotSession(data.session_id);
       if (state.copilotGuide) renderCopilotPluginGuide(state.copilotGuide, activated.session_id);
       document.getElementById('copilot-result').style.display = 'block';
       document.getElementById('copilot-result').innerHTML = `
-        <div class="copilot-action-title">插件已指向当前会话</div>
-        <div style="margin-top:8px">Session：<code>${escapeHtml(activated.session_id)}</code></div>
-        <div style="margin-top:6px">本机文件：<code>${escapeHtml(activated.session_file)}</code></div>
-        <div style="margin-top:6px">在 Abaqus/CAE 菜单点击：${escapeHtml(activated.plugin_action)}</div>
-        <div style="margin-top:6px">调试单步：${escapeHtml(activated.debug_plugin_action || 'AbaqusAgent Copilot: Execute Next Action')}</div>
+        <div class="copilot-action-title">${t('copilot.activated.title')}</div>
+        <div style="margin-top:8px">${t('copilot.session.label')}<code>${escapeHtml(activated.session_id)}</code></div>
+        <div style="margin-top:6px">${t('copilot.activated.localFile')}<code>${escapeHtml(activated.session_file)}</code></div>
+        <div style="margin-top:6px">${t('copilot.activated.menuClick')}${escapeHtml(activated.plugin_action)}</div>
+        <div style="margin-top:6px">${t('copilot.activated.debugStep')}${escapeHtml(activated.debug_plugin_action || 'AbaqusAgent Copilot: Execute Next Action')}</div>
       `;
     } catch (activationError) {
-      toast('计划已生成，但插件 session 激活失败: ' + activationError.message, 'error');
+      toast(t('toast.copilot.activationFailed') + activationError.message, 'error');
     }
-    toast(data.backend === 'codex_app_server' ? 'Codex 已生成操作计划' : '已使用模板生成计划', 'info');
+    startCopilotPolling(data.session_id);
+    loadCopilotSessionHistory();
+    toast(data.backend === 'codex_app_server' ? t('toast.copilot.plannedCodex') : t('toast.copilot.plannedTemplate'), 'info');
   } catch (e) {
-    copilotAppendMessage('assistant', `规划失败：${e.message}`);
-    toast('Copilot 规划失败: ' + e.message, 'error');
+    copilotAppendMessage('assistant', t('copilot.msg.planFailed', { message: e.message }));
+    toast(t('toast.copilot.planFailed') + e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '生成操作计划';
+    btn.textContent = t('copilot.btn.plan');
   }
 });
 
@@ -3027,7 +1926,7 @@ document.getElementById('btn-copilot-execute').addEventListener('click', async (
   if (!state.copilotPlan) return;
   const btn = document.getElementById('btn-copilot-execute');
   btn.disabled = true;
-  btn.textContent = '执行中...';
+  btn.textContent = t('copilot.btn.executing');
   try {
     const bridgeMode = state.copilotStatus?.abaqus_available ? 'abaqus_plugin' : 'mock';
     const res = await fetch(`${API}/api/copilot/execute`, {
@@ -3043,16 +1942,16 @@ document.getElementById('btn-copilot-execute').addEventListener('click', async (
     document.getElementById('copilot-result').style.display = 'block';
     document.getElementById('copilot-result').innerHTML = `
       <div class="copilot-action-title">${escapeHtml(data.user_visible_summary)}</div>
-      <div style="margin-top:8px">脚本：<code>${escapeHtml(data.script_path)}</code></div>
-      <div style="margin-top:6px">下一步：${escapeHtml(data.next_step)}</div>
+      <div style="margin-top:8px">${t('copilot.exec.script')}<code>${escapeHtml(data.script_path)}</code></div>
+      <div style="margin-top:6px">${t('copilot.exec.nextStep')}${escapeHtml(data.next_step)}</div>
     `;
-    copilotAppendMessage('assistant', `${data.user_visible_summary} 脚本已生成：${data.script_path}`);
-    toast('执行准备完成', 'info');
+    copilotAppendMessage('assistant', t('copilot.msg.scriptWritten', { summary: data.user_visible_summary, path: data.script_path }));
+    toast(t('toast.copilot.execReady'), 'info');
   } catch (e) {
-    toast('执行失败: ' + e.message, 'error');
+    toast(t('toast.copilot.execFailed') + e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '执行 / 生成脚本';
+    btn.textContent = t('copilot.btn.execute');
   }
 });
 
@@ -3061,16 +1960,16 @@ document.getElementById('btn-copilot-refresh').addEventListener('click', async (
   try {
     const data = await loadCopilotSession(state.copilotPlan.session_id);
     renderCopilotSessionStatus(data);
-    toast('插件状态已刷新', 'info');
+    toast(t('toast.copilot.statusRefreshed'), 'info');
   } catch (e) {
-    toast('刷新插件状态失败: ' + e.message, 'error');
+    toast(t('toast.copilot.statusRefreshFailed') + e.message, 'error');
   }
 });
 
 document.getElementById('btn-copilot-copy').addEventListener('click', async () => {
   if (!state.copilotPlan) return;
   await navigator.clipboard.writeText(JSON.stringify(state.copilotPlan, null, 2));
-  toast('Copilot 计划已复制', 'info');
+  toast(t('toast.copilot.planCopied'), 'info');
 });
 
 document.getElementById('btn-copilot-package').addEventListener('click', () => {
@@ -3113,11 +2012,11 @@ document.getElementById('btn-clear-prompt').addEventListener('click', () => {
 // ── Generate Spec (real API or fallback) ─────────────────────────
 document.getElementById('btn-gen-spec').addEventListener('click', async () => {
   const text = document.getElementById('nl-input').value.trim();
-  if (!text) { toast('请先输入分析需求', 'error'); return; }
+  if (!text) { toast(t('toast.spec.needRequest'), 'error'); return; }
 
   const btn = document.getElementById('btn-gen-spec');
   btn.disabled = true;
-  btn.textContent = '⟳ 生成中...';
+  btn.textContent = t('prompt.btn.generating');
 
   const version = document.getElementById('abaqus-version').value;
   const backend = document.getElementById('llm-backend').value;
@@ -3140,7 +2039,7 @@ document.getElementById('btn-gen-spec').addEventListener('click', async () => {
       specYaml = data.spec_yaml;
       showValidation({ valid: data.valid, errors: data.errors });
       if (data.missing_questions?.length) {
-        toast(`还需要: ${data.missing_questions[0]}`, 'info');
+        toast(t('toast.spec.alsoNeed', { question: data.missing_questions[0] }), 'info');
       }
     } else {
       // Offline fallback
@@ -3150,7 +2049,7 @@ document.getElementById('btn-gen-spec').addEventListener('click', async () => {
       showValidation(valid);
     }
   } catch (e) {
-    toast('生成失败: ' + e.message, 'error');
+    toast(t('toast.spec.genFailed') + e.message, 'error');
     specYaml = generateSpec(text, version);
     showValidation(validateSpecText(specYaml));
   }
@@ -3162,14 +2061,35 @@ document.getElementById('btn-gen-spec').addEventListener('click', async () => {
   syncHighlight();
 
   btn.disabled = false;
-  btn.textContent = '⚡ 生成 Spec';
-  toast('Spec 生成成功', 'ok');
+  btn.textContent = t('prompt.btn.gen');
+  toast(t('toast.spec.generated'), 'ok');
   navigateTo('spec');
 });
 
 // ── Spec generation logic ─────────────────────────────────────────
+// Trigger words for the offline generator. They are matched against what the
+// USER typed, not against the UI language, so they stay Chinese in the English
+// UI too -- written as escapes so the i18n check does not read them as UI copy.
+// hole 孔 · modal 模态 · frequency 频率 · explicit 显式 · impact 冲击 ·
+// aluminum 铝 · deflection 挠度 · displacement 位移 · stress 应力 ·
+// natural 固有 · reaction 反力
+const ZH_TRIGGER = {
+  hole: '\u5b54',
+  modal: '\u6a21\u6001',
+  frequency: '\u9891\u7387',
+  explicit: '\u663e\u5f0f',
+  impact: '\u51b2\u51fb',
+  aluminum: '\u94dd',
+  deflection: '\u6320\u5ea6',
+  displacement: '\u4f4d\u79fb',
+  stress: '\u5e94\u529b',
+  natural: '\u56fa\u6709',
+  reaction: '\u53cd\u529b',
+};
+
 function generateSpec(text, version) {
-  const t = text.toLowerCase();
+  // `q`, not `t`: `t` is the translation function in this file now.
+  const q = text.toLowerCase();
   let geoType = 'cantilever_block';
   let stepType = 'Static';
   let solver = 'standard';
@@ -3178,33 +2098,33 @@ function generateSpec(text, version) {
   let E = 210000, nu = 0.3, density = '';
   let matName = 'Steel';
 
-  if (t.includes('孔') || t.includes('plate')) {
+  if (q.includes(ZH_TRIGGER.hole) || q.includes('plate')) {
     geoType = 'plate_with_hole'; modelName = 'PlateWithHole';
   }
-  if (t.includes('模态') || t.includes('频率') || t.includes('modal')) {
+  if (q.includes(ZH_TRIGGER.modal) || q.includes(ZH_TRIGGER.frequency) || q.includes('modal')) {
     stepType = 'Frequency'; solver = 'standard'; density = '\n  density: 7.85e-9';
     modelName = 'ModalBeam';
   }
-  if (t.includes('显式') || t.includes('冲击') || t.includes('explicit')) {
+  if (q.includes(ZH_TRIGGER.explicit) || q.includes(ZH_TRIGGER.impact) || q.includes('explicit')) {
     stepType = 'Dynamic_Explicit'; solver = 'explicit';
     density = '\n  density: 7.85e-9'; modelName = 'ExplicitModel';
   }
-  if (t.includes('铝') || t.includes('alumin')) {
+  if (q.includes(ZH_TRIGGER.aluminum) || q.includes('alumin')) {
     E = 70000; nu = 0.33; matName = 'Aluminum'; density = '\n  density: 2.7e-9';
   }
 
   const kpis = [];
-  if (t.includes('挠度') || t.includes('位移') || t.includes('deflection')) {
+  if (q.includes(ZH_TRIGGER.deflection) || q.includes(ZH_TRIGGER.displacement) || q.includes('deflection')) {
     kpis.push('    - name: U_tip\n      type: nodal_displacement\n      location: tip_center\n      component: U2');
   }
-  if (t.includes('mises') || t.includes('应力')) {
+  if (q.includes('mises') || q.includes(ZH_TRIGGER.stress)) {
     kpis.push('    - name: MISES_MAX\n      type: field_max\n      location: whole_model');
   }
-  if (t.includes('频率') || t.includes('固有') || t.includes('freq')) {
+  if (q.includes(ZH_TRIGGER.frequency) || q.includes(ZH_TRIGGER.natural) || q.includes('freq')) {
     kpis.push('    - name: freq_1\n      type: eigenfrequency\n      location: mode_1');
     kpis.push('    - name: freq_2\n      type: eigenfrequency\n      location: mode_2');
   }
-  if (t.includes('反力') || t.includes('reaction')) {
+  if (q.includes(ZH_TRIGGER.reaction) || q.includes('reaction')) {
     kpis.push('    - name: RF_MAX\n      type: reaction_force_max\n      location: fixed_face\n      component: RF3');
   }
   if (kpis.length === 0) {
@@ -3367,23 +2287,44 @@ document.getElementById('btn-validate-spec').addEventListener('click', async () 
   showValidation(validateSpecText(specEditor.value));
 });
 
+// /health already reports what the installed solver says about itself; the
+// selector used to ignore it and sit on a hardcoded default, so the generated
+// spec carried a release the machine did not have. Only moves off a release
+// the user picked by hand if they have not touched it.
+function applyDetectedRelease(release) {
+  const sel = document.getElementById('abaqus-version');
+  if (!sel || !release) return;
+  const opt = [...sel.options].find(o => o.value === String(release));
+  if (!opt) return;                       // solver reports a year we do not list
+  if (sel.dataset.userPicked === '1') return;
+  sel.value = String(release);
+  sel.title = t('spec.releaseAutoPicked', { release });
+}
+
 function validateSpecText(yaml) {
   const errors = [];
   const required = ['meta:', 'geometry:', 'material:', 'analysis:', 'bc_load:', 'outputs:'];
-  required.forEach(k => { if (!yaml.includes(k)) errors.push(`缺少字段: ${k}`); });
-  if (!yaml.match(/abaqus_release:\s*["']?(2023|2024|2025)/)) errors.push('abaqus_release 需为 2023/2024/2025');
-  if (!yaml.match(/solver:\s*(standard|explicit)/)) errors.push('solver 需为 standard 或 explicit');
-  if (!yaml.includes('kpis:')) errors.push('outputs.kpis 不能为空');
+  required.forEach(k => { if (!yaml.includes(k)) errors.push(t('validate.missingField', { field: k })); });
+  // Must track schema/spec_schema.json's enum. Hardcoding 2023/2024/2025 told
+  // anyone on 2021 — including this build's own machine — that their perfectly
+  // valid spec was invalid.
+  if (!yaml.match(/abaqus_release:\s*["']?(2019|2020|2021|2022|2023|2024|2025|2026)/))
+    errors.push(t('validate.releaseRange'));
+  if (!yaml.match(/solver:\s*(standard|explicit)/)) errors.push(t('validate.solverEnum'));
+  if (!yaml.includes('kpis:')) errors.push(t('validate.kpisRequired'));
   return { valid: errors.length === 0, errors };
 }
 
 function showValidation(result) {
+  // Kept so a language switch can re-render this panel; without it the
+  // verdict stays in whichever language it was produced in, forever.
+  state.lastValidation = result;
   const area = document.getElementById('validation-area');
   const content = document.getElementById('validation-content');
   area.style.display = 'block';
   if (result.valid) {
-    content.innerHTML = '<div class="v-item v-ok">✓ Spec 校验通过，共 ' +
-      (specEditor.value || state.spec).split('\n').length + ' 行</div>';
+    content.innerHTML = `<div class="v-item v-ok">${t('validate.ok', {
+      lines: (specEditor.value || state.spec).split('\n').length })}</div>`;
   } else {
     content.innerHTML = result.errors.map(e =>
       `<div class="v-item v-err">✗ ${e}</div>`).join('');
@@ -3393,7 +2334,7 @@ function showValidation(result) {
 // ── Copy spec ───────────────────────────────────────────────────
 document.getElementById('btn-copy-spec').addEventListener('click', () => {
   navigator.clipboard.writeText(specEditor.value);
-  toast('已复制到剪贴板', 'ok');
+  toast(t('toast.copiedClipboard'), 'ok');
 });
 
 // ── Go to run ───────────────────────────────────────────────────
@@ -3402,19 +2343,26 @@ document.getElementById('btn-goto-run').addEventListener('click', () => {
 });
 
 // ── Pipeline stages definition ───────────────────────────────────
+// desc is a thunk so a language switch relabels stages that are already on
+// screen; dynamic stages from the server keep carrying a plain string.
 const STAGES = [
-  { id: 'validate_spec',  label: 'validate_spec',  desc: '校验 Problem Spec 格式与字段', duration: [300,600] },
-  { id: 'build_model',    label: 'build_model',     desc: '生成 CAE noGUI 脚本 → .inp', duration: [800,1600] },
-  { id: 'syntaxcheck',    label: 'syntaxcheck',     desc: '语法检查（求解前检查）',      duration: [400,800] },
-  { id: 'submit_job',     label: 'submit_job',      desc: '提交 Abaqus analysis 作业',   duration: [1000,2000] },
-  { id: 'monitor_job',    label: 'monitor_job',     desc: '轮询 .sta 作业状态',          duration: [600,1200] },
-  { id: 'extract_kpis',   label: 'extract_kpis',    desc: '从 ODB 提取 KPI 指标',        duration: [500,1000] },
+  { id: 'validate_spec',  label: 'validate_spec',  desc: () => t('stage.validate_spec'), duration: [300,600] },
+  { id: 'build_model',    label: 'build_model',     desc: () => t('stage.build_model'),  duration: [800,1600] },
+  { id: 'syntaxcheck',    label: 'syntaxcheck',     desc: () => t('stage.syntaxcheck'),  duration: [400,800] },
+  { id: 'submit_job',     label: 'submit_job',      desc: () => t('stage.submit_job'),   duration: [1000,2000] },
+  { id: 'monitor_job',    label: 'monitor_job',     desc: () => t('stage.monitor_job'),  duration: [600,1200] },
+  { id: 'extract_kpis',   label: 'extract_kpis',    desc: () => t('stage.extract_kpis'), duration: [500,1000] },
 ];
 
 // ── Render pipeline stages ───────────────────────────────────────
+// Held by reference: the innerHTML rewrite below detaches this node, so the
+// second render (any run past its first update, or a language switch) used to
+// getElementById() null and throw before drawing a single stage.
+const pipelineEmptyNode = document.getElementById('pipeline-empty');
+
 function renderPipeline() {
   const container = document.getElementById('pipeline-stages');
-  document.getElementById('pipeline-empty').style.display = 'none';
+  pipelineEmptyNode.style.display = 'none';
 
   // Include dynamic stages from real Abaqus (e.g., autorepair, compare_kpis)
   const allStages = [...STAGES, ...(state._dynamicStages || [])];
@@ -3440,7 +2388,7 @@ function renderPipeline() {
         <div class="stage-indicator">${icon}</div>
         <div class="stage-body">
           <div class="stage-name">${stage.label}</div>
-          <div class="stage-desc">${stage.desc}</div>
+          <div class="stage-desc">${typeof stage.desc === 'function' ? stage.desc() : stage.desc}</div>
           ${timeStr ? `<div class="stage-time">⏱ ${timeStr}</div>` : ''}
           ${logHtml}
         </div>
@@ -3452,7 +2400,7 @@ function renderPipeline() {
 document.getElementById('btn-start-run').addEventListener('click', async () => {
   if (state.pipelineRunning) return;
   const specYaml = specEditor.value || state.spec;
-  if (!specYaml.trim()) { toast('请先生成或编辑 Spec', 'error'); return; }
+  if (!specYaml.trim()) { toast(t('toast.run.needSpec'), 'error'); return; }
 
   state.pipelineRunning = true;
   state.stageResults = {};
@@ -3475,7 +2423,7 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        toast('启动失败: ' + JSON.stringify(err.detail), 'error');
+        toast(t('toast.run.startFailed') + JSON.stringify(err.detail), 'error');
         _resetRunBtn(); return;
       }
       const { run_id } = await res.json();
@@ -3488,7 +2436,7 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
 
       document.getElementById('btn-abort-run').onclick = () => {
         es.close();
-        toast('已中止监听', 'info');
+        toast(t('toast.run.streamAborted'), 'info');
         _resetRunBtn();
       };
 
@@ -3504,7 +2452,7 @@ document.getElementById('btn-start-run').addEventListener('click', async () => {
       };
 
     } catch (err) {
-      toast('连接失败，切换到模拟模式', 'info');
+      toast(t('toast.run.fallbackSim'), 'info');
       await _simulatedRun(specYaml, stageBadge);
     }
   } else {
@@ -3545,7 +2493,7 @@ function _applyRunUpdate(data, stageBadge) {
     setProgress(100);
     state.kpis = _flattenKpis(data.kpis || {}, data.regression || {});
     renderKPIs();
-    toast('运行完成 ✓', 'ok');
+    toast(t('toast.run.completed'), 'ok');
     _addHistory({
       runId: data.run_id,
       status: 'COMPLETED',
@@ -3556,7 +2504,7 @@ function _applyRunUpdate(data, stageBadge) {
     });
     _resetRunBtn();
   } else if (data.status === 'FAILED') {
-    toast('运行失败', 'error');
+    toast(t('toast.run.failed'), 'error');
     _addHistory({
       runId: data.run_id,
       status: 'FAILED',
@@ -3604,7 +2552,7 @@ async function _simulatedRun(specYaml, stageBadge) {
     stageBadge.textContent = `${STAGES.length}/${STAGES.length}`;
     state.kpis = generateMockKPIs(specYaml);
     renderKPIs();
-    toast('模拟运行完成 ✓', 'ok');
+    toast(t('toast.run.simCompleted'), 'ok');
     _addHistory({
       runId: 'sim_' + Date.now().toString(36),
       status: 'COMPLETED (sim)',
@@ -3614,7 +2562,7 @@ async function _simulatedRun(specYaml, stageBadge) {
       ts: Date.now(),
     });
   } else {
-    toast('已中止运行', 'info');
+    toast(t('toast.run.aborted'), 'info');
     setProgress(0);
   }
   _resetRunBtn();
@@ -3628,8 +2576,8 @@ function _resetRunBtn() {
 
 function getStageLog(stageId) {
   const logs = {
-    validate_spec: '<span class="log-ok">✓ Schema 校验通过</span>\n<span class="log-info">  abaqus_release: 2024, solver: standard</span>',
-    build_model:   '<span class="log-info">→ 生成 CAE noGUI 脚本</span>\n<span class="log-ok">✓ INP_WRITTEN: /runs/abc123/Model.inp</span>\n<span class="log-ok">✓ CAE_WRITTEN: /runs/abc123/Model.cae</span>',
+    validate_spec: t('stagelog.validate_spec'),
+    build_model:   t('stagelog.build_model'),
     syntaxcheck:   '<span class="log-ok">✓ syntaxcheck PASSED (0 errors, 2 warnings)</span>\n<span class="log-warn">⚠ WARNING: element quality</span>',
     submit_job:    '<span class="log-info">→ abaqus job=Model input=Model.inp cpus=2 interactive</span>\n<span class="log-ok">✓ COMPLETED</span>',
     monitor_job:   '<span class="log-info">STEP  INC  TOTAL  100%  T=1.0E+00</span>\n<span class="log-ok">✓ ANALYSIS COMPLETE</span>',
@@ -3645,31 +2593,31 @@ function setProgress(pct) {
 
 // ── Generate mock KPIs ───────────────────────────────────────────
 function generateMockKPIs(yaml) {
-  const t = yaml.toLowerCase();
+  const y = yaml.toLowerCase();
   const kpis = [];
 
-  if (t.includes('nodal_displacement') || t.includes('u_tip')) {
+  if (y.includes('nodal_displacement') || y.includes('u_tip')) {
     kpis.push({
       name: 'U_tip', value: -1.905e-3, unit: 'mm',
       expected: -2.0e-3, rtol: 0.10,
       type: 'nodal_displacement'
     });
   }
-  if (t.includes('mises')) {
+  if (y.includes('mises')) {
     kpis.push({
       name: 'MISES_MAX', value: 0.573, unit: 'MPa',
       expected: 0.6, rtol: 0.20,
       type: 'field_max'
     });
   }
-  if (t.includes('eigenfrequency') || t.includes('freq_1')) {
+  if (y.includes('eigenfrequency') || y.includes('freq_1')) {
     kpis.push({ name: 'freq_1', value: 0.012, unit: 'Hz', expected: 0.0, rtol: 0.99, type: 'eigenfrequency' });
     kpis.push({ name: 'freq_2', value: 1234.5, unit: 'Hz', expected: 1000, rtol: 0.30, type: 'eigenfrequency' });
   }
-  if (t.includes('reaction') || t.includes('rf_max')) {
+  if (y.includes('reaction') || y.includes('rf_max')) {
     kpis.push({ name: 'RF_MAX', value: 987.3, unit: 'N', expected: 1000, rtol: 0.5, type: 'reaction_force' });
   }
-  if (t.includes('u_x_max')) {
+  if (y.includes('u_x_max')) {
     kpis.push({ name: 'U_X_MAX', value: 0.0461, unit: 'mm', expected: 0.048, rtol: 0.10, type: 'field_max' });
   }
   if (kpis.length === 0) {
@@ -3679,14 +2627,16 @@ function generateMockKPIs(yaml) {
 }
 
 // ── Render KPIs ──────────────────────────────────────────────────
+const kpiEmptyNode = document.getElementById('kpi-empty');
+
 function renderKPIs() {
   const area = document.getElementById('kpi-area');
-  document.getElementById('kpi-empty').style.display = 'none';
+  kpiEmptyNode.style.display = 'none';
 
   const kpis = state.kpis;
   if (!kpis.length) return;
 
-  let html = '<div class="section-title">提取指标</div><div class="kpi-grid">';
+  let html = `<div class="section-title">${t('kpi.sectionTitle')}</div><div class="kpi-grid">`;
 
   kpis.forEach(kpi => {
     const relErr = kpi.expected !== 0
@@ -3704,9 +2654,9 @@ function renderKPIs() {
           ${formatNum(kpi.value)}<span class="kpi-unit">${kpi.unit}</span>
         </div>
         <div class="kpi-comparison">
-          期望: <span class="expected">${formatNum(kpi.expected)} ${kpi.unit}</span>
-          &nbsp;·&nbsp;误差: <span class="err">${relPct}%</span>
-          &nbsp;·&nbsp;容差: ±${(kpi.rtol*100).toFixed(0)}%
+          ${t('kpi.expected')} <span class="expected">${formatNum(kpi.expected)} ${kpi.unit}</span>
+          &nbsp;·&nbsp;${t('kpi.error')} <span class="err">${relPct}%</span>
+          &nbsp;·&nbsp;${t('kpi.tolerance')} ±${(kpi.rtol*100).toFixed(0)}%
         </div>
       </div>`;
   });
@@ -3716,7 +2666,7 @@ function renderKPIs() {
   // Sparkline chart placeholder
   html += `
     <div class="kpi-sparkline-wrap">
-      <div class="kpi-sparkline-title">KPI 对比图 · 实际值 vs 期望值</div>
+      <div class="kpi-sparkline-title">${t('kpi.chartTitle')}</div>
       <canvas id="kpi-sparkline-canvas"></canvas>
     </div>`;
 
@@ -3728,10 +2678,10 @@ function renderKPIs() {
 
   html += `
     <div style="margin-top:8px">
-      <div class="section-title">汇总</div>
+      <div class="section-title">${t('kpi.summary')}</div>
       <div style="display:flex;gap:20px;font-family:var(--mono);font-size:12px">
-        <span>通过: <span style="color:var(--green)">${passCount}/${kpis.length}</span></span>
-        <span>回归: <span style="color:${passCount===kpis.length?'var(--green)':'var(--red)'}">
+        <span>${t('kpi.passed')} <span style="color:var(--green)">${passCount}/${kpis.length}</span></span>
+        <span>${t('kpi.regression')} <span style="color:${passCount===kpis.length?'var(--green)':'var(--red)'}">
           ${passCount===kpis.length?'PASS':'FAIL'}
         </span></span>
       </div>
@@ -3823,12 +2773,12 @@ function drawKpiSparkline(kpis) {
   ctx.fillStyle = '#8888A8';
   ctx.font = '9px JetBrains Mono, monospace';
   ctx.textAlign = 'left';
-  ctx.fillText('实际', padL + 13, legY);
+  ctx.fillText(t('kpi.legendActual'), padL + 13, legY);
 
   ctx.fillStyle = '#4D8EFF';
   ctx.fillRect(padL + 50, legY - 7, 10, 7);
   ctx.fillStyle = '#8888A8';
-  ctx.fillText('期望', padL + 63, legY);
+  ctx.fillText(t('kpi.legendExpected'), padL + 63, legY);
 }
 
 function formatNum(n) {
@@ -3840,21 +2790,32 @@ function formatNum(n) {
 }
 
 // ── Benchmark data ───────────────────────────────────────────────
+// type is a thunk until /api/benchmark replaces it with the real step_type.
+// Abaqus step_type as the API reports it -> the catalogue key for its label.
+// Anything not listed here shows the solver's own word for it, untranslated,
+// which is honest: inventing a translation for a step type we have never seen
+// would be worse than showing what Abaqus actually called it.
+const BENCH_STEP_KEYS = {
+  'Static': 'bench.type.static3d',
+  'Frequency': 'bench.type.frequency',
+  'Dynamic_Explicit': 'bench.type.explicit',
+};
+
 const BENCH_DATA = [
   {
-    name: 'cantilever', type: '3D 静力', solver: 'Standard',
+    name: 'cantilever', type: () => t('bench.type.static3d'), solver: 'Standard',
     status: 'pending', kpi: 'U_tip = —', elapsed: '—', reg: '—',
   },
   {
-    name: 'plate_hole', type: '2D 平面应力', solver: 'Standard',
+    name: 'plate_hole', type: () => t('bench.type.planeStress'), solver: 'Standard',
     status: 'pending', kpi: 'MISES_MAX = —', elapsed: '—', reg: '—',
   },
   {
-    name: 'modal', type: '频率提取', solver: 'Standard',
+    name: 'modal', type: () => t('bench.type.frequency'), solver: 'Standard',
     status: 'pending', kpi: 'freq_1 = —', elapsed: '—', reg: '—',
   },
   {
-    name: 'explicit_impact', type: '显式动力学', solver: 'Explicit',
+    name: 'explicit_impact', type: () => t('bench.type.explicit'), solver: 'Explicit',
     status: 'pending', kpi: 'RF_MAX = —', elapsed: '—', reg: '—',
   },
 ];
@@ -3868,7 +2829,7 @@ function renderBenchTable() {
               : '<span class="reg-na">—</span>';
     return `
       <tr>
-        <td><div class="case-name">${row.name}</div><div class="case-type">${row.type}</div></td>
+        <td><div class="case-name">${row.name}</div><div class="case-type">${typeof row.type === 'function' ? row.type() : row.type}</div></td>
         <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${row.solver}</td>
         <td>${pill}</td>
         <td class="kpi-inline">${row.kpi}</td>
@@ -3896,7 +2857,7 @@ document.getElementById('btn-bench-run').addEventListener('click', async () => {
   const btn = document.getElementById('btn-bench-run');
   const statusEl = document.getElementById('bench-run-status');
   btn.disabled = true;
-  btn.textContent = '⟳ 运行中...';
+  btn.textContent = t('bench.btn.running');
 
   // Reset states
   BENCH_DATA.forEach(d => { d.status = 'running'; d.kpi = '—'; d.elapsed = '—'; d.reg = '—'; });
@@ -3931,14 +2892,14 @@ document.getElementById('btn-bench-run').addEventListener('click', async () => {
           if (d.status === 'COMPLETED' || attempts > 30) {
             clearInterval(poll);
             btn.disabled = false;
-            btn.textContent = '▶ 运行 Dry-run';
-            statusEl.textContent = d.status === 'COMPLETED' ? '✓ 全部通过' : '完成';
-            toast('Benchmark dry-run 完成', 'ok');
+            btn.textContent = t('bench.btn.run');
+            statusEl.textContent = d.status === 'COMPLETED' ? t('bench.allPassed') : t('bench.done');
+            toast(t('toast.bench.dryRunDone'), 'ok');
           }
         } catch { clearInterval(poll); }
       }, 500);
     } catch (e) {
-      toast('Benchmark 失败: ' + e.message, 'error');
+      toast(t('toast.bench.failed') + e.message, 'error');
       _simulateBenchmark();
     }
   } else {
@@ -3946,7 +2907,7 @@ document.getElementById('btn-bench-run').addEventListener('click', async () => {
   }
 
   btn.disabled = false;
-  btn.textContent = '▶ 运行 Dry-run';
+  btn.textContent = t('bench.btn.run');
 });
 
 async function _simulateBenchmark() {
@@ -3956,7 +2917,7 @@ async function _simulateBenchmark() {
     BENCH_DATA[i] = { ...BENCH_DATA[i], status:'pass', kpi: kpis[i], elapsed: (1.5 + Math.random()*3).toFixed(1)+'s', reg:'PASS' };
     renderBenchTable();
   }
-  toast('模拟 Benchmark 完成', 'ok');
+  toast(t('toast.bench.simDone'), 'ok');
 }
 
 // ── Offline Evidence workflow ────────────────────────────────────
@@ -4020,7 +2981,7 @@ document.getElementById('evidence-case').addEventListener('change', () => {
 
 document.getElementById('btn-evidence-example').addEventListener('click', () => {
   loadEvidenceExample();
-  toast('Evidence 示例已载入', 'info');
+  toast(t('toast.evidence.exampleLoaded'), 'info');
 });
 
 document.getElementById('btn-evidence-run').addEventListener('click', async () => {
@@ -4034,16 +2995,16 @@ document.getElementById('btn-evidence-run').addEventListener('click', async () =
     candidate = JSON.parse(document.getElementById('evidence-candidate').value);
     contracts = JSON.parse(document.getElementById('evidence-contracts').value);
   } catch (e) {
-    toast('Evidence JSON 无效: ' + e.message, 'error');
+    toast(t('toast.evidence.badJson') + e.message, 'error');
     return;
   }
   if (!contracts || !Array.isArray(contracts)) {
-    toast('Contracts 必须是 JSON array', 'error');
+    toast(t('toast.evidence.contractsArray'), 'error');
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = '⟳ 运行中...';
+  btn.textContent = t('common.btn.running');
   status.textContent = 'RUNNING';
   try {
     const res = await fetch(`${API}/api/evidence/offline`, {
@@ -4068,17 +3029,17 @@ document.getElementById('btn-evidence-run').addEventListener('click', async () =
     toast(`Evidence ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
   } catch (e) {
     status.textContent = 'ERROR';
-    toast('Evidence 运行失败: ' + e.message, 'error');
+    toast(t('toast.evidence.runFailed') + e.message, 'error');
   }
   btn.disabled = false;
-  btn.textContent = '▶ 运行 Evidence';
+  btn.textContent = t('evidence.btn.run');
 });
 
 document.getElementById('btn-evidence-gallery').addEventListener('click', async () => {
   const btn = document.getElementById('btn-evidence-gallery');
   const status = document.getElementById('evidence-status');
   btn.disabled = true;
-  btn.textContent = '生成中...';
+  btn.textContent = t('common.btn.generating');
   status.textContent = 'GALLERY';
   try {
     const res = await fetch(`${API}/api/evidence/demo-gallery`, { method: 'POST' });
@@ -4091,17 +3052,17 @@ document.getElementById('btn-evidence-gallery').addEventListener('click', async 
     toast(`Demo Gallery ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
   } catch (e) {
     status.textContent = 'ERROR';
-    toast('Demo Gallery 生成失败: ' + e.message, 'error');
+    toast(t('toast.evidence.galleryFailed') + e.message, 'error');
   }
   btn.disabled = false;
-  btn.textContent = '生成 Demo Gallery';
+  btn.textContent = t('evidence.btn.gallery');
 });
 
 document.getElementById('btn-evidence-demo-pack').addEventListener('click', async () => {
   const btn = document.getElementById('btn-evidence-demo-pack');
   const status = document.getElementById('evidence-status');
   btn.disabled = true;
-  btn.textContent = '打包中...';
+  btn.textContent = t('common.btn.packing');
   status.textContent = 'DEMO PACK';
   try {
     const res = await fetch(`${API}/api/evidence/demo-pack`, { method: 'POST' });
@@ -4114,17 +3075,17 @@ document.getElementById('btn-evidence-demo-pack').addEventListener('click', asyn
     toast(`Demo Pack ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
   } catch (e) {
     status.textContent = 'ERROR';
-    toast('Demo Pack 生成失败: ' + e.message, 'error');
+    toast(t('toast.evidence.demoPackFailed') + e.message, 'error');
   }
   btn.disabled = false;
-  btn.textContent = '生成 Demo Pack';
+  btn.textContent = t('evidence.btn.demoPack');
 });
 
 document.getElementById('btn-evidence-cli-smoke').addEventListener('click', async () => {
   const btn = document.getElementById('btn-evidence-cli-smoke');
   const status = document.getElementById('evidence-status');
   btn.disabled = true;
-  btn.textContent = '运行中...';
+  btn.textContent = t('common.btn.running2');
   status.textContent = 'CLI SMOKE';
   try {
     const res = await fetch(`${API}/api/evidence/local-cli-smoke`, { method: 'POST' });
@@ -4143,10 +3104,10 @@ document.getElementById('btn-evidence-cli-smoke').addEventListener('click', asyn
     toast(`CLI Smoke ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
   } catch (e) {
     status.textContent = 'ERROR';
-    toast('CLI Smoke 运行失败: ' + e.message, 'error');
+    toast(t('toast.evidence.cliSmokeFailed') + e.message, 'error');
   }
   btn.disabled = false;
-  btn.textContent = '运行 CLI Smoke';
+  btn.textContent = t('evidence.btn.cliSmoke');
 });
 
 document.getElementById('btn-simdiff-run').addEventListener('click', async () => {
@@ -4160,12 +3121,12 @@ document.getElementById('btn-simdiff-run').addEventListener('click', async () =>
     candidate = JSON.parse(document.getElementById('evidence-candidate').value);
     tolerances = JSON.parse(document.getElementById('simdiff-tolerances').value || '{}');
   } catch (e) {
-    toast('Simulation Diff JSON 无效: ' + e.message, 'error');
+    toast(t('toast.simdiff.badJson') + e.message, 'error');
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = '运行中...';
+  btn.textContent = t('common.btn.running2');
   status.textContent = 'RUNNING';
   try {
     const res = await fetch(`${API}/api/simdiff/kpis`, {
@@ -4188,10 +3149,10 @@ document.getElementById('btn-simdiff-run').addEventListener('click', async () =>
     toast(`Simulation Diff ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
   } catch (e) {
     status.textContent = 'ERROR';
-    toast('Simulation Diff 运行失败: ' + e.message, 'error');
+    toast(t('toast.simdiff.runFailed') + e.message, 'error');
   }
   btn.disabled = false;
-  btn.textContent = '运行 Simulation Diff';
+  btn.textContent = t('evidence.btn.simdiff');
 });
 
 function renderEvidenceResult(data) {
@@ -4333,7 +3294,7 @@ async function loadEvidenceRecent() {
 document.getElementById('btn-evidence-vault-refresh').addEventListener('click', () => {
   loadEvidenceVault();
   loadCaseMemory();
-  toast('Evidence Vault 已刷新', 'info');
+  toast(t('toast.evidence.vaultRefreshed'), 'info');
 });
 document.getElementById('evidence-vault-query').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
@@ -4381,7 +3342,7 @@ document.getElementById('case-memory-status').addEventListener('change', () => l
 
 document.getElementById('btn-kpi-recipes-refresh').addEventListener('click', () => {
   loadKpiRecipes();
-  toast('KPI Recipes 已刷新', 'info');
+  toast(t('toast.evidence.recipesRefreshed'), 'info');
 });
 document.getElementById('kpi-recipe-case').addEventListener('change', () => loadKpiRecipes());
 document.getElementById('kpi-recipe-type').addEventListener('change', () => loadKpiRecipes());
@@ -4560,7 +3521,7 @@ function setCaseMemoryDiffId(role, vaultId) {
   const inputId = role === 'baseline' ? 'case-memory-diff-baseline' : 'case-memory-diff-candidate';
   document.getElementById(inputId).value = vaultId || '';
   updateCaseMemoryFilenameSuggestions(role, caseMemoryFilenameSuggestions[vaultId] || []);
-  toast(`Case Memory ${role} 已选择`, 'info');
+  toast(t('toast.caseMemory.picked', { role }), 'info');
 }
 
 async function runCaseMemoryDiff() {
@@ -4571,12 +3532,12 @@ async function runCaseMemoryDiff() {
   const btn = document.getElementById('btn-case-memory-diff');
   const status = document.getElementById('case-memory-diff-status');
   if (!baselineId || !candidateId) {
-    toast('Case Memory Diff 需要 baseline 和 candidate vault id', 'error');
+    toast(t('toast.caseMemory.needIds'), 'error');
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = '运行中...';
+  btn.textContent = t('common.btn.running2');
   status.textContent = 'RUNNING';
   try {
     const payload = {
@@ -4599,7 +3560,7 @@ async function runCaseMemoryDiff() {
     toast(`Case Memory Diff ${data.overall_status}`, data.overall_status === 'FAIL' ? 'error' : 'ok');
   } catch (e) {
     status.textContent = 'ERROR';
-    toast('Case Memory Diff 运行失败: ' + e.message, 'error');
+    toast(t('toast.caseMemory.diffFailed') + e.message, 'error');
   }
   btn.disabled = false;
   btn.textContent = 'Diff';
@@ -4623,7 +3584,7 @@ function renderKpiRecipes(items) {
       </div>
       <div class="evidence-recent-links">
         ${escapeHtml(item.id)}
-        <button class="case-memory-pick" data-kpi-recipe-id="${escapeHtml(item.id)}">详情</button>
+        <button class="case-memory-pick" data-kpi-recipe-id="${escapeHtml(item.id)}">${t('common.detail')}</button>
       </div>
     </div>
   `).join('');
@@ -4650,8 +3611,8 @@ function renderCaseMemory(items) {
           <div class="evidence-recent-meta">${escapeHtml(item.created_at || '')}</div>
         </div>
         <div class="evidence-recent-links">
-          <button class="case-memory-pick" data-case-memory-role="baseline" data-vault-id="${escapeHtml(vaultId)}">基准</button>
-          <button class="case-memory-pick" data-case-memory-role="candidate" data-vault-id="${escapeHtml(vaultId)}">候选</button>
+          <button class="case-memory-pick" data-case-memory-role="baseline" data-vault-id="${escapeHtml(vaultId)}">${t('common.baseline')}</button>
+          <button class="case-memory-pick" data-case-memory-role="candidate" data-vault-id="${escapeHtml(vaultId)}">${t('common.candidate')}</button>
           ${artifactLink(urls['evidence.html'] || urls['index.html'], 'HTML')}
           ${artifactLink(urls['local_cli_smoke.html'], 'SMOKE')}
           ${artifactLink(urls['offline-demo-gallery/index.html'], 'GALLERY')}
@@ -4690,7 +3651,7 @@ function renderEvidenceVault(items) {
           <div class="evidence-recent-meta">${escapeHtml(item.created_at || '')}</div>
         </div>
         <div class="evidence-recent-links">
-          <button class="case-memory-pick" data-vault-detail-id="${escapeHtml(item.vault_id)}">详情</button>
+          <button class="case-memory-pick" data-vault-detail-id="${escapeHtml(item.vault_id)}">${t('common.detail')}</button>
           ${verifyButton}
           ${artifactLink(urls['evidence.html'] || urls['index.html'], 'HTML')}
           ${artifactLink(urls['local_cli_smoke.html'], 'SMOKE')}
@@ -4804,12 +3765,12 @@ function loadDoctorSample() {
 
 document.getElementById('btn-doctor-sample').addEventListener('click', () => {
   loadDoctorSample();
-  toast('Solver Doctor 示例已载入', 'info');
+  toast(t('toast.doctor.exampleLoaded'), 'info');
 });
 
 document.getElementById('btn-doctor-patterns-refresh').addEventListener('click', () => {
   loadDoctorPatterns();
-  toast('Solver Doctor Patterns 已刷新', 'info');
+  toast(t('toast.doctor.patternsRefreshed'), 'info');
 });
 document.getElementById('doctor-pattern-category').addEventListener('change', () => loadDoctorPatterns());
 document.getElementById('doctor-pattern-severity').addEventListener('change', () => loadDoctorPatterns());
@@ -4861,7 +3822,7 @@ function renderDoctorPatterns(patterns) {
       </div>
       <div class="evidence-recent-links">
         ${escapeHtml(pattern.pattern)}
-        <button class="case-memory-pick" data-doctor-pattern-id="${escapeHtml(pattern.id)}">详情</button>
+        <button class="case-memory-pick" data-doctor-pattern-id="${escapeHtml(pattern.id)}">${t('common.detail')}</button>
       </div>
     </div>
   `).join('');
@@ -4870,10 +3831,57 @@ function renderDoctorPatterns(patterns) {
   });
 }
 
+async function loadDoctorCaePatterns() {
+  try {
+    const res = await fetch(`${API}/api/doctor/cae-patterns`);
+    if (!res.ok) return;
+    const data = await res.json();
+    document.getElementById('doctor-cae-pattern-count').textContent = `${data.total} patterns`;
+    document.getElementById('doctor-cae-patterns').innerHTML = (data.patterns || []).map((p) => `
+      <div class="evidence-recent-row">
+        <div class="evidence-recent-main">
+          ${escapeHtml(p.title)}
+          <div class="evidence-recent-meta">${escapeHtml(p.id)} · ${escapeHtml(p.suggestion)}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch { /* server offline */ }
+}
+loadDoctorCaePatterns();
+
+document.getElementById('btn-doctor-cae-diagnose').addEventListener('click', async () => {
+  const text = document.getElementById('doctor-cae-input').value.trim();
+  const status = document.getElementById('doctor-cae-diagnose-status');
+  const box = document.getElementById('doctor-cae-diagnose-result');
+  if (!text) { toast(t('toast.doctor.needTraceback'), 'error'); return; }
+  status.textContent = t('doctor.diagnosing');
+  try {
+    const res = await fetch(`${API}/api/doctor/cae-diagnose`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ traceback: text }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || `HTTP ${res.status}`);
+    const d = await res.json();
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div class="copilot-error-diagnosis-title">${escapeHtml(d.title)}${d.matched ? '' : t('doctor.noPatternMatch')}</div>
+      <div>${escapeHtml(d.explanation)}</div>
+      <div style="margin-top:4px"><b>${t('copilot.error.whatToDo')}</b>${escapeHtml(d.suggestion)}</div>
+      <div class="evidence-recent-meta" style="margin-top:4px">pattern: ${escapeHtml(d.pattern_id)}${d.error_line ? ' · ' + escapeHtml(d.error_line.slice(0, 90)) : ''}</div>
+    `;
+    status.textContent = '';
+  } catch (e) {
+    status.textContent = '';
+    toast(t('toast.doctor.diagnoseFailed') + e.message, 'error');
+  }
+});
+
 function renderDoctorPatternDetail(patternId) {
   const detail = document.getElementById('doctor-pattern-detail');
   const pattern = doctorPatternDetails[patternId];
   if (!detail || !pattern) return;
+  state.doctorPatternOpen = patternId;   // so a language switch re-renders it
   detail.textContent = prettyJson({
     id: pattern.id,
     category: pattern.category,
@@ -4890,7 +3898,7 @@ document.getElementById('btn-doctor-run').addEventListener('click', async () => 
   const btn = document.getElementById('btn-doctor-run');
   const status = document.getElementById('doctor-status');
   btn.disabled = true;
-  btn.textContent = '诊断中...';
+  btn.textContent = t('doctor.btn.diagnosing');
   status.textContent = 'RUNNING';
   try {
     const res = await fetch(`${API}/api/doctor/diagnose`, {
@@ -4913,10 +3921,10 @@ document.getElementById('btn-doctor-run').addEventListener('click', async () => 
     toast(`Solver Doctor ${data.status}`, data.status === 'FAILED' ? 'error' : 'ok');
   } catch (e) {
     status.textContent = 'ERROR';
-    toast('Solver Doctor 诊断失败: ' + e.message, 'error');
+    toast(t('toast.doctor.runFailed') + e.message, 'error');
   }
   btn.disabled = false;
-  btn.textContent = '诊断日志';
+  btn.textContent = t('doctor.btn.run');
 });
 
 function renderDoctorResult(data) {
@@ -4972,21 +3980,25 @@ function _addHistory(entry) {
   renderHistory();
 }
 
+const historyEmptyNode = document.getElementById('history-empty');
+
 function renderHistory() {
   const list = document.getElementById('history-list');
-  const empty = document.getElementById('history-empty');
 
   if (!state.history.length) {
-    empty.style.display = 'flex';
+    historyEmptyNode.style.display = 'flex';
     list.innerHTML = '';
-    list.appendChild(empty);
+    list.appendChild(historyEmptyNode);
+    // It may have been detached while the list had entries, so I18N.apply()
+    // over the document never reached it.
+    I18N.apply(historyEmptyNode);
     return;
   }
 
-  empty.style.display = 'none';
+  historyEmptyNode.style.display = 'none';
   list.innerHTML = state.history.map((entry, idx) => {
     const date = new Date(entry.ts);
-    const timeStr = date.toLocaleString('zh-CN', { month:'2-digit', day:'2-digit',
+    const timeStr = date.toLocaleString(I18N.lang === 'zh' ? 'zh-CN' : 'en-US', { month:'2-digit', day:'2-digit',
       hour:'2-digit', minute:'2-digit', second:'2-digit' });
     const statusColor = entry.status === 'COMPLETED' || entry.status === 'COMPLETED (sim)'
       ? 'var(--green)' : 'var(--red)';
@@ -5018,7 +4030,7 @@ function renderHistory() {
         state.kpis = entry.kpis;
         renderKPIs();
         navigateTo('kpis');
-        toast(`已加载 ${entry.model} 的 KPI`, 'info');
+        toast(t('toast.history.kpisLoaded', { model: entry.model }), 'info');
       }
     });
   });
@@ -5029,7 +4041,7 @@ document.getElementById('btn-clear-history').addEventListener('click', () => {
   localStorage.removeItem('abaqus_agent_history');
   document.getElementById('history-badge').style.display = 'none';
   renderHistory();
-  toast('历史记录已清空', 'info');
+  toast(t('toast.history.cleared'), 'info');
 });
 
 // ── Settings panel logic ──────────────────────────────────────────
@@ -5055,26 +4067,21 @@ function initSettingsPanel() {
   document.getElementById(transport === 'mcp' ? 'transport-mcp' : 'transport-direct').checked = true;
   if (s.mcpServerUrl) document.getElementById('input-mcp-url').value = s.mcpServerUrl;
 
-  // Premium license key
-  if (s.licenseKey) {
-    document.getElementById('input-license-key').value = s.licenseKey;
-  }
-
   // Also sync the llm-backend selector hint
   updateLLMBackendHint(s);
 
-  // Load premium feature status
-  loadPremiumFeatures();
+  // Load feature module list
+  loadFeatureModules();
 }
 
 function updateKeyBadge(provider, hasKey) {
   const badge = document.getElementById(`badge-${provider}`);
   if (!badge) return;
   if (hasKey) {
-    badge.textContent = '已配置';
+    badge.textContent = t('settings.badge.set');
     badge.className = 'badge ok';
   } else {
-    badge.textContent = '未配置';
+    badge.textContent = t('settings.badge.unset');
     badge.className = 'badge missing';
   }
 }
@@ -5094,9 +4101,8 @@ document.getElementById('btn-save-settings').addEventListener('click', () => {
   const serverUrl = document.getElementById('input-server-url').value.trim();
   const mcpServerUrl = document.getElementById('input-mcp-url').value.trim();
   const transport = document.getElementById('transport-mcp').checked ? 'mcp' : 'direct';
-  const licenseKey = document.getElementById('input-license-key').value.trim();
 
-  saveSettingsData({ anthropicKey, openaiKey, serverUrl, mcpServerUrl, transport, licenseKey });
+  saveSettingsData({ anthropicKey, openaiKey, serverUrl, mcpServerUrl, transport });
 
   // Update API base URL immediately
   API = transport === 'mcp'
@@ -5111,17 +4117,17 @@ document.getElementById('btn-save-settings').addEventListener('click', () => {
   const statusEl = document.getElementById('settings-status');
   statusEl.style.display = 'block';
   statusEl.style.color = 'var(--green)';
-  statusEl.textContent = '✓ 设置已保存到 localStorage';
+  statusEl.textContent = t('settings.savedToLocalStorage');
   setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
-  toast('设置已保存', 'ok');
+  toast(t('toast.settings.saved'), 'ok');
 });
 
 // Test Anthropic key
 document.getElementById('btn-test-anthropic').addEventListener('click', async () => {
   const key = document.getElementById('input-anthropic-key').value.trim();
-  if (!key) { toast('请先输入 Anthropic API Key', 'error'); return; }
+  if (!key) { toast(t('toast.settings.needAnthropicKey'), 'error'); return; }
   const btn = document.getElementById('btn-test-anthropic');
-  btn.textContent = '测试中...'; btn.disabled = true;
+  btn.textContent = t('settings.btn.testing'); btn.disabled = true;
   try {
     // Simple: ask server to generate with this key
     const res = await fetch(`${API}/api/spec/generate`, {
@@ -5130,23 +4136,23 @@ document.getElementById('btn-test-anthropic').addEventListener('click', async ()
       body: JSON.stringify({ text: 'test', llm_backend: 'anthropic', anthropic_key: key }),
     });
     if (res.ok) {
-      toast('Anthropic Key 有效 ✓', 'ok');
+      toast(t('toast.settings.anthropicKeyOk'), 'ok');
       updateKeyBadge('anthropic', true);
     } else {
-      toast('Key 无效或服务不可达', 'error');
+      toast(t('toast.settings.keyInvalid'), 'error');
     }
   } catch {
-    toast('连接失败，请检查服务器', 'error');
+    toast(t('toast.settings.connectFailedCheck'), 'error');
   }
-  btn.textContent = '测试'; btn.disabled = false;
+  btn.textContent = t('settings.btn.test'); btn.disabled = false;
 });
 
 // Test OpenAI key
 document.getElementById('btn-test-openai').addEventListener('click', async () => {
   const key = document.getElementById('input-openai-key').value.trim();
-  if (!key) { toast('请先输入 OpenAI API Key', 'error'); return; }
+  if (!key) { toast(t('toast.settings.needOpenaiKey'), 'error'); return; }
   const btn = document.getElementById('btn-test-openai');
-  btn.textContent = '测试中...'; btn.disabled = true;
+  btn.textContent = t('settings.btn.testing'); btn.disabled = true;
   try {
     const res = await fetch(`${API}/api/spec/generate`, {
       method: 'POST',
@@ -5154,102 +4160,68 @@ document.getElementById('btn-test-openai').addEventListener('click', async () =>
       body: JSON.stringify({ text: 'test', llm_backend: 'openai', openai_key: key }),
     });
     if (res.ok) {
-      toast('OpenAI Key 有效 ✓', 'ok');
+      toast(t('toast.settings.openaiKeyOk'), 'ok');
       updateKeyBadge('openai', true);
     } else {
-      toast('Key 无效或服务不可达', 'error');
+      toast(t('toast.settings.keyInvalid'), 'error');
     }
   } catch {
-    toast('连接失败，请检查服务器', 'error');
+    toast(t('toast.settings.connectFailedCheck'), 'error');
   }
-  btn.textContent = '测试'; btn.disabled = false;
+  btn.textContent = t('settings.btn.test'); btn.disabled = false;
 });
 
 // Test server connection
 document.getElementById('btn-test-server').addEventListener('click', async () => {
   const url = document.getElementById('input-server-url').value.trim() || _defaultAPI;
   const btn = document.getElementById('btn-test-server');
-  btn.textContent = '测试中...'; btn.disabled = true;
+  btn.textContent = t('settings.btn.testing'); btn.disabled = true;
   try {
     const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
     const d = await res.json();
-    toast(`连接成功: ${d.status} · ${d.cases?.length || 0} cases`, 'ok');
+    toast(t('toast.settings.connected', { status: d.status, cases: d.cases?.length || 0 }), 'ok');
   } catch {
-    toast('连接失败', 'error');
+    toast(t('toast.settings.connectFailed'), 'error');
   }
-  btn.textContent = '连接测试'; btn.disabled = false;
+  btn.textContent = t('settings.btn.testConn'); btn.disabled = false;
 });
 
 // ── Test MCP Bridge connection ────────────────────────────────────
 document.getElementById('btn-test-mcp').addEventListener('click', async () => {
   const url = document.getElementById('input-mcp-url').value.trim() || _defaultMCPAPI;
   const btn = document.getElementById('btn-test-mcp');
-  btn.textContent = '测试中...'; btn.disabled = true;
+  btn.textContent = t('settings.btn.testing'); btn.disabled = true;
   try {
     const res = await fetch(`${url.replace(/\/mcp\/?$/, '')}/mcp/health`, { signal: AbortSignal.timeout(3000) });
     const d = await res.json();
-    toast(`MCP Bridge 连接成功: ${d.status} · transport: ${d.transport || 'mcp'}`, 'ok');
+    toast(t('toast.settings.mcpConnected', { status: d.status, transport: d.transport || 'mcp' }), 'ok');
   } catch {
-    toast('MCP Bridge 连接失败', 'error');
+    toast(t('toast.settings.mcpConnectFailed'), 'error');
   }
-  btn.textContent = '连接测试'; btn.disabled = false;
+  btn.textContent = t('settings.btn.testConn'); btn.disabled = false;
 });
 
-// ── Premium activation ───────────────────────────────────────────
-document.getElementById('btn-activate-premium').addEventListener('click', async () => {
-  const key = document.getElementById('input-license-key').value.trim();
-  if (!key) { toast('请先输入 License Key', 'error'); return; }
-  const btn = document.getElementById('btn-activate-premium');
-  btn.textContent = '激活中...'; btn.disabled = true;
-  try {
-    const res = await fetch(`${API}/api/premium/activate?license_key=${encodeURIComponent(key)}`, {
-      method: 'POST',
-    });
-    const d = await res.json();
-    if (d.valid) {
-      toast('Premium 功能已激活', 'ok');
-      updateKeyBadge('premium', true);
-      loadPremiumFeatures();
-      // Save key
-      const s = loadSettings();
-      s.licenseKey = key;
-      saveSettingsData(s);
-    } else {
-      toast('License Key 无效: ' + (d.error || ''), 'error');
-    }
-  } catch {
-    toast('激活失败，请检查服务器连接', 'error');
-  }
-  btn.textContent = '激活'; btn.disabled = false;
-});
-
-// ── Load premium feature status ──────────────────────────────────
-async function loadPremiumFeatures() {
-  const container = document.getElementById('premium-features-list');
+// ── Load feature module list ─────────────────────────────────────
+async function loadFeatureModules() {
+  const container = document.getElementById('feature-modules-list');
   if (!container || !state.serverOnline) return;
   try {
-    const res = await fetch(`${API}/api/premium/features`);
+    const res = await fetch(`${API}/api/features`);
     const d = await res.json();
     const features = d.features || {};
     const names = Object.keys(features);
     if (!names.length) {
-      container.innerHTML = '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Premium 模块未加载</div>';
+      container.innerHTML = `<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${t('settings.noFeatureModules')}</div>`;
       return;
     }
     container.innerHTML = names.map(name => {
       const f = features[name];
-      const enabled = f.enabled;
-      const color = enabled ? 'var(--green)' : 'var(--text3)';
-      const icon = enabled ? '●' : '○';
       return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-family:var(--mono);font-size:11px">
-        <span style="color:${color}">${icon}</span>
+        <span style="color:var(--green)">●</span>
         <span style="color:var(--text2)">${f.display_name || name}</span>
-        <span style="color:${color};font-size:9px">${enabled ? 'ENABLED' : 'DISABLED'}</span>
+        <span style="color:var(--text3);font-size:9px">${name}</span>
       </div>`;
     }).join('');
-    // Update badge
-    const anyEnabled = names.some(n => features[n].enabled);
-    updateKeyBadge('premium', anyEnabled);
   } catch {}
 }
 
@@ -5292,6 +4264,62 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 updateLineNumbers();
 syncHighlight();
 
+// ── Language switch ──────────────────────────────────────────────
+// The button shows the language you would switch TO -- EN on the Chinese UI,
+// 中文 on the English one -- which is exactly what lang.toggle holds in each
+// catalogue, so the label needs no special casing here.
+document.getElementById('btn-lang').addEventListener('click', () => I18N.toggle());
+
+function renderSolverBadge() {
+  const el = document.getElementById('sidebar-solver');
+  if (!el || state.solverLabel === undefined) return;   // still probing
+  el.textContent = state.solverLabel
+    ? t('sidebar.solver.named', { label: state.solverLabel })
+    : t('sidebar.solver.none');
+}
+
+// I18N.apply() only reaches the static markup. Everything built with innerHTML
+// was written in the language that was current at the time, so a switch has to
+// rebuild those panels from the state they were rendered from.
+I18N.onChange((lang) => {
+  loadBackendMessages(lang);
+  renderSolverBadge();
+  renderCopilotStatusValues();
+  // The engine refuses to overwrite a node whose text it did not write, which
+  // is what stops a language switch from wiping the Evidence report or
+  // relabelling a configured API key as unset. The flip side is that such a
+  // node then keeps the language it was rendered in, so anything that owns one
+  // has to re-render itself here.
+  updateKeyBadge('anthropic', !!(loadSettings().anthropicKey || '').trim());
+  updateKeyBadge('openai', !!(loadSettings().openaiKey || '').trim());
+  if (state.lastValidation) showValidation(state.lastValidation);
+  if (state.doctorPatternOpen) renderDoctorPatternDetail(state.doctorPatternOpen);
+  if (state.copilotGuide) renderCopilotPluginGuide(state.copilotGuide, state.copilotGuideSession || '');
+  if (state.copilotReleaseGate) renderCopilotReleaseGate(state.copilotReleaseGate);
+  if (state.copilotPlan) {
+    renderCopilotPlan(state.copilotPlan);
+    if (state.copilotSession) {
+      renderCopilotSessionStatus(state.copilotSession);
+      updateCopilotQueueStatuses(state.copilotSession);
+    }
+  }
+  if (state.copilotErrors) renderCopilotErrors(state.copilotErrors);
+  renderBenchTable();
+  renderHistory();
+  if (Object.keys(state.stageResults).length) renderPipeline();
+  if (state.kpis && state.kpis.length) renderKPIs();
+  if (state.serverOnline) {
+    // These lists carry translated chrome (Details / Baseline / Candidate, the
+    // session-count placeholder), so they get refetched rather than left in
+    // the language they were fetched in.
+    loadEvidenceVault();
+    loadCaseMemory();
+    loadKpiRecipes();
+    loadDoctorPatterns();
+    loadCopilotSessionHistory();
+  }
+});
+
 // ── Server health check ──────────────────────────────────────────
 async function checkServer() {
   const s = loadSettings();
@@ -5308,8 +4336,15 @@ async function checkServer() {
     const mode = transport === 'mcp' ? 'MCP' : 'API';
     document.querySelector('.topbar-info').textContent =
       `${mode} · ABAQUS ${data.abaqus_available ? '✓' : '✗ sim'} · ${data.cases?.length || 0} cases`;
+    const sidebarCases = document.getElementById('sidebar-case-count');
+    if (sidebarCases) sidebarCases.textContent = `CASES: ${data.cases?.length || 0}`;
+    // Which solver is actually in charge, named. /health has reported this all
+    // along; the sidebar was showing a leftover licensing badge instead.
+    state.solverLabel = data.solver_label || null;
+    renderSolverBadge();
+    applyDetectedRelease(data.abaqus_release);
     loadBenchmarkFromAPI();
-    loadPremiumFeatures();
+    loadFeatureModules();
     loadEvidenceExampleCases();
     loadEvidenceRecent();
     loadEvidenceVault();
@@ -5323,8 +4358,8 @@ async function checkServer() {
     state.serverOnline = false;
     document.querySelector('.status-dot').style.background = 'var(--yellow)';
     document.querySelector('.topbar-info').textContent = 'OFFLINE · simulation mode';
-    document.getElementById('copilot-status-codex').textContent = '后端离线';
-    document.getElementById('copilot-status-abaqus').textContent = '未知';
+    state.copilotStatusOffline = true;
+    renderCopilotStatusValues();
   }
 }
 
@@ -5338,13 +4373,25 @@ async function loadBenchmarkFromAPI() {
     data.cases.forEach((c, i) => {
       if (BENCH_DATA[i]) {
         BENCH_DATA[i].name = c.name;
-        BENCH_DATA[i].type = c.spec?.analysis?.step_type || BENCH_DATA[i].type;
+        // Keep the translated thunk. Assigning the server's raw step_type
+        // here replaced it with an untranslated string for exactly the rows
+        // the server had answered for, so the table came back half English
+        // and half Chinese the moment it went online — and only offline was
+        // the column translated at all.
+        const step = c.spec?.analysis?.step_type;
+        const key = step && BENCH_STEP_KEYS[step];
+        if (key) BENCH_DATA[i].type = () => t(key);
+        else if (step) BENCH_DATA[i].type = () => step;
       }
     });
     renderBenchTable();
   } catch {}
 }
 
+// The backend has its own catalogue (refusal wording, solver labels). Pull
+// it in the language already chosen, rather than shipping a second copy of
+// those strings in this file that could drift from the server's.
+loadBackendMessages(I18N.lang);
 checkServer();
 setInterval(checkServer, 30000);
 </script>

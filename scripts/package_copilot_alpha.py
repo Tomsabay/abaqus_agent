@@ -10,7 +10,11 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from scripts.verify_copilot_alpha_release import collect_release_gate, write_release_gate
+from scripts.verify_copilot_alpha_release import (
+    collect_release_gate,
+    resolve_evidence_path,
+    write_release_gate,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT_DIR = Path("artifacts/copilot/alpha_package")
@@ -58,7 +62,7 @@ def build_copilot_alpha_package(
     missing_files = []
     with zipfile.ZipFile(package_path, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
         for source, archive_name in PACKAGE_FILES:
-            source_path = root / source
+            source_path = resolve_evidence_path(root, Path(source))
             if not source_path.exists():
                 missing_files.append(source)
                 continue
