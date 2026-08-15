@@ -84,11 +84,6 @@ GATES = [
     # exists for iteration.
     ("bearing_block", "scripts/run_bearing_block_check.py", "abaqus"),
     ("hallucination_pack", "scripts/run_hallucination_pack_check.py", "abaqus"),
-    # The free-solver path. No Abaqus licence needed, so these still run on a
-    # machine that has none -- which is exactly when it matters that the
-    # capability matrix is honest.
-    ("calculix_backend", "scripts/run_calculix_backend_check.py", "calculix"),
-    ("free_solver", "scripts/run_free_solver_check.py", "calculix"),
     # The browser surface. Registered here because it had no registry at all,
     # which is how the preview's contact-surface overlay could be computed by
     # the backend and dropped before the wire for months with every gate green:
@@ -149,8 +144,6 @@ GATES = [
 # the row silently disappearing. Keyed by file name so the registry tests can
 # use the same set for the one EXEMPT script that is also private-only.
 PRIVATE_ONLY = {
-    "run_free_solver_check.py":
-        "its CalculiX/OpenRadioss decks live in course/, not distributed",
     "run_hallucination_pack_check.py":
         "its sample decks live in course/, not distributed",
     "run_error_gallery_check.py":

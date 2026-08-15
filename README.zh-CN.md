@@ -21,7 +21,7 @@ Abaqus Agent 跑在你自己的 Abaqus 授权环境里。内核是确定性的�
 
 一个 Cursor 风格的 Abaqus/CAE 工作台：用自然语言描述模型（悬臂梁、简支梁三点弯、带孔板拉伸、悬臂梁模态分析），检查生成的动作计划，通过插件桥在 CAE 里执行，模型树、视口截图和报错实时回传。动作失败时给出大白话的报错诊断（15 类 CAE 失败模式），一键让 Copilot 出修复后的计划；求解失败还会自动对作业的 .msg/.sta/.dat 日志跑一遍 Solver Doctor（30+ 已知模式）。每个场景都在真实求解器上用粗网格 demo 做过理论校核：悬臂梁端部位移对 PL^3/3EI、简支梁跨中位移对 PL^3/48EI（都是约 1.3 倍，同一个系统性的网格偏软），带孔板 Kt 2.7 对 Howland 解 3.1，一阶模态频率与 Euler-Bernoulli 解相差 14% 以内，再加上求解失败的诊断链路。
 
-上面这些只是十七道门禁里的前五道。`python scripts/run_all_real_checks.py` 一条命令把十七道全跑完并给出**一个**结论，在 Abaqus 2021 上约 20 分钟（实测 2026-08-06：17 道全过、1240 秒）。其中两道 CalculiX 门禁需要 `ABAQUS_AGENT_CCX_EXE`，没设就自报 skipped，不会把整轮判失败。
+上面这些只是 41 道门禁里的前五道。`python scripts/run_all_real_checks.py` 一条命令全跑完并给出**一个**结论；求解类门禁要 Abaqus，界面类门禁要浏览器，整轮一个多小时。
 
 ![CAE Copilot 工作台回放一段真实 Abaqus 会话](docs/assets/copilot_workspace_replay.png)
 
@@ -112,7 +112,6 @@ schema，等于这套方言永远只能建别人已经写过分支的形状。
 - 孔位移出实体的切除操作，什么都不切、返回 0、体积与未切之前逐字节相同。
 - 装配布尔造出没人划网的零件：`.inp` 里是空的 `*Part` 配活的 `*Instance`，
   全文件零个 `*Element`。
-- CalculiX 遇到不认识的载荷卡，会丢掉它、退出码 0、所有位移返回 `0.000000E+00`。
 
 这套方言下有五个跑通的算例——`bearing_block`、`two_plate_tie`、`two_plate_contact`、
 `block_friction_slide`、`plate_hole_v2`；证明这一层的门禁脚本在
@@ -141,45 +140,40 @@ pip install -e ".[all]"  # dev + mcp + llm
 
 ## 快速上手
 
-### 没有 Abaqus 授权？从这里开始
-
-不需要 Abaqus 也能从这个工具里拿到一个真实、可验证的结果。装
-[CalculiX](http://www.calculix.de/) —— 免费、开源，Windows、Linux、macOS
-都能跑 —— 把路径指给工具，然后求解：
+### 求解一个算例
 
 ```bash
 pip install -e ".[dev]"
 
-# Windows
-set ABAQUS_AGENT_CCX_EXE=C:\path\to\ccx.exe
-# Linux / macOS
-export ABAQUS_AGENT_CCX_EXE=/usr/local/bin/ccx
-
 python agent/orchestrator.py cases/cantilever/spec.yaml \
   cases/cantilever/expected.json \
   cases/cantilever/runner.json
 ```
 
-后端自动选：装了 Abaqus 就用 Abaqus，没装就用 CalculiX。在仓库自带的悬臂梁算例上实测，CalculiX 与冻结的 Abaqus 基线**七位有效数字一致**：
-
-| KPI | Abaqus 2021 | CalculiX 2.23 | |
-|---|---|---|---|
-| `U_tip` | `-1.903958e-3` mm | `-1.903958e-3` mm | 一致 |
-| `MISES_MAX` | `0.6529` MPa | `0.6109` MPa | **不可比** |
-
-重点在最后一行。CalculiX 给的是 `.frd` 里相邻单元平均后的节点应力，Abaqus 给的是不做平均的 `ELEMENT_NODAL` 外插值；同一套网格上两者差约 6%。这个数照样输出，带着来源信息（provenance）标签说明它是哪来的，但**不参与达标判定** —— 而不是拿它去跟一个含义根本不同的 Abaqus 基线偷偷比一遍。
-
-CalculiX 后端是刻意做窄的 —— 只支持 `cantilever_block` 和 `custom_inp` 两种几何、`Static` 分析步、集中力。这个子集之外的一律**在求解开始之前**就拒绝，并用大白话点名拒的是 spec 里哪个字段。原因是 CalculiX 碰到不认识的载荷卡会静默丢弃，照样以 0 退出，所有位移读数全是 `0.000000E+00`。拒绝由两道门完成，它们看的东西不一样：一道读 spec，另一道逐卡读 deck。写 `geometry.type: custom_inp` 时**模型就是那份 deck**，spec 里根本没有字段能描述它的分析过程，所以只有后一道能看见 `*FREQUENCY` —— 这正是模态振型一度被当成端部位移报出来的原因。当前能力矩阵见 [docs/ROADMAP.md](docs/ROADMAP.md)。
-
-### 装了 Abaqus
+版本号是从装好的求解器现场探测出来的，绝不从 spec 里取。Abaqus 不在 `PATH` 上就指给它：
 
 ```bash
-python agent/orchestrator.py cases/cantilever/spec.yaml \
-  cases/cantilever/expected.json \
-  cases/cantilever/runner.json
+# Windows
+set ABAQUS_AGENT_ABAQUS_CMD=C:\SIMULIA\Commands\abaqus.bat
+# Linux
+export ABAQUS_AGENT_ABAQUS_CMD=/opt/simulia/Commands/abaqus
 ```
 
-同一条命令。版本号是从装好的求解器现场探测出来的，绝不从 spec 里取。
+### 这个工具需要 Abaqus
+
+它驱动的就是 Abaqus。没有 Abaqus 就没有可求解的对象，这时候程序拿这一句话拒绝你，
+而不是拿别的东西凑一个近似答案。
+
+2026 年 8 月上过一个 CalculiX 降级后端，两周后删掉了。它是能用的——在冻结的悬臂梁基线上
+七位有效数字都对得上——但要让它保持诚实，就得维护一张能力矩阵：逐个功能写清楚第二个
+求解器哪些能信、哪些不能，然后把矩阵之外的一切在求解开始之前拒掉。这笔维护费要一直付，
+换来的是我们并不想要的覆盖面：手上没有 Abaqus 的人，本来就不是一个 Abaqus 工作台的用户。
+演示模式（demo）也一并删了，理由是一样的：一段照着念完七个阶段、最后还亮绿灯的演示，
+比直接说"不行"更糟。
+
+活下来的部分本来就跟 CalculiX 无关：没有求解器就绝不产出任何数值；口径与 Abaqus 不同的
+KPI 带着出处标签输出、且不参与达标判定，而不是偷偷拿去比对；拒绝的时候一定点名拒的是
+spec 里哪个字段。
 
 ### 跑测试套件
 
@@ -187,7 +181,7 @@ python agent/orchestrator.py cases/cantilever/spec.yaml \
 pytest -q
 ```
 
-这套测试是封闭的：Abaqus 和 CalculiX 都会被屏蔽，任何测试都碰不到真求解器。
+这套测试是封闭的：Abaqus 会被屏蔽，任何测试都碰不到真求解器。
 
 检查当前机器有没有做真实 Abaqus 验证的条件：
 

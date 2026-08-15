@@ -149,7 +149,11 @@ def test_api_sse_stream_for_completed_run(server_app) -> None:
                 break
 
     assert any(event.get("run_id") == started_run_id for event in streamed)
-    assert any(event.get("status") in {"RUNNING", "COMPLETED"} for event in streamed)
+    # FAILED belongs here: the suite hides Abaqus, and since 2026-08-15 a
+    # machine without it is refused rather than walked through the stages. The
+    # stream's job is the same either way — reach a terminal state and say so.
+    assert any(event.get("status") in {"RUNNING", "COMPLETED", "FAILED"}
+               for event in streamed)
     assert streamed[-1] == {"event": "done"}
 
 

@@ -49,11 +49,11 @@ from reporting.limits import (  # noqa: E402
 from reporting.run_bundle import (  # noqa: E402
     RunBundle,
     actual_abaqus_release,
-    demo_notice,
     generated_at,
     load_run_bundle,
+    no_solve_notice,
 )
-from reporting.templates import DEMO_BANNER  # noqa: E402
+from reporting.templates import NO_SOLVE_BANNER  # noqa: E402
 
 SUMMARY_SHEET = "汇总"
 LIMITS_SHEET = "限值表"
@@ -127,11 +127,11 @@ def _kpi_columns(bundles: list[RunBundle]) -> list[str]:
 
 def _write_summary(worksheet, bundles: list[RunBundle], kpi_names: list[str],
                    limits: dict, release: str) -> dict[str, Any]:
-    demo_present = any(b.demo_mode for b in bundles)
+    unsolved_present = any(b.unsolved for b in bundles)
     row = 1
-    if demo_present:
-        notice = next((demo_notice(b) for b in bundles if b.demo_mode), "")
-        cell = worksheet.cell(row=1, column=1, value=f"{DEMO_BANNER} —— {notice}")
+    if unsolved_present:
+        notice = next((no_solve_notice(b) for b in bundles if b.unsolved), "")
+        cell = worksheet.cell(row=1, column=1, value=f"{NO_SOLVE_BANNER} —— {notice}")
         cell.font = Font(bold=True)
         cell.fill = BANNER_FILL
         worksheet.merge_cells(start_row=1, start_column=1, end_row=1,
@@ -184,7 +184,7 @@ def _write_summary(worksheet, bundles: list[RunBundle], kpi_names: list[str],
         "data_rows": len(bundles),
         "kpi_columns": kpi_names,
         "conditional_formatting_rules": rules,
-        "demo_banner_row": 1 if demo_present else 0,
+        "no_solve_banner_row": 1 if unsolved_present else 0,
     }
 
 
@@ -240,8 +240,8 @@ def _write_run_sheet(worksheet, bundle: RunBundle, judgements: list[Judgement],
     worksheet.cell(row=2, column=1, value=f"run 目录：{bundle.run_dir}")
     worksheet.cell(row=3, column=1, value=f"状态：{bundle.status}；KPI 来源：{bundle.kpi_source or '-'}")
 
-    if bundle.demo_mode or not bundle.kpis:
-        cell = worksheet.cell(row=5, column=1, value=f"{DEMO_BANNER} —— {demo_notice(bundle)}")
+    if bundle.unsolved or not bundle.kpis:
+        cell = worksheet.cell(row=5, column=1, value=f"{NO_SOLVE_BANNER} —— {no_solve_notice(bundle)}")
         cell.font = Font(bold=True)
         cell.fill = BANNER_FILL
         _autosize(worksheet, {1: 70})
@@ -415,7 +415,7 @@ def build_workbook(
                 "run_id": b.run_id,
                 "model_name": b.model_name,
                 "status": b.status,
-                "demo_mode": b.demo_mode,
+                "unsolved": b.unsolved,
                 "kpi_source": b.kpi_source,
                 "kpis": b.kpis,
                 "overall_verdict": overall_verdict(judgement_map[b.run_id]) if limits else "",

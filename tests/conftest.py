@@ -26,6 +26,11 @@ from tools.abaqus_command import ABAQUS_COMMAND_ENV_KEYS
 # and `tools.abaqus_cmd.get_abaqus_cmd` both read it first — and it was not on
 # any list here, so a developer who followed the project's own instructions
 # for pointing at a specific install had a suite that launched real solves.
+#
+# The two CCX keys stay on the list after the CalculiX backend was removed
+# (2026-08-15). Nothing reads them now, and clearing an unread variable costs
+# nothing — but a developer box that still has them set from that fortnight
+# should not be the reason a future reintroduction goes unnoticed here.
 _SOLVER_ENV_KEYS = (
     ENV_ABAQUS_CMD,
     ENV_ABAQUS_RELEASE,

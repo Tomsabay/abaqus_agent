@@ -273,18 +273,13 @@ def health():
     # The release is what the installed solver reports, never a spec field
     # (those drift). Short timeout: the first call pays for the probe, the
     # rest read the process cache, and an absent solver just yields None.
-    from core.backends import ENV_BACKEND, backend_label, check_calculix, select_backend
+    from core.backends import ENV_BACKEND, backend_label, select_backend
     from tools.abaqus_cmd import detect_abaqus_release
-    from tools.ccx_cmd import detect_ccx_version
 
     try:
         release = detect_abaqus_release(timeout=15.0)
     except Exception:
         release = None
-    try:
-        ccx_version = detect_ccx_version(timeout=10.0)
-    except Exception:
-        ccx_version = None
     # What auto-detection would pick right now, so the UI can say which solver
     # is in charge before the user starts a run rather than after it degrades.
     decision = select_backend({})
@@ -292,8 +287,6 @@ def health():
         "status": "ok",
         "abaqus_available": check_abaqus(),
         "abaqus_release": release,
-        "calculix_available": check_calculix(),
-        "calculix_version": ccx_version,
         "solver_backend": decision.backend,
         "solver_label": backend_label(decision.backend, decision.version),
         "solver_reason": decision.reason,
@@ -1313,6 +1306,18 @@ def get_features():
     }
 
 
+def _run_is_unsolved(run: dict) -> bool:
+    """No solver ran, so the report must not look like one that did.
+
+    Read from the backend decision rather than from a flag on the run: the run
+    used to carry `demo_mode`, set by a walkthrough that no longer exists. A
+    job that ran and aborted is NOT this -- that one has a solver behind it and
+    a .msg file to read.
+    """
+    backend = run.get("backend") or {}
+    return "supported" in backend and not backend["supported"]
+
+
 def _build_run_report(run: dict, template: str = "standard", embed_images: bool = False) -> dict:
     capsule = _load_run_capsule(run)
     artifacts = capsule.get("artifacts", {}) if capsule else {}
@@ -1328,8 +1333,6 @@ def _build_run_report(run: dict, template: str = "standard", embed_images: bool 
             "status": run.get("status"),
             "model_name": run.get("spec", {}).get("meta", {}).get("model_name"),
             "abaqus_release": run.get("spec", {}).get("meta", {}).get("abaqus_release"),
-            # A CalculiX run must never print an Abaqus release on its cover —
-            # the archived report would then itself be the false claim.
             "solver_backend": (run.get("backend") or {}).get("backend") or "abaqus",
             "solver_label": (run.get("backend") or {}).get("label"),
             "started_at": run.get("started_at"),
@@ -1347,14 +1350,12 @@ def _build_run_report(run: dict, template: str = "standard", embed_images: bool 
         # never saw the screen it was rendered from.
         #
         # reporting/templates.py has always known how to render all four --
-        # the demo banner, the limitations table, the missing-KPI rows -- and
-        # never received any of them, so those branches were dead on the whole
-        # /api/run/{id}/report.* family. The demo case was the damaging one:
-        # core/pipeline.py sets demo_mode on the run and then finishes it as
-        # COMPLETED (line 439), not DEMO, so `_is_demo`'s status fallback did
-        # not catch it either. A run where nothing was solved exported a
-        # report that read exactly like a real one.
-        "demo_mode": bool(run.get("demo_mode")),
+        # the no-solve banner, the limitations table, the missing-KPI rows --
+        # and never received any of them, so those branches were dead on the
+        # whole /api/run/{id}/report.* family. The unsolved case was the
+        # damaging one: a run where nothing was solved exported a report that
+        # read exactly like a real one.
+        "unsolved": _run_is_unsolved(run),
         "kpi_notice": run.get("kpi_notice") or "",
         "limitations": run.get("limitations") or [],
         "kpis_missing": run.get("kpis_missing") or [],

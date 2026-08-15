@@ -11,10 +11,12 @@ TEMPLATE_TITLES = {
     "engineering_delivery": "Engineering Delivery Report",
 }
 
-# Gate G2: demo-mode runs (no solver detected) must announce themselves on the
-# first screen of every export channel and must not carry numeric KPIs.
-DEMO_BANNER = "演示数据 · 非真实求解"
-DEMO_BANNER_DETAIL = "未检测到 Abaqus，无法求解；本报告不含任何数值 KPI。"
+# A run that produced no numbers has to say so on the first screen of every
+# export channel, and must not carry numeric KPIs. Until 2026-08-15 this was
+# the "demo mode" banner; the walkthrough it announced is gone, but a report
+# for a machine without Abaqus still has to be unmistakable at a glance.
+NO_SOLVE_BANNER = "未求解 · 无数值结果"
+NO_SOLVE_DETAIL = "未检测到 Abaqus，无法求解；本报告不含任何数值 KPI。"
 
 # A check that did not run is neither a pass nor a failure, and both the
 # regression and the contract status can now say so explicitly: the
@@ -23,14 +25,19 @@ DEMO_BANNER_DETAIL = "未检测到 Abaqus，无法求解；本报告不含任何
 NOT_GRADED = "NOT GRADED"
 
 
-def _is_demo(report: dict) -> bool:
-    return bool(report.get("demo_mode")) or report.get("summary", {}).get("status") == "DEMO"
+def _is_unsolved(report: dict) -> bool:
+    """No solver ran, so there are no numbers to report.
+
+    `status == "DEMO"` is only read here, never written: run directories
+    archived before 2026-08-15 carry it, and a report built from one of them
+    still has to come out honest."""
+    return bool(report.get("unsolved")) or report.get("summary", {}).get("status") == "DEMO"
 
 
-def _demo_banner_md_lines(report: dict) -> list[str]:
-    if not _is_demo(report):
+def _no_solve_banner_md_lines(report: dict) -> list[str]:
+    if not _is_unsolved(report):
         return []
-    return ["", f"> **{DEMO_BANNER}** — {DEMO_BANNER_DETAIL}"]
+    return ["", f"> **{NO_SOLVE_BANNER}** — {NO_SOLVE_DETAIL}"]
 
 
 def available_templates() -> list[str]:
@@ -50,12 +57,12 @@ def render_run_report_markdown(report: dict, template: str = "standard") -> str:
 def _solver_metric_value(summary: dict) -> tuple[str, str]:
     """(label, value) for the solver row.
 
-    A CalculiX run has no Abaqus release; printing the spec's release field on
-    its cover would make the archived report itself a false claim. Abaqus runs
-    keep the exact wording they had.
+    This branched on the backend until 2026-08-15, when the second one was
+    removed: a CalculiX run had no Abaqus release, so printing the spec's
+    release field on its cover would have made the archived report itself a
+    false claim. No run on disk was ever produced that way, so nothing is left
+    to read back.
     """
-    if summary.get("solver_backend") == "calculix":
-        return "Solver", summary.get("solver_label") or "CalculiX"
     return "Abaqus", summary.get("abaqus_release") or "-"
 
 
@@ -102,8 +109,8 @@ def render_run_report_html(report: dict, template: str = "standard") -> str:
         '<main class="page">',
         '<section class="hero">',
         f"<p>Run report</p><h1>{escape(title)}</h1>",
-        (f'<div class="demo-banner">{escape(DEMO_BANNER)} — {escape(DEMO_BANNER_DETAIL)}</div>'
-         if _is_demo(report) else ""),
+        (f'<div class="no-solve-banner">{escape(NO_SOLVE_BANNER)} — {escape(NO_SOLVE_DETAIL)}</div>'
+         if _is_unsolved(report) else ""),
         f"<div class=\"run-id\">{escape(str(run_id))}</div>",
         "</section>",
         '<section class="metrics">',
@@ -130,7 +137,7 @@ def _render_standard(report: dict) -> str:
     summary = report["summary"]
     lines = [
         "# Abaqus Run Report",
-        *_demo_banner_md_lines(report),
+        *_no_solve_banner_md_lines(report),
         "",
         f"- Run ID: `{summary.get('run_id')}`",
         f"- Status: `{summary.get('status')}`",
@@ -159,7 +166,7 @@ def _render_client_summary(report: dict) -> str:
     contract_status, _ = _contract_status(report)
     lines = [
         "# Simulation QA Summary",
-        *_demo_banner_md_lines(report),
+        *_no_solve_banner_md_lines(report),
         "",
         f"Run `{summary.get('run_id')}` finished with status `{status}`.",
         "",
@@ -191,7 +198,7 @@ def _render_engineering_delivery(report: dict) -> str:
     verdict = _delivery_verdict(status, contract_status, regression_status)
     lines = [
         "# Engineering Delivery Report",
-        *_demo_banner_md_lines(report),
+        *_no_solve_banner_md_lines(report),
         "",
         "## Acceptance Snapshot",
         "",
@@ -241,8 +248,8 @@ def _render_engineering_delivery(report: dict) -> str:
 def _append_kpi_rows(lines: list[str], report: dict) -> None:
     comparisons = report.get("regression", {}).get("comparisons", {})
     kpis = report.get("kpis", {})
-    if not kpis and _is_demo(report):
-        lines.append(f"| （{DEMO_BANNER} — 未生成 KPI） | - | - |")
+    if not kpis and _is_unsolved(report):
+        lines.append(f"| （{NO_SOLVE_BANNER} — 未生成 KPI） | - | - |")
         return
     for name, value in sorted(kpis.items()):
         comp = comparisons.get(name, {})
@@ -632,8 +639,8 @@ def _kpi_table_html(report: dict) -> str:
         )
     if not rows:
         empty_text = (
-            f"{DEMO_BANNER} — 未检测到 Abaqus，无法求解，未生成 KPI。"
-            if _is_demo(report) else "No KPI values reported."
+            f"{NO_SOLVE_BANNER} — 未检测到 Abaqus，无法求解，未生成 KPI。"
+            if _is_unsolved(report) else "No KPI values reported."
         )
         rows.append(f'<tr><td colspan="3" class="muted">{escape(empty_text)}</td></tr>')
     return _table_block("KPI / Regression", ["KPI", "Value", "Regression"], rows)
@@ -813,7 +820,7 @@ h2 { font-size: 18px; margin-bottom: 14px; }
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color: var(--muted);
 }
-.demo-banner {
+.no-solve-banner {
   margin-top: 14px;
   padding: 10px 14px;
   border: 1px solid var(--warn);

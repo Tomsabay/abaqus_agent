@@ -100,7 +100,7 @@ NOT_GRADED = {
                   "not_checked_reason": "没有加载到任何 physics contract，本次运行未做契约检查"},
 }
 LEGACY = {"status": "COMPLETED", "regression": {}, "contracts": {}}
-DEMO = dict(NOT_GRADED, demo_mode=True)
+UNSOLVED = dict(NOT_GRADED, unsolved=True)
 
 
 def _items(browser, base: str, items: Items) -> None:
@@ -157,9 +157,9 @@ def _items(browser, base: str, items: Items) -> None:
         "about a record that predates the field)")
 
     items.add(
-        "a_demo_run_does_not_compete_with_its_own_banner",
-        html(DEMO) == "",
-        "demo_mode -> no verdict section")
+        "an_unsolved_run_does_not_compete_with_its_own_refusal",
+        html(UNSOLVED) == "",
+        "unsolved -> no verdict section")
 
     # The reason text is user-facing; a payload carrying markup must not
     # become markup. `esc` is applied per field, so this proves the wiring.

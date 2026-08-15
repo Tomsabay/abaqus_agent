@@ -1,16 +1,18 @@
 """Run the README's Quick Start exactly as written, and check its claims.
 
 A README that documents a command nobody re-runs rots silently. Before this
-existed, its first Quick Start command (`pytest tests/ -v`) failed on any
-fresh clone, it never mentioned CalculiX once, and the only documented way to
-solve a case said "on a machine with Abaqus installed" — leaving every visitor
-without a licence with nothing to try.
+existed, its first Quick Start command (`pytest tests/ -v`) failed on any fresh
+clone.
 
-This drives the CalculiX path end to end on a real solver and asserts the
-numbers the README prints.
+Until 2026-08-15 this gate drove a CalculiX fallback end to end, because the
+Quick Start's whole point was giving a visitor without a licence something to
+run. There is no fallback now — the README says so in plain words — so what is
+left to verify is that the one documented command still works on the one solver
+this tool drives, and that the numbers it prints are the frozen baseline.
 
 Run:  .venv\\Scripts\\python.exe scripts\\run_readme_quickstart_check.py
-Needs ABAQUS_AGENT_CCX_EXE (or ccx on PATH).
+Needs Abaqus (or ABAQUS_AGENT_ABAQUS_CMD). Without it the documentation checks
+still run and the gate reports what it could not measure.
 """
 
 from __future__ import annotations
@@ -25,10 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
-
-# What the README's table claims, and the tolerance each is claimed to.
-CLAIM_U_TIP = -1.903958e-3      # "agrees to seven significant figures"
-CLAIM_MISES_CCX = 0.6109        # explicitly NOT comparable to Abaqus
+EXPECTED = ROOT / "cases" / "cantilever" / "expected.json"
 
 
 def _readme_quickstart() -> str:
@@ -55,8 +54,9 @@ def main() -> int:
     failures: list[str] = []
     section = _readme_quickstart()
 
-    # 1. The section has to actually tell a licence-less visitor what to do.
-    for marker in ("CalculiX", "ABAQUS_AGENT_CCX_EXE",
+    # 1. The section has to tell a visitor what to run and how to point at a
+    #    solver that is not on PATH.
+    for marker in ("ABAQUS_AGENT_ABAQUS_CMD",
                    "agent/orchestrator.py cases/cantilever/spec.yaml"):
         if marker not in section:
             failures.append("Quick Start no longer mentions %r" % marker)
@@ -65,9 +65,18 @@ def main() -> int:
     if "pytest tests/ -v" in section:
         failures.append("`pytest tests/ -v` needs gitignored run dirs; use `pytest -q`")
 
-    ccx = os.environ.get("ABAQUS_AGENT_CCX_EXE") or shutil.which("ccx")
-    if not ccx or not Path(ccx).is_file():
-        print("SKIP: no CalculiX found (set ABAQUS_AGENT_CCX_EXE)")
+    # 3. It must not promise a second solver again. The README explains the
+    #    removal in prose, so a bare mention is fine; an env var or an install
+    #    instruction is a broken promise.
+    for stale in ("ABAQUS_AGENT_CCX_EXE", "calculix.de", "ccx.exe"):
+        if stale in section:
+            failures.append("Quick Start still points at a removed backend: %r" % stale)
+
+    sys.path.insert(0, str(ROOT))
+    from core.helpers import check_abaqus
+
+    if not check_abaqus():
+        print("SKIP: no Abaqus found (set ABAQUS_AGENT_ABAQUS_CMD)")
         if failures:
             print("\nRESULT: FAIL")
             for f in failures:
@@ -76,15 +85,10 @@ def main() -> int:
             print("RESULT: PASS (documentation checks only)")
         return _verdict(failures, solver="none, documentation checks only")
 
-    # 3. Run the documented command for real, into a scratch run root so no
+    # 4. Run the documented command for real, into a scratch run root so no
     #    archived evidence is touched.
     run_root = Path(tempfile.mkdtemp(prefix="readme_quickstart_"))
-    env = {
-        **os.environ,
-        "ABAQUS_AGENT_CCX_EXE": ccx,
-        "ABAQUS_AGENT_SOLVER_BACKEND": "calculix",
-        "ABAQUS_AGENT_RUN_ROOT": str(run_root),
-    }
+    env = {**os.environ, "ABAQUS_AGENT_RUN_ROOT": str(run_root)}
     cmd = [sys.executable, "agent/orchestrator.py",
            "cases/cantilever/spec.yaml",
            "cases/cantilever/expected.json",
@@ -97,33 +101,28 @@ def main() -> int:
         failures.append("the documented command exited %d" % proc.returncode)
         print(proc.stdout[-2500:])
 
+    baseline = json.loads(EXPECTED.read_text(encoding="utf-8"))["kpis"]
     results = sorted(run_root.glob("*/result.json"))
     if not results:
         failures.append("no result.json produced")
     else:
         data = json.loads(results[0].read_text(encoding="utf-8"))
         kpis = data.get("kpis", {})
-        prov = data.get("kpi_provenance", {})
         print(json.dumps({"status": data.get("status"), "kpis": kpis},
                          ensure_ascii=False, indent=1))
 
-        u = kpis.get("U_tip")
-        if u is None or abs(u - CLAIM_U_TIP) > abs(CLAIM_U_TIP) * 1e-6:
-            failures.append("U_tip %r does not match the documented %r"
-                            % (u, CLAIM_U_TIP))
-        m = kpis.get("MISES_MAX")
-        if m is None or abs(m - CLAIM_MISES_CCX) > 0.001:
-            failures.append("MISES_MAX %r does not match the documented %r"
-                            % (m, CLAIM_MISES_CCX))
-
-        # The README's whole point in that table: the stress number is
-        # produced but marked not-Abaqus-equivalent.
-        mises_prov = prov.get("MISES_MAX", {})
-        if mises_prov.get("abaqus_equivalent") is not False:
-            failures.append("MISES_MAX is not tagged as non-equivalent: %r"
-                            % mises_prov)
-        if (prov.get("U_tip", {}) or {}).get("abaqus_equivalent") is not True:
-            failures.append("U_tip should be tagged Abaqus-equivalent")
+        # Against the frozen baseline, to its own declared tolerance -- not a
+        # number retyped into this file, which is how a gate ends up asserting
+        # the docs against the docs.
+        for name, spec in baseline.items():
+            got = kpis.get(name)
+            want = spec["value"]
+            if got is None:
+                failures.append("%s was not produced" % name)
+                continue
+            if abs(got - want) > abs(want) * spec["rtol"] + spec["atol"]:
+                failures.append("%s %r is outside the frozen baseline %r"
+                                % (name, got, want))
 
         regression = data.get("regression", {})
         if regression.get("passed") is not True:
@@ -131,20 +130,13 @@ def main() -> int:
 
     shutil.rmtree(run_root, ignore_errors=True)
 
-    # 4. The numbers printed in the README table must be the ones just measured.
-    table = [ln for ln in section.splitlines() if ln.startswith("| `U_tip`")]
-    if not table:
-        failures.append("the comparison table lost its U_tip row")
-    elif "1.903958e-3" not in table[0].replace("−", "-"):
-        failures.append("the table's U_tip no longer matches: %s" % table[0])
-
     if failures:
         print("\nRESULT: FAIL")
         for f in failures:
             print("  - %s" % f)
     else:
         print("\nRESULT: PASS")
-    return _verdict(failures, solver="calculix")
+    return _verdict(failures, solver="abaqus")
 
 
 if __name__ == "__main__":

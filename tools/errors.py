@@ -25,7 +25,6 @@ class ErrorCode(str, Enum):
 
     # Execution
     ABAQUS_NOT_FOUND      = "ABAQUS_NOT_FOUND"
-    CALCULIX_NOT_FOUND    = "CALCULIX_NOT_FOUND"
     # The chosen solver cannot do this problem faithfully — a refusal, not a
     # crash. Distinct from UNSUPPORTED_GEOMETRY/STEP, which are about the spec
     # being invalid for the product as a whole.
@@ -61,8 +60,7 @@ ERROR_SUGGESTIONS: dict[ErrorCode, str] = {
     ErrorCode.SCHEMA_VALIDATION:    "Fix spec.yaml to comply with schema/spec_schema.json",
     ErrorCode.STATIC_GUARD_BLOCKED: "Remove dangerous imports (os/subprocess/socket) from generated script",
     ErrorCode.ABAQUS_NOT_FOUND:     "Add Abaqus to PATH; verify installation with 'abaqus information=release'",
-    ErrorCode.CALCULIX_NOT_FOUND:   "Add ccx to PATH or set ABAQUS_AGENT_CCX_EXE to the full ccx.exe path",
-    ErrorCode.BACKEND_UNSUPPORTED:  "Install Abaqus for this feature, or change the spec to what the fallback solver covers",
+    ErrorCode.BACKEND_UNSUPPORTED:  "This build drives Abaqus only; install it or point ABAQUS_AGENT_ABAQUS_CMD at it",
     ErrorCode.LICENSE_UNAVAILABLE:  "Wait for license token or reduce concurrent jobs",
     ErrorCode.TIMEOUT:              "Increase timeout_seconds or reduce model size / increase cpus",
     ErrorCode.JOB_FAILED:           "Check .log/.msg files; run syntaxcheck; inspect .dat for diagnostics",

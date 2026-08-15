@@ -260,18 +260,6 @@ def test_validate_actually_calls_it():
     assert "self._record_mesh_risks()" in body
 
 
-def test_the_calculix_backend_gets_the_same_warning():
-    """It subclasses the run loop, so the check must reach it unchanged."""
-    from agent.ccx_orchestrator import CalculiXOrchestrator
-
-    assert CalculiXOrchestrator._record_mesh_risks is \
-        AbaqusOrchestrator._record_mesh_risks
-    ccx = (ROOT / "agent" / "ccx_orchestrator.py").read_text(encoding="utf-8")
-    assert "def _stage_validate" not in ccx, (
-        "CalculiX now overrides validation, so it may no longer run the mesh "
-        "risk check the parent wires in")
-
-
 def test_the_verdict_is_not_touched():
     """#72 as decided: warn, do not refuse.
 

@@ -355,9 +355,9 @@ const STAGE_SHORT = {
 };
 const STAGE_ORDER = Object.keys(STAGE_SHORT);
 const stageShort = (sid) => (STAGE_SHORT[sid] ? STAGE_SHORT[sid]() : sid);
-// REFUSED is terminal: the backend looked at the spec and declined to solve it
-// (agent/ccx_orchestrator.py). Omitting it left such a run spinning forever —
-// finishWatch never fired and showRun kept drawing the progress bar.
+// REFUSED is terminal: the run looked at the spec and declined to solve it.
+// Omitting it left such a run spinning forever — finishWatch never fired and
+// showRun kept drawing the progress bar.
 const TERMINAL = ['COMPLETED', 'FAILED', 'ABORTED', 'ERROR', 'REFUSED'];
 
 const $ = (id) => document.getElementById(id);
@@ -495,18 +495,13 @@ async function boot() {
     const health = await api('/health');
     state.health = health;
     setLed('led-server', true);
-    // The LED means "a solver can run", not "Abaqus is installed" — CalculiX
-    // counts, and the label right next to it says which one and that it is a
-    // reduced feature set.
-    const hasSolver = !!(health.abaqus_available || health.calculix_available);
+    // The LED means "a solver can run". There is one, so this is exactly
+    // "Abaqus is installed" — it used to also count a fallback solver.
+    const hasSolver = !!health.abaqus_available;
     setLed('led-abaqus', hasSolver);
-    $('led-abaqus').lastChild.textContent =
-      health.solver_backend === 'calculix' ? 'CalculiX' : 'Abaqus';
+    $('led-abaqus').lastChild.textContent = 'Abaqus';
     sbSetDyn('conn', hasSolver ? () => t('sb.conn.ok') : () => t('sb.conn.serverOnly'), true);
-    if (health.solver_backend === 'calculix') {
-      sbSetDyn('release', () => t('sb.release.degraded',
-        { label: health.solver_label || 'CalculiX' }));
-    } else if (health.abaqus_release) {
+    if (health.abaqus_release) {
       sbSetDyn('release', () => t('sb.release.abaqus', { release: health.abaqus_release }));
     } else {
       sbSetDyn('release', health.abaqus_available
@@ -1761,12 +1756,13 @@ async function showRun(runId) {
         <span class="pct" id="solve-pct">${pct}%</span></div>`;
   }
 
-  if (backend.backend === 'calculix') {
-    let items = limitations.map(l => `<li>${esc(limitationLine(l))}</li>`).join('');
-    if (run && run.visuals_notice) items += `<li>${esc(run.visuals_notice)}</li>`;
+  // A run the solver never started: no Abaqus on this machine. This used to
+  // degrade to a second solver and print a capability banner here instead.
+  if (backend.supported === false) {
+    const items = limitations.map(l => `<li>${esc(limitationLine(l))}</li>`).join('');
     html += `<div class="backend-banner">
-      <b>${esc(t('backend.fallback.title', { label: backendLabel }))}</b>
-      ${esc(t('backend.fallback.body'))}
+      <b>${esc(t('backend.unavailable.title'))}</b>
+      ${esc(backend.reason || t('backend.unavailable.body'))}
       ${items ? '<ul>' + items + '</ul>' : ''}</div>`;
   }
   if (status === 'REFUSED') {
@@ -1779,8 +1775,7 @@ async function showRun(runId) {
 
   const kpiNames = Object.keys(kpis);
   if (kpiNames.length || kpisMissing.length) {
-    let kpiLabel = backend.backend === 'calculix'
-      ? esc(t('results.kpi.backend', { label: backendLabel })) : esc(t('results.kpi.real'));
+    let kpiLabel = esc(t('results.kpi.real'));
     // The denominator, next to the heading. `kpiNames.length` alone is the
     // count of what was delivered with nothing to compare it against, so two
     // of three tiles read exactly like two of two.
@@ -1847,8 +1842,9 @@ async function showRun(runId) {
     });
     html += '</div>';
   } else if (ok) {
-    // Say the real reason. On the CalculiX fallback it is not a missing plot
-    // config — that solver writes no .odb at all, so there is nothing to plot.
+    // Say the real reason the run recorded, not the generic one: "no plot was
+    // configured" and "there was no .odb to plot from" send people to
+    // different places.
     const noVisualsWhy = (run && run.visuals_notice) || t('results.noVisuals');
     html += `<div class="sec-label">${esc(t('results.visuals.plain'))}</div>`
           + '<div class="empty-hint" style="margin:0">' + esc(noVisualsWhy) + '</div>';
@@ -1887,9 +1883,9 @@ function gradeCard(label, verdict, why) {
 function gradingSection(src) {
   const s = src || {};
   const reg = s.regression, con = s.contracts;
-  // A demo run solved nothing, so there is nothing to grade; saying NOT GRADED
-  // there would compete with the demo banner for the same message.
-  if (s.demo_mode) return '';
+  // A refused run solved nothing, so there is nothing to grade; saying NOT
+  // GRADED there would compete with the refusal for the same message.
+  if (s.unsolved) return '';
   // An empty object means this run predates the verdict wiring. Say nothing
   // rather than assert NOT GRADED about a record that cannot support it.
   const hasReg = reg && typeof reg === 'object' && ('passed' in reg);

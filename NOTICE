@@ -53,8 +53,6 @@ Third-party components
 
 See THIRD_PARTY_NOTICES.md.
 
-Note in particular that this product does NOT bundle a solver. Abaqus and
-CalculiX are located and invoked as separate programs that the user installs
-themselves; neither is redistributed here, and neither is linked into this
-work. CalculiX is GPL-licensed software, and running it as a separate process
-does not place it under this project's licence, nor this project under GPL.
+Note in particular that this product does NOT bundle a solver. Abaqus is
+located and invoked as a separate program that the user installs themselves; it
+is not redistributed here and not linked into this work.

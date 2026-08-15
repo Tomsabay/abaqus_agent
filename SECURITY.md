@@ -31,9 +31,9 @@ Related defaults, all deliberate:
 - CORS is **off**. The workbench is served by the same process, so it is
   same-origin and needs none. `ABAQUS_AGENT_CORS_ORIGINS` takes an explicit
   comma-separated allowlist; there is no wildcard mode.
-- Solver binaries are never bundled and never auto-downloaded. Abaqus and
-  CalculiX are located via `PATH` or an explicit env var and invoked as
-  separate processes.
+- Solver binaries are never bundled and never auto-downloaded. Abaqus is
+  located via `PATH` or an explicit env var and invoked as a separate
+  process.
 
 **2. No model-written code is executed. The language model produces data.**
 A language model's job here ends at a spec — a YAML document. That spec is
@@ -78,5 +78,5 @@ is not shipped in the public tree.
   slowly is the product working.
 - Anything requiring you to already have local access to the machine and the
   user's own files.
-- Vulnerabilities in Abaqus, CalculiX, or other third-party software. Report
-  those to their vendors.
+- Vulnerabilities in Abaqus or other third-party software. Report those to
+  their vendors.

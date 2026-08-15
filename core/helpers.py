@@ -27,17 +27,6 @@ def check_abaqus() -> bool:
     return shutil.which("abaqus") is not None
 
 
-def check_calculix() -> bool:
-    """CalculiX (ccx) availability — the fallback backend.
-
-    Env override first, then PATH, same policy as check_abaqus. Never probes
-    ~/solvers: that is a check-harness convenience, and doing it here would make
-    pytest on a developer box start launching real solves.
-    """
-    from tools.ccx_cmd import get_ccx_cmd
-    return get_ccx_cmd() is not None
-
-
 def list_cases() -> list[str]:
     return [
         d.name

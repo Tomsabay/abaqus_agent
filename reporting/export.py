@@ -74,7 +74,7 @@ def build_offline_run_report(
             "result_path": run.get("result_path"),
             "workdir": run.get("workdir"),
         },
-        "demo_mode": bool(run.get("demo_mode")),
+        "unsolved": bool(run.get("unsolved")),
         "kpi_notice": run.get("kpi_notice") or "",
         "kpis": run.get("kpis", {}),
         "kpis_missing": run.get("kpis_missing", []),
@@ -232,7 +232,7 @@ def load_offline_run(source: str | Path) -> dict[str, Any]:
     return {
         "run_id": run_id,
         "status": result.get("status") or provenance.get("status") or "-",
-        "demo_mode": bool(result.get("demo_mode")),
+        "unsolved": bool(result.get("unsolved")),
         "kpi_notice": result.get("kpi_notice") or "",
         "spec": result.get("spec", {}),
         "kpis": result.get("kpis", {}),
@@ -280,34 +280,21 @@ def _model_name(run: dict[str, Any], capsule: dict[str, Any]) -> str:
 def _solver_provenance(run: dict[str, Any], capsule: dict[str, Any]) -> dict[str, Any]:
     """Which solver actually produced this run, straight from the capsule.
 
-    The report template already refuses to print an Abaqus release for a
-    CalculiX run (reporting/templates.py:_solver_metric_value) — but this
-    builder never handed it the backend, so the else-branch won: a CalculiX
-    run's archived cover page read "Abaqus: 2021", taken from the spec's
-    metadata field. An archived report that names the wrong solver is a false
-    claim about how a number was obtained, which is the one thing these
-    reports exist to get right.
+    Only one answer is possible now, but it is still read rather than assumed:
+    a run archived before the backend was recorded says nothing, and nothing is
+    the honest value. An archived report that names the wrong solver is a false
+    claim about how a number was obtained, which is the one thing these reports
+    exist to get right.
     """
     provenance = capsule.get("provenance", {}) if isinstance(capsule, dict) else {}
     backend = provenance.get("solver_backend")
     if not backend:
-        # A run archived before the backend was recorded: say nothing rather
-        # than assume Abaqus.
         return {"solver_backend": None, "solver_label": None}
-    if backend == "calculix":
-        release = provenance.get("solver_release")
-        return {
-            "solver_backend": backend,
-            "solver_label": "CalculiX %s" % release if release else "CalculiX",
-        }
     return {"solver_backend": backend, "solver_label": provenance.get("solver_label")}
 
 
 def _abaqus_release(run: dict[str, Any], capsule: dict[str, Any]) -> str:
     provenance = capsule.get("provenance", {}) if isinstance(capsule, dict) else {}
-    if provenance.get("solver_backend") == "calculix":
-        # Not "unknown" — this run had no Abaqus release, by construction.
-        return "-"
     spec = run.get("spec", {})
     return (
         spec.get("meta", {}).get("abaqus_release")

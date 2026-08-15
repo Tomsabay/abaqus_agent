@@ -53,8 +53,8 @@ AGPL 常被过度解读成"碰了就得开源"。它不是。按 AGPL 使用本�
 附带说明：
 
 - 授权覆盖**本仓库的代码**。它不给你任何求解器的授权 —— Abaqus 的授权你要向
-  Dassault Systèmes 买，CalculiX 是 GPL 的自由软件。本项目只是定位并调用它们
-  （见 NOTICE），不分发、不捆绑任何求解器
+  Dassault Systèmes 买。本项目只是定位并调用它（见 NOTICE），不分发、不捆绑
+  任何求解器
 - 年费到期不续：已交付的版本可以继续用，停止获得新版本
 - 学术机构、注册在案的开源非营利项目：情形 A/B 也免费，写邮件说明用途即可
 - 需要发票、需要中文书面合同、需要走对公 —— 都可以，邮件说明
@@ -106,9 +106,9 @@ You need a commercial licence in exactly two cases:
 | Support SLA (optional add-on) | First response within 4 business hours | **CNY 40,000 / year** |
 
 A commercial licence covers *this repository's code only*. It grants no rights
-to any solver: Abaqus is licensed by Dassault Systèmes, CalculiX is GPL free
-software, and this project neither bundles nor redistributes either — it
-locates and invokes whatever the user installed. See `NOTICE`.
+to any solver: Abaqus is licensed by Dassault Systèmes, and this project
+neither bundles nor redistributes it — it locates and invokes whatever the user
+installed. See `NOTICE`.
 
 Free for academic use and for registered open-source non-profits, in cases A
 and B alike. Just email and say what it is for.

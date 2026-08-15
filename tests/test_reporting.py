@@ -165,15 +165,18 @@ def test_offline_report_export_from_run_directory(tmp_path, monkeypatch):
     assert pdf_out.read_bytes().startswith(b"%PDF-1.4")
 
 
-def test_demo_run_report_marks_first_screen(tmp_path):
+NO_SOLVE_TEXT = "未求解 · 无数值结果"
+
+
+def test_unsolved_run_report_marks_first_screen(tmp_path):
     """G2 criterion 4: every export channel (md/html/zip) must carry the
-    demo banner on its first screen when the source run is a demo run."""
+    no-solve banner on its first screen when the run produced no numbers."""
     (tmp_path / "result.json").write_text(
         json.dumps({
-            "run_id": "demo_run",
-            "status": "DEMO",
-            "demo_mode": True,
-            "kpi_notice": "未检测到 Abaqus，无法求解；演示模式不输出任何数值 KPI",
+            "run_id": "unsolved_run",
+            "status": "FAILED",
+            "unsolved": True,
+            "kpi_notice": "未检测到 Abaqus，无法求解；用 ABAQUS_AGENT_ABAQUS_CMD 指向它",
             "kpis": {},
             "regression": {},
             "contracts": {},
@@ -184,48 +187,28 @@ def test_demo_run_report_marks_first_screen(tmp_path):
     for template in available_templates():
         report = build_offline_run_report(tmp_path, template=template)
         md_first_screen = "\n".join(report["markdown"].splitlines()[:5])
-        assert "演示数据 · 非真实求解" in md_first_screen
+        assert NO_SOLVE_TEXT in md_first_screen
         # First screen of the HTML document = the hero section.
         hero = report["html"].split("</section>")[0]
-        assert "演示数据 · 非真实求解" in hero
-        # Demo reports must not carry a numeric KPI value.
+        assert NO_SOLVE_TEXT in hero
+        # These reports must not carry a numeric KPI value.
         assert report["kpis"] == {}
 
     bundle = build_offline_report_bundle(tmp_path)
     with zipfile.ZipFile(io.BytesIO(bundle)) as zf:
-        assert "演示数据 · 非真实求解" in zf.read("report.md").decode("utf-8")
-        assert "演示数据 · 非真实求解" in zf.read("report.html").decode("utf-8")
+        assert NO_SOLVE_TEXT in zf.read("report.md").decode("utf-8")
+        assert NO_SOLVE_TEXT in zf.read("report.html").decode("utf-8")
 
 
-def test_real_run_report_has_no_demo_banner():
-    """Real solver runs must render without any demo marker."""
+def test_a_solved_run_report_carries_no_such_banner():
+    """A real solve must render without any no-solve marker."""
     for template in available_templates():
         text = render_run_report_markdown(_report(), template=template)
+        assert NO_SOLVE_TEXT not in text
         assert "演示数据" not in text
     html = render_run_report_html(_report())
+    assert NO_SOLVE_TEXT not in html
     assert "演示数据" not in html
-
-
-def test_calculix_report_cover_never_prints_an_abaqus_release():
-    """The archived report must not be the false claim the run avoided."""
-    from reporting.templates import render_run_report_html, render_run_report_markdown
-
-    report = {
-        "summary": {
-            "run_id": "r1", "status": "COMPLETED", "model_name": "Cantilever",
-            "abaqus_release": "2021",          # unvalidated spec metadata
-            "solver_backend": "calculix", "solver_label": "CalculiX 2.23",
-        },
-        "kpis": {"U_tip": -0.001903958},
-        "regression": {}, "contracts": {}, "stages": {},
-        "capsule": {}, "artifacts": {}, "image_artifacts": [],
-    }
-    html = render_run_report_html(report)
-    markdown = render_run_report_markdown(report)
-    for text in (html, markdown):
-        assert "CalculiX 2.23" in text
-        assert "Abaqus release" not in text
-        assert ">2021<" not in text
 
 
 def test_abaqus_report_cover_keeps_its_release_row():
@@ -242,9 +225,9 @@ def test_abaqus_report_cover_keeps_its_release_row():
 
 
 # ── offline export: the cover must name the solver that actually ran ────────
-# The template already refused to print an Abaqus release for a CalculiX run,
-# but build_offline_run_report never handed it solver_backend, so the archived
-# report read "Abaqus: 2021" — a false claim about how the numbers were made.
+# build_offline_run_report never handed the template solver_backend, so the
+# archived report asserted a solver it had not read — the class of defect that
+# makes a report unciteable, whatever the backend happens to be.
 
 def _write_run_dir(tmp_path, provenance, spec_release="2021"):
     (tmp_path / "capsule.json").write_text(json.dumps({
@@ -259,28 +242,6 @@ def _write_run_dir(tmp_path, provenance, spec_release="2021"):
         "kpis": {"U_tip": -0.001903958},
     }), encoding="utf-8")
     return tmp_path
-
-
-def test_offline_export_of_a_calculix_run_never_claims_abaqus(tmp_path):
-    from reporting.export import build_offline_run_report
-
-    run_dir = _write_run_dir(tmp_path, {
-        "status": "COMPLETED",
-        "solver_backend": "calculix",
-        "solver_release": "2.23",
-        "abaqus_release": None,
-    })
-
-    report = build_offline_run_report(run_dir)
-
-    assert report["summary"]["solver_backend"] == "calculix"
-    assert report["summary"]["solver_label"] == "CalculiX 2.23"
-    # The spec's unvalidated release field must not leak onto the cover.
-    assert report["summary"]["abaqus_release"] == "-"
-    for text in (report["markdown"], report["html"]):
-        assert "CalculiX 2.23" in text
-        assert "Abaqus: `2021`" not in text
-        assert ">2021<" not in text
 
 
 def test_offline_export_of_an_abaqus_run_keeps_its_release(tmp_path):

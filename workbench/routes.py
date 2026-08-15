@@ -183,15 +183,14 @@ async def accept(session_id: str, req: AcceptRequest, background_tasks: Backgrou
     if not valid:
         raise HTTPException(status_code=400, detail={"errors": errors})
 
-    # Refuse BEFORE a run record exists, with the offending spec field named.
-    # The fallback solver covers a verified subset only; approximating the rest
-    # silently would be a defect, not a convenience.
-    from core.backends import check_calculix, refusal_messages, select_backend
+    # Refuse BEFORE a run record exists, naming the way out. A run record for a
+    # machine that cannot solve anything is a row in the session history that
+    # looks like work happened.
+    from core.backends import refusal_messages, select_backend
     from core.helpers import check_abaqus as _check_abaqus
     decision = select_backend(
         spec,
         abaqus_available=_check_abaqus(),
-        calculix_available=check_calculix(),
         override=(req.runner_cfg or {}).get("backend"),
     )
     if not decision.supported:

@@ -34,11 +34,10 @@ simply-supported midspan vs PL^3/48EI (both ~1.3x, the same systematic mesh soft
 plate-with-hole Kt 2.7 vs Howland's 3.1, first modal frequency within 14% of the
 Euler-Bernoulli solution, plus the solver-failure diagnosis chain.
 
-Those four are the first five gates of seventeen. `python
-scripts/run_all_real_checks.py` runs them all in about 20 minutes on Abaqus 2021
-and prints one verdict; the two CalculiX gates need `ABAQUS_AGENT_CCX_EXE` and
-report themselves as skipped without it, which does not fail the run. Measured
-2026-08-06: 17 gates, 17 pass, 1240 s.
+Those four are the first five of 41 gates. `python
+scripts/run_all_real_checks.py` runs every one of them and prints a single
+verdict; it needs Abaqus for the solver gates and a browser for the UI ones, and
+takes upwards of an hour.
 
 ![CAE Copilot workspace replaying a real Abaqus session](docs/assets/copilot_workspace_replay.png)
 
@@ -140,8 +139,6 @@ refusal rather than a guess:
   volume byte-identical.
 - An assembly boolean creates a part nothing meshes; the `.inp` carries an empty
   `*Part` with a live `*Instance` and not one `*Element`.
-- CalculiX, given a load card it does not recognise, drops it, exits 0, and
-  returns every displacement as `0.000000E+00`.
 
 Five worked cases ship in this dialect — `bearing_block`, `two_plate_tie`,
 `two_plate_contact`, `block_friction_slide`, `plate_hole_v2` — and the gate
@@ -171,61 +168,44 @@ pip install -e ".[all]"  # dev + mcp + llm
 
 ## Quick Start
 
-### No Abaqus licence? Start here
-
-You do not need Abaqus to get a real, verifiable answer out of this. Install
-[CalculiX](http://www.calculix.de/) — free, open source, runs on Windows,
-Linux and macOS — point the tool at it, and solve:
+### Solve a case
 
 ```bash
 pip install -e ".[dev]"
 
-# Windows
-set ABAQUS_AGENT_CCX_EXE=C:\path\to\ccx.exe
-# Linux / macOS
-export ABAQUS_AGENT_CCX_EXE=/usr/local/bin/ccx
-
 python agent/orchestrator.py cases/cantilever/spec.yaml \
   cases/cantilever/expected.json \
   cases/cantilever/runner.json
 ```
 
-The backend is chosen automatically: Abaqus if it is installed, CalculiX
-otherwise. Measured on the shipped cantilever case, CalculiX agrees with the
-frozen Abaqus baseline to **seven significant figures**:
-
-| KPI | Abaqus 2021 | CalculiX 2.23 | |
-|---|---|---|---|
-| `U_tip` | `-1.903958e-3` mm | `-1.903958e-3` mm | agrees |
-| `MISES_MAX` | `0.6529` MPa | `0.6109` MPa | **not comparable** |
-
-That last row is the point. CalculiX reports nodal-averaged stress where
-Abaqus reports unaveraged `ELEMENT_NODAL`; on the same mesh those differ by
-about 6%. The number is still produced, tagged with where it came from, and
-**excluded from pass/fail** rather than quietly graded against an Abaqus
-baseline it does not mean the same thing as.
-
-The CalculiX backend is deliberately narrow — `cantilever_block` and
-`custom_inp` geometry, `Static` steps, concentrated forces. Everything else is
-**refused before the solve starts**, naming the spec field in plain language,
-because CalculiX silently drops load cards it does not recognise and still
-exits 0 with every displacement reading `0.000000E+00`. Two gates do that, and
-they read different things: one reads the spec, the other reads the deck card
-by card. With `geometry.type: custom_inp` the deck *is* the model and the spec
-cannot describe its procedure, so only the second one can see a `*FREQUENCY`
-step — which is how a mode shape was once reported as a tip displacement. See
-[docs/ROADMAP.md](docs/ROADMAP.md) for the current capability matrix.
-
-### With Abaqus installed
+The Abaqus release is probed from the installed solver, never taken from the
+spec. If Abaqus is not on `PATH`, point at it:
 
 ```bash
-python agent/orchestrator.py cases/cantilever/spec.yaml \
-  cases/cantilever/expected.json \
-  cases/cantilever/runner.json
+# Windows
+set ABAQUS_AGENT_ABAQUS_CMD=C:\SIMULIA\Commands\abaqus.bat
+# Linux
+export ABAQUS_AGENT_ABAQUS_CMD=/opt/simulia/Commands/abaqus
 ```
 
-Same command. The release is probed from the installed solver, never taken
-from the spec.
+### You need Abaqus
+
+This drives Abaqus. Without it there is nothing to solve, and the run is
+refused with that one sentence rather than approximated.
+
+A CalculiX fallback shipped in August 2026 and was removed two weeks later. It
+worked — it matched the frozen cantilever baseline to seven significant figures
+— but keeping it honest meant maintaining a capability matrix listing, feature
+by feature, what the second solver could be trusted with, and refusing
+everything else before the solve started. That is a permanent tax paid for
+reach we do not want: someone with no Abaqus is not a user of an Abaqus
+workbench. There is no walkthrough mode either, for the same reason a demo that
+narrates seven stages and finishes green is worse than a refusal.
+
+The parts that outlived it are the parts that were never about CalculiX: a
+number is never produced without a solver behind it, a KPI whose definition
+differs from Abaqus is tagged and excluded from pass/fail rather than quietly
+graded, and a refusal always names the spec field it is refusing.
 
 ### Run the test suite
 
@@ -233,8 +213,7 @@ from the spec.
 pytest -q
 ```
 
-The suite is hermetic: it hides both Abaqus and CalculiX so no test can reach
-a real solver.
+The suite is hermetic: it hides Abaqus, so no test can reach a real solver.
 
 Check whether the current machine is ready for real Abaqus validation:
 

@@ -154,22 +154,24 @@ def test_a_complete_run_records_an_empty_list_not_a_missing_key():
     assert orch.result.get("limitations", []) == []
 
 
-def test_the_calculix_orchestrator_inherits_the_same_recording():
-    """Both backends drop KPIs the same way, so both must report it the same."""
-    from agent.ccx_orchestrator import CalculiXOrchestrator
+def test_every_orchestrator_records_the_shortfall():
+    """The guard against the wiring being removed while the helper survives.
 
-    assert CalculiXOrchestrator._record_missing_kpis is \
-        AbaqusOrchestrator._record_missing_kpis
-    source = (ROOT / "agent" / "ccx_orchestrator.py").read_text(encoding="utf-8")
-    assert "self._record_missing_kpis(kpi_spec, result)" in source
+    This used to name two files: a CalculiX orchestrator subclassed the run
+    loop and had to be pinned to the same recording. That backend was removed
+    2026-08-15. Written as a sweep rather than a list so the next orchestrator
+    — if there ever is one — is covered on the day it appears, instead of
+    silently dropping KPIs until somebody remembers this file.
+    """
+    orchestrators = [p for p in (ROOT / "agent").glob("*orchestrator*.py")]
+    assert orchestrators, "no orchestrator found; this guard is pinning nothing"
 
-
-def test_both_stage_extract_methods_call_it():
-    """The guard against the wiring being removed while the helper survives."""
-    for rel in ("agent/orchestrator.py", "agent/ccx_orchestrator.py"):
-        text = (ROOT / rel).read_text(encoding="utf-8")
+    for path in orchestrators:
+        text = path.read_text(encoding="utf-8")
+        if "def _stage_extract" not in text:
+            continue
         body = text.split("def _stage_extract", 1)[1].split("\n    def ", 1)[0]
-        assert "_record_missing_kpis" in body, rel
+        assert "_record_missing_kpis" in body, path.name
 
 
 # --- the report ------------------------------------------------------------

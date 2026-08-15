@@ -25,7 +25,7 @@ import yaml
 from tools.abaqus_cmd import detect_abaqus_release
 
 RELEASE_UNKNOWN = "未检测到（本机无可用 Abaqus）"
-DEMO_KPI_NOTICE_FALLBACK = "未检测到 Abaqus，无法求解；本报告不含任何数值 KPI。"
+NO_SOLVE_NOTICE_FALLBACK = "未检测到 Abaqus，无法求解；本报告不含任何数值 KPI。"
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg")
 _COUNT_PATTERNS = {
@@ -42,7 +42,7 @@ class RunBundle:
     run_id: str
     model_name: str
     status: str
-    demo_mode: bool
+    unsolved: bool
     kpi_notice: str
     kpis: dict[str, Any]
     kpi_source: str
@@ -172,7 +172,7 @@ def load_run_bundle(run_dir: str | Path, spec_path: str | Path | None = None) ->
     )
     run_id = str(result.get("run_id") or capsule.get("run_id") or directory.name)
     status = str(result.get("status") or "-")
-    demo_mode = bool(result.get("demo_mode")) or status.upper() == "DEMO"
+    unsolved = bool(result.get("unsolved")) or status.upper() == "DEMO"
     counts, dat_path = _mesh_counts(directory, model_name)
     odb_path = str(kpi_result.get("odb_path", "") or "")
 
@@ -181,9 +181,9 @@ def load_run_bundle(run_dir: str | Path, spec_path: str | Path | None = None) ->
         run_id=run_id,
         model_name=model_name or directory.name,
         status=status,
-        demo_mode=demo_mode,
+        unsolved=unsolved,
         kpi_notice=str(result.get("kpi_notice", "") or ""),
-        kpis={} if demo_mode else kpis,
+        kpis={} if unsolved else kpis,
         kpi_source=kpi_source,
         result=result,
         capsule=capsule,
@@ -206,5 +206,5 @@ def generated_at() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def demo_notice(bundle: RunBundle) -> str:
-    return bundle.kpi_notice or DEMO_KPI_NOTICE_FALLBACK
+def no_solve_notice(bundle: RunBundle) -> str:
+    return bundle.kpi_notice or NO_SOLVE_NOTICE_FALLBACK

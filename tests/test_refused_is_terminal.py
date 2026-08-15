@@ -53,7 +53,16 @@ def test_refused_status_has_a_status_dot_style() -> None:
     assert not missing, f"terminal statuses with no .run-dot style: {sorted(missing)}"
 
 
-def test_ccx_orchestrator_still_emits_refused() -> None:
-    """If this ever changes, the lists above are pinning a dead string."""
-    text = (ROOT / "agent" / "ccx_orchestrator.py").read_text(encoding="utf-8")
-    assert '"status": "REFUSED"' in text
+def test_something_still_emits_refused() -> None:
+    """If this ever changes, the lists above are pinning a dead string.
+
+    REFUSED used to be produced only by the CalculiX orchestrator, whose whole
+    job was declining specs outside its verified subset. That backend is gone;
+    the status is not, because refusing is still how this pipeline answers a
+    spec it cannot honour.
+    """
+    hits = [p.name for p in (ROOT / "agent").glob("*.py")
+            if '"status": "REFUSED"' in p.read_text(encoding="utf-8")]
+    hits += [p.name for p in (ROOT / "core").glob("*.py")
+             if 'REFUSED' in p.read_text(encoding="utf-8")]
+    assert hits, "nothing emits REFUSED any more; stop pinning it above"

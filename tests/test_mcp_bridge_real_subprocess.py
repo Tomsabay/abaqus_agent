@@ -639,5 +639,10 @@ def test_bridge_routes_to_real_mcp_subprocess(bridge_with_real_subprocess) -> No
                     break
 
         assert any(event.get("run_id") == run_id for event in events)
-        assert any(event.get("status") in {"RUNNING", "COMPLETED"} for event in events)
+        # FAILED belongs here: the suite hides Abaqus, and since 2026-08-15 a
+        # machine without it is refused rather than walked through the stages.
+        # What the bridge has to do is unchanged — carry the run to a terminal
+        # state and close the stream.
+        assert any(event.get("status") in {"RUNNING", "COMPLETED", "FAILED"}
+                   for event in events)
         assert events[-1] == {"event": "done"}

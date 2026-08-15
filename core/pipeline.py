@@ -3,11 +3,13 @@ core/pipeline.py
 ----------------
 Pipeline execution logic shared between FastAPI server and MCP server.
 
-When Abaqus is available: uses the real AbaqusOrchestrator (runner/ + post/).
-When Abaqus is not available: runs a demo (flow-walkthrough) mode that never
-fabricates results — no numeric KPI without a solver source, every log line
-carries the DEMO MODE prefix, and the KPI section stays empty with an explicit
-未检测到 Abaqus notice (gate G2).
+With Abaqus: uses the real AbaqusOrchestrator (runner/ + post/).
+
+Without Abaqus: refuses, and names the environment variable that fixes it.
+There is no second solver and no walkthrough mode. Both used to live here and
+both were removed 2026-08-15 -- this is an Abaqus agent, so "no Abaqus" is an
+answer, not a situation to simulate around. The rule that outlives them is the
+one that mattered all along: no numeric KPI without a solver that produced it.
 """
 from __future__ import annotations
 
@@ -34,48 +36,6 @@ STAGES = [
     ("physics_contracts", "评估 Physics Contracts",  0.2, 0.5),
 ]
 
-# G2 demo-mode contract: without a solver the pipeline may only demonstrate
-# the FLOW. No line may claim solver output happened (no "ANALYSIS COMPLETE",
-# no "syntaxcheck PASSED", no fabricated numbers) and every line carries the
-# DEMO MODE prefix so a console screenshot can never pass as a real solve.
-DEMO_PREFIX = "DEMO MODE"
-DEMO_KPI_NOTICE = "未检测到 Abaqus，也未检测到 CalculiX，无法求解；演示模式不输出任何数值 KPI"
-
-# Stage wording for the CalculiX fallback. The Abaqus labels above stay exactly
-# as they were: a console screenshot must never be ambiguous about which solver
-# produced the numbers, and "从 ODB 提取 KPI" on a run that never made an .odb
-# would be its own small lie.
-CALCULIX_STAGE_DESCS = {
-    "build_model": "生成 CalculiX .inp（纯 Python 网格器）",
-    "syntaxcheck": "语法检查（CalculiX 无预检，跳过）",
-    "submit_job": "提交 CalculiX 作业",
-    "monitor_job": "等待 CalculiX 求解结束",
-    "extract_kpis": "从 .dat / .frd 提取 KPI",
-}
-
-STAGE_LOGS = {
-    "validate_spec": [
-        ("info", DEMO_PREFIX + " | abaqus_release: {release}, solver: {solver}"),
-    ],
-    "build_model": [
-        ("info", DEMO_PREFIX + " | 流程演示：此阶段会生成 CAE noGUI 脚本并产出 {model}.inp（未检测到 Abaqus，未执行）"),
-    ],
-    "syntaxcheck": [
-        ("info", DEMO_PREFIX + " | 流程演示：此阶段会运行 abaqus syntaxcheck 预检 .inp（未检测到 Abaqus，未执行）"),
-    ],
-    "submit_job": [
-        ("info", DEMO_PREFIX + " | 流程演示：此阶段会提交 Abaqus 求解作业（未检测到 Abaqus，未执行）"),
-    ],
-    "monitor_job": [
-        ("info", DEMO_PREFIX + " | 流程演示：此阶段会轮询 .sta 作业状态（未检测到 Abaqus，未执行）"),
-    ],
-    "extract_kpis": [
-        ("warn", DEMO_PREFIX + " | 未检测到 Abaqus，无法求解 —— 不生成任何数值 KPI"),
-    ],
-    "physics_contracts": [
-        ("info", DEMO_PREFIX + " | 流程演示：无求解 KPI 可评估，Physics Contracts 跳过"),
-    ],
-}
 
 # ── Stage descriptions for progress display ───────────────────────
 
@@ -86,8 +46,7 @@ def _warning_lines(val) -> list[dict]:
     """Stage log lines for a `warnings` progress value.
 
     One key, two meanings. agent/orchestrator.py:436 sends a count
-    (`len(result["warnings"])`); four other sites and the CalculiX
-    orchestrator send a list of texts. The formatter only ever handled the
+    (`len(result["warnings"])`); four other sites send a list of texts. The formatter only ever handled the
     count, so a list rendered as
 
         ⚠ ['85 tie nodes were left unconstrained'] warnings
@@ -111,39 +70,20 @@ def _warning_lines(val) -> list[dict]:
     return [{"level": "warn", "text": "⚠ %d warnings" % count}]
 
 
-def simulate_stage(stage_id: str, model: str, release: str,
-                   solver: str, run_id: str) -> dict:
-    """Demo-mode stage log lines (flow walkthrough only, never solver claims)."""
-    templates = STAGE_LOGS.get(stage_id, [("info", DEMO_PREFIX + " | 流程演示（未执行）")])
-    logs = []
-    for level, msg in templates:
-        logs.append({
-            "level": level,
-            "text": msg.format(model=model, release=release,
-                               solver=solver, run_id=run_id[:8]),
-        })
-    return {"status": "done", "logs": logs}
-
-
-# ── Real Abaqus pipeline (via orchestrator) ───────────────────────
-
 async def _run_pipeline_real(
     run_id: str,
     runs: dict,
     on_stage_update: Callable[[str, dict], Awaitable[None]] | None = None,
     decision=None,
 ) -> None:
-    """Run a real solver pipeline (Abaqus by default, CalculiX when decided)."""
+    """Run the solver pipeline."""
     from agent.orchestrator import build_orchestrator
 
     run = runs[run_id]
     run["status"] = "RUNNING"
     spec = run["spec"]
     runner_cfg = run.get("runner_cfg", {})
-    is_ccx = getattr(decision, "backend", None) == "calculix"
     stage_descs = dict(STAGE_DESCS)
-    if is_ccx:
-        stage_descs.update(CALCULIX_STAGE_DESCS)
     if decision is not None:
         run["backend"] = decision.as_dict()
 
@@ -178,10 +118,10 @@ async def _run_pipeline_real(
                 elif key == "skipped":
                     logs.append({"level": "warn", "text": f"跳过：{val}"})
                 elif key == "caveat":
-                    # Same key, two very different meanings: the CalculiX
-                    # fallback tags a number it computed differently, while the
-                    # grading stages use it to say nothing was compared at all.
-                    # "降级说明" on the latter reads as a solver problem.
+                    # Same key, two meanings: a stage tagging a number it
+                    # qualified, versus a grading stage saying nothing was
+                    # compared at all. "降级说明" on the latter reads as a
+                    # solver problem.
                     prefix = ("未评级" if stage in ("compare_kpis", "physics_contracts")
                               else "降级说明")
                     logs.append({"level": "warn", "text": f"{prefix}：{val}"})
@@ -351,33 +291,28 @@ async def run_pipeline(
     Execute the Abaqus pipeline.
 
     When Abaqus is available: calls the real AbaqusOrchestrator.
-    When not available: runs demo (flow-walkthrough) mode — see DEMO_PREFIX.
+    When not available: refuses, naming the variable that fixes it.
 
     Args:
         run_id: Run identifier
         runs: Shared runs dict (mutated in-place)
         on_stage_update: Optional async callback(stage_id, full_run_snapshot)
     """
-    from core.backends import check_calculix, select_backend
+    from core.backends import select_backend
 
     run = runs[run_id]
     decision = select_backend(
         run.get("spec", {}),
         abaqus_available=check_abaqus(),
-        calculix_available=check_calculix(),
         override=(run.get("runner_cfg") or {}).get("backend"),
     )
     run["backend"] = decision.as_dict()
 
-    # A bad backend setting, or an explicit override naming an absent Abaqus,
-    # must fail loudly rather than slide into demo mode: the user asked for a
-    # specific solver and did not get it. (An unsupported CalculiX spec is
-    # refused by CalculiXOrchestrator itself, with the spec field named.)
-    if decision.backend != "calculix" and not decision.supported:
-        from core.backends import refusal_messages
-        run["status"] = "FAILED"
-        run["limitations"] = [b.as_dict() for b in decision.blockers]
-        run["kpi_notice"] = "；".join(refusal_messages(decision))
+    # No Abaqus, no run. There is nothing to fall back to, and a walkthrough
+    # that produced no numbers was still a screen that looked like a run.
+    if not decision.supported:
+        from core.backends import refusal_fields, refusal_messages
+        run.update(refusal_fields(decision))
         run["finished_at"] = time.time()
         run["stages"]["validate_spec"] = {
             "status": "error",
@@ -388,88 +323,7 @@ async def run_pipeline(
             await on_stage_update("done", _run_snapshot(run))
         return
 
-    if decision.backend in ("abaqus", "calculix"):
-        await _run_pipeline_real(run_id, runs, on_stage_update, decision=decision)
-        return
-
-    # ── Fallback: demo (flow-walkthrough) mode, gate G2 ───────────
-    # Nothing numeric may be produced here: KPIs stay empty with an explicit
-    # notice, and every stage log line carries the DEMO MODE prefix. The only
-    # genuinely executed step is schema validation (needs no solver).
-    run = runs[run_id]
-    run["status"] = "RUNNING"
-    run["demo_mode"] = True
-    run["kpi_notice"] = DEMO_KPI_NOTICE
-    spec = run["spec"]
-    model = spec.get("meta", {}).get("model_name", "Model")
-    # The installed solver is the authority, not the spec field — that field is
-    # unvalidated user metadata and has drifted before. Only fall back to the
-    # spec (and label it) when no solver can be probed.
-    from tools.abaqus_cmd import detect_abaqus_release
-    detected = detect_abaqus_release()
-    if detected:
-        release = detected
-    else:
-        stated = spec.get("meta", {}).get("abaqus_release") or "未知"
-        release = f"{stated}（spec 声明值，未探测到求解器）"
-    solver = spec.get("analysis", {}).get("solver", "standard")
-
-    total = len(STAGES)
-
-    for i, (stage_id, desc, dur_min, _dur_max) in enumerate(STAGES):
-        run["stages"][stage_id] = {"status": "running", "desc": desc, "logs": []}
-        run["progress_pct"] = round(i / total * 100)
-
-        if on_stage_update:
-            await on_stage_update(stage_id, _run_snapshot(run))
-
-        stage_start = time.time()
-        # UI pacing only — fixed short delay so the flow demo stays watchable.
-        await asyncio.sleep(dur_min)
-
-        result = simulate_stage(stage_id, model, release, solver, run_id)
-        status = result["status"]
-        logs = result["logs"]
-
-        if stage_id == "validate_spec":
-            # Schema validation is real work that needs no solver — run it.
-            valid, errors = validate_spec(spec)
-            if valid:
-                logs = [{"level": "ok",
-                         "text": DEMO_PREFIX + " | Schema 校验通过（真实执行，无需求解器）"}] + logs
-            else:
-                status = "error"
-                logs = [{"level": "error",
-                         "text": DEMO_PREFIX + " | Schema 校验失败: " + "; ".join(errors)}]
-
-        run["stages"][stage_id] = {
-            "status": status,
-            "desc": desc,
-            "logs": logs,
-            "elapsed_ms": int((time.time() - stage_start) * 1000),
-        }
-
-        if on_stage_update:
-            await on_stage_update(stage_id, _run_snapshot(run))
-
-        if status == "error":
-            run["status"] = "FAILED"
-            run["finished_at"] = time.time()
-            if on_stage_update:
-                await on_stage_update("done", _run_snapshot(run))
-            return
-
-    # G2: no solver ran, so there is nothing to report — no KPIs, no
-    # regression verdict, no contract evaluation against fabricated values.
-    run["kpis"] = {}
-    run["regression"] = {}
-    run["contracts"] = {}
-    run["progress_pct"] = 100
-    run["status"] = "COMPLETED"
-    run["finished_at"] = time.time()
-
-    if on_stage_update:
-        await on_stage_update("done", _run_snapshot(run))
+    await _run_pipeline_real(run_id, runs, on_stage_update, decision=decision)
 
 
 def _run_snapshot(run: dict) -> dict:
@@ -483,7 +337,7 @@ def _run_snapshot(run: dict) -> dict:
         "kpis_missing": run.get("kpis_missing", []),
         "mesh_risks": run.get("mesh_risks", []),
         "kpi_notice": run.get("kpi_notice", ""),
-        "demo_mode": run.get("demo_mode", False),
+        "unsolved": not (run.get("backend") or {}).get("supported", True),
         # Which solver produced these numbers, and what it could not do.
         "backend": run.get("backend", {}),
         "limitations": run.get("limitations", []),
@@ -572,78 +426,3 @@ async def run_benchmark_async(
     run["progress_pct"] = 100
     run["status"] = "COMPLETED"
     run["finished_at"] = time.time()
-
-
-# ── Demo flow for the orchestrator entry (gate G2) ───────────────────────────────────────────────────
-
-def run_demo_flow(
-    spec: dict,
-    spec_path: str | Path | None = None,
-    workdir: str | Path | None = None,
-    on_progress: Callable[[str, dict], None] | None = None,
-) -> dict:
-    """Solver-less demo flow used by AbaqusOrchestrator when no Abaqus resolves.
-
-    Contract (G2): performs only the real, solver-free step (schema
-    validation), announces every skipped solver stage with a DEMO MODE
-    prefix, and persists a result.json whose KPI section is empty plus an
-    explicit 未检测到 Abaqus notice. The workdir defaults to a fresh temp dir
-    so demo output can never overwrite a case's runs/ cache from real solves.
-    """
-    import tempfile
-    from datetime import datetime
-
-    progress = on_progress or (lambda s, d: None)
-    progress("demo_mode", {
-        "notice": DEMO_PREFIX + " | 未检测到 Abaqus，无法求解 —— 进入演示模式：仅演示流程，不生成任何数值 KPI",
-    })
-
-    result: dict = {
-        "demo_mode": True,
-        "spec_path": str(spec_path) if spec_path else None,
-        "started_at": datetime.now().isoformat(),
-        "stages": {},
-        "kpis": {},
-        "kpi_notice": DEMO_KPI_NOTICE,
-        "regression": {},
-        "contracts": {},
-        "status": "DEMO",
-    }
-
-    valid, errors = validate_spec(spec)
-    result["stages"]["validate_spec"] = {"valid": valid, "errors": errors, "demo": True}
-    if not valid:
-        result["status"] = "FAILED"
-        result["error"] = {
-            "error_code": "SPEC_INVALID",
-            "message": "Spec validation failed: " + "; ".join(errors),
-        }
-        progress("validate_spec", {
-            "error": DEMO_PREFIX + " | Schema 校验失败: " + "; ".join(errors),
-        })
-    else:
-        progress("validate_spec", {
-            "ok": True,
-            "demo": DEMO_PREFIX + " | Schema \u6821\u9a8c\u901a\u8fc7\uff08\u771f\u5b9e\u6267\u884c\uff0c\u65e0\u9700\u6c42\u89e3\u5668\uff09",
-        })
-        for stage_id, desc, _dur_min, _dur_max in STAGES[1:]:
-            note = DEMO_PREFIX + " | \u6d41\u7a0b\u6f14\u793a\uff1a" + desc + "\uff08\u672a\u68c0\u6d4b\u5230 Abaqus\uff0c\u672a\u6267\u884c\uff09"
-            result["stages"][stage_id] = {"status": "demo_skipped", "demo": True, "notice": note}
-            progress(stage_id, {"demo": note})
-
-    result["finished_at"] = datetime.now().isoformat()
-
-    out_dir = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="abaqus_agent_demo_"))
-    out_dir.mkdir(parents=True, exist_ok=True)
-    result["workdir"] = str(out_dir)
-    result_path = out_dir / "result.json"
-    result["result_path"] = str(result_path)
-    try:
-        result_path.write_text(
-            json.dumps(result, indent=2, ensure_ascii=False, default=str),
-            encoding="utf-8",
-        )
-    except OSError:
-        result["result_path"] = None
-    progress("demo_mode", {"result_json": result.get("result_path")})
-    return result

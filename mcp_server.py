@@ -886,15 +886,12 @@ async def diagnose_cae_error_tool(traceback_text: str) -> str:
 
 @mcp.tool(description="Health check — returns server status and solver availability")
 async def health_check() -> str:
-    # An MCP client deciding whether to propose a solve needs to know it may
-    # land on the reduced CalculiX subset, not just that "a solver exists".
-    from core.backends import backend_label, check_calculix, select_backend
+    from core.backends import backend_label, select_backend
 
     decision = select_backend({})
     return json.dumps({
         "status": "ok",
         "abaqus_available": check_abaqus(),
-        "calculix_available": check_calculix(),
         "solver_backend": decision.backend,
         "solver_label": backend_label(decision.backend, decision.version),
         "cases": list_cases(),

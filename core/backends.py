@@ -1,21 +1,24 @@
 """
 core/backends.py
 ----------------
-Which solver runs this spec, and what that solver honestly cannot do.
+Which solver runs this spec, and what happens when there is none.
 
-Policy (the owner's words): if the user has Abaqus we use Abaqus — we do not
-care which version or where it came from. If they do not, we fall back to
-CalculiX, but only for a verified subset, and the interface must say plainly
-what is and is not supported. If neither is present we keep the existing demo
-(flow-walkthrough) mode, which produces no numbers at all.
+Policy (the owner's words): this product drives Abaqus. If the user has Abaqus
+we use it — we do not care which version or where it came from. If they do not,
+the run is refused with the one sentence that fixes it. There is no second
+solver and no walkthrough.
 
-Two rules shape everything below.
+Both used to be here. A CalculiX backend shipped 2026-08-01 and a demo mode
+long before it; both were removed 2026-08-15 by the owner's decision. A visitor
+with no Abaqus is not a user of an Abaqus workbench, so a verified-subset
+fallback bought reach we do not want at the cost of a whole capability matrix to
+keep honest — and a walkthrough that narrated seven stages and finished
+COMPLETED was, at a glance, indistinguishable from a machine that had solved
+something. Nothing here approximates a solver that is absent.
 
-  1. A feature is supported only if it was actually measured. "CalculiX
-     probably handles *FREQUENCY" is not evidence, so Frequency is refused here
-     even though ccx has the keyword — it moves to supported when
-     scripts/run_calculix_backend_check.py has a passing item for it.
-  2. Refusing is a correct outcome. Silently approximating is a defect.
+One rule survives it and still shapes this module:
+
+    Refusing is a correct outcome. Silently approximating is a defect.
 
 Leaf-ish module: imports only tools/*, so pytest can exercise the decision
 logic without pulling in the runner or the server.
@@ -30,16 +33,14 @@ from typing import Literal
 
 from core import messages
 from tools.abaqus_cmd import ENV_ABAQUS_CMD, detect_abaqus_release
-from tools.ccx_cmd import ENV_CCX_EXE, detect_ccx_version, get_ccx_cmd
 
-# auto | abaqus | calculix | demo
+# auto | abaqus. Kept as a variable rather than dropped: it is the name shown in
+# the refusal when someone asks for a backend that no longer exists.
 ENV_BACKEND = "ABAQUS_AGENT_SOLVER_BACKEND"
 
 BACKEND_ABAQUS = "abaqus"
-BACKEND_CALCULIX = "calculix"
-BACKEND_DEMO = "demo"
 
-Backend = Literal["abaqus", "calculix", "demo"]
+Backend = Literal["abaqus"]
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,7 @@ class Limitation:
 @dataclass(frozen=True)
 class BackendDecision:
     backend: Backend
-    label: str                                   # e.g. "CalculiX 2.23"
+    label: str                                   # e.g. "Abaqus 2021"
     reason: str                                  # why this backend was chosen
     source: str                                  # "auto" | "env" | "runner_cfg"
     version: str | None = None
@@ -116,30 +117,17 @@ def check_abaqus_available() -> bool:
     return check_abaqus()
 
 
-def check_calculix() -> bool:
-    return get_ccx_cmd() is not None
-
-
 def backend_label(backend: Backend, version: str | None, lang: str | None = None) -> str:
-    if backend == BACKEND_ABAQUS:
-        return ("Abaqus %s" % version if version
-                else messages.render("backend.label.abaqus_unknown_version", lang))
-    if backend == BACKEND_CALCULIX:
-        return ("CalculiX %s" % version if version
-                else messages.render("backend.label.calculix_unknown_version", lang))
-    return messages.render("backend.label.demo", lang)
+    return ("Abaqus %s" % version if version
+            else messages.render("backend.label.abaqus_unknown_version", lang))
 
 
 # ---------------------------------------------------------------------------
-# CalculiX capability matrix
+# Refusals
 # ---------------------------------------------------------------------------
-
-_HOWTO_KEY = "ccx.howto"
-_HOWTO_PARAMS = {"env": ENV_ABAQUS_CMD}
-
 
 def _limit(feature: str, value: str, key: str, *, kind: str = "blocker",
-           howto: bool = True, **params) -> Limitation:
+           **params) -> Limitation:
     """Build a refusal that can be read back in either language.
 
     ``reason`` stays the rendered Chinese, because that is what every existing
@@ -148,163 +136,9 @@ def _limit(feature: str, value: str, key: str, *, kind: str = "blocker",
     without the backend having to know which language this particular reader
     speaks; a refusal outlives the request that produced it.
     """
-    params = {**params, **(_HOWTO_PARAMS if howto else {})}
-    reason = messages.render(key, "zh", **params)
-    suffix = _HOWTO_KEY if howto else ""
-    if suffix:
-        reason += messages.render(suffix, "zh", **params)
-    return Limitation(feature, value, reason, kind,
-                      reason_key=key, suffix_key=suffix, reason_params=params)
+    return Limitation(feature, value, messages.render(key, "zh", **params),
+                      kind, reason_key=key, reason_params=params)
 
-_SUPPORTED_GEOMETRY = {"cantilever_block", "custom_inp"}
-_SUPPORTED_STEP_TYPES = {"Static"}
-_SUPPORTED_LOAD_TYPES = {"concentrated_force"}
-_SUPPORTED_KPI_TYPES = {
-    "nodal_displacement", "field_min", "field_max",
-    "reaction_force_max", "derived_stress_concentration",
-}
-# KPI types that run but whose number is NOT Abaqus-equivalent.
-_CAVEAT_KPI_TYPES = {"field_max", "derived_stress_concentration"}
-
-_GEOMETRY_KEYS = {
-    "plate_with_hole": "ccx.geometry.plate_with_hole",
-    "square_plate": "ccx.geometry.square_plate",
-    "axisymmetric_disk": "ccx.geometry.axisymmetric_disk",
-    "beam_frame": "ccx.geometry.beam_frame",
-    "composite_plate": "ccx.geometry.composite_plate",
-    "cohesive_layer": "ccx.geometry.cohesive_layer",
-}
-
-_STEP_KEYS = {
-    "Frequency": "ccx.step.frequency",
-    "Dynamic_Implicit": "ccx.step.dynamic_implicit",
-    "Dynamic_Explicit": "ccx.step.dynamic_explicit",
-    "Coupled_Temperature_Displacement": "ccx.step.coupled_temp_disp",
-    "Coupled_Thermal_Electrical": "ccx.step.coupled_thermal_electrical",
-}
-
-_LOAD_KEYS = {
-    "blast_conwep": "ccx.load.blast_conwep",
-    "pressure": "ccx.load.pressure",
-    "displacement": "ccx.load.displacement",
-    "temperature": "ccx.load.temperature",
-    "heat_flux": "ccx.load.heat_flux",
-    "body_heat_flux": "ccx.load.body_heat_flux",
-}
-
-_KPI_KEYS = {
-    "eigenfrequency": "ccx.kpi.eigenfrequency",
-    "history_output_max": "ccx.kpi.history_output_max",
-}
-
-_MATERIAL_KEYS = (
-    ("electrical_conductivity", "ccx.material.conductivity"),
-    ("fracture_energy", "ccx.material.fracture_energy"),
-    ("max_traction", "ccx.material.max_traction"),
-    ("yield", "ccx.material.plasticity"),
-    ("yield_stress", "ccx.material.plasticity"),
-)
-
-
-def calculix_capability(spec: dict) -> tuple[list[Limitation], list[Limitation]]:
-    """Evaluate a spec against the verified CalculiX subset.
-
-    Returns ``(blockers, caveats)``. Pure function, no I/O — this is the part
-    that has to be hermetically testable.
-    """
-    blockers: list[Limitation] = []
-    caveats: list[Limitation] = []
-
-    geo = spec.get("geometry", {}) or {}
-    ana = spec.get("analysis", {}) or {}
-    mat = spec.get("material", {}) or {}
-    bc = spec.get("bc_load", {}) or {}
-    outputs = spec.get("outputs", {}) or {}
-
-    if spec.get("parts"):
-        # Refused by name. Without this the v2 dialect still failed — it has no
-        # `geometry` block, so the check below reported "geometry.type = None",
-        # which reads as a malformed spec rather than as the whole modelling
-        # dialect being Abaqus-only. A refusal that names the wrong field sends
-        # the reader to fix something that was never wrong.
-        blockers.append(_limit(
-            "parts", "%d part(s)" % len(spec["parts"]),
-            "ccx.spec.assembly_dialect"))
-        return blockers, caveats
-
-    geo_type = geo.get("type")
-    if geo_type not in _SUPPORTED_GEOMETRY:
-        blockers.append(_limit(
-            "geometry.type", str(geo_type),
-            _GEOMETRY_KEYS.get(str(geo_type), "ccx.geometry.unsupported")))
-
-    step_type = ana.get("step_type", "Static")
-    if step_type not in _SUPPORTED_STEP_TYPES:
-        blockers.append(_limit(
-            "analysis.step_type", str(step_type),
-            _STEP_KEYS.get(str(step_type), "ccx.step.unsupported")))
-
-    if ana.get("nlgeom"):
-        blockers.append(_limit("analysis.nlgeom", "true", "ccx.step.nlgeom"))
-
-    if (ana.get("adaptive_mesh") or {}).get("enabled"):
-        blockers.append(_limit(
-            "analysis.adaptive_mesh.enabled", "true", "ccx.step.adaptive_mesh"))
-
-    if str(ana.get("mp_mode", "threads")).lower() == "mpi":
-        # No howto suffix: this one is fixable without installing anything.
-        blockers.append(_limit(
-            "analysis.mp_mode", "mpi", "ccx.runner.no_mpi", howto=False))
-
-    if spec.get("parametric", {}).get("parameters"):
-        blockers.append(_limit(
-            "parametric.parameters", "present", "ccx.step.parametric_sweep"))
-
-    load_type = bc.get("load_type")
-    if load_type and load_type not in _SUPPORTED_LOAD_TYPES:
-        blockers.append(_limit(
-            "bc_load.load_type", str(load_type),
-            _LOAD_KEYS.get(str(load_type), "ccx.load.unsupported")))
-    if bc.get("thermal_bc"):
-        blockers.append(_limit(
-            "bc_load.thermal_bc", "present", "ccx.load.thermal_bc"))
-
-    for mat_field, key in _MATERIAL_KEYS:
-        if mat.get(mat_field) is not None:
-            blockers.append(_limit(
-                "material.%s" % mat_field, str(mat.get(mat_field)), key))
-    if spec.get("materials"):
-        blockers.append(_limit(
-            "materials", "multi-material", "ccx.material.multi_material"))
-
-    for idx, kpi in enumerate(outputs.get("kpis", []) or []):
-        kind = kpi.get("type")
-        name = kpi.get("name", "kpi[%d]" % idx)
-        location = str(kpi.get("location") or "").split(":", 1)[-1].strip().lower()
-        if kind not in _SUPPORTED_KPI_TYPES:
-            blockers.append(_limit(
-                "outputs.kpis[%s].type" % name, str(kind),
-                _KPI_KEYS.get(str(kind), "ccx.kpi.unsupported")))
-        elif (kind in ("field_max", "derived_stress_concentration")
-              and location and location not in ("whole_model", "all")):
-            # Refuse BEFORE the solve, not at extraction: these KPIs read the
-            # .frd field blocks, which are whole-model only. Letting the run
-            # proceed would burn a real solve and then fail at the last stage
-            # (post/extract_kpis_ccx.py has the same guard as belt-and-braces).
-            blockers.append(_limit(
-                "outputs.kpis[%s].location" % name, str(kpi.get("location")),
-                "ccx.kpi.location_whole_model_only"))
-        elif kind in _CAVEAT_KPI_TYPES:
-            caveats.append(_limit(
-                "outputs.kpis[%s].type" % name, str(kind),
-                "ccx.kpi.stress_not_comparable", kind="caveat", howto=False))
-
-    if geo_type == "custom_inp":
-        caveats.append(_limit(
-            "geometry.type", "custom_inp", "ccx.custom_inp.flattened",
-            kind="caveat", howto=False))
-
-    return blockers, caveats
 
 
 # ---------------------------------------------------------------------------
@@ -315,23 +149,20 @@ def select_backend(
     spec: dict | None = None,
     *,
     abaqus_available: bool | None = None,
-    calculix_available: bool | None = None,
     override: str | None = None,
 ) -> BackendDecision:
-    """Pick the backend for this spec.
+    """Decide whether this spec can be run, and say why not when it cannot.
 
-    Precedence: explicit ``override`` > ``ABAQUS_AGENT_SOLVER_BACKEND`` env >
-    auto (Abaqus, then CalculiX, then demo). Abaqus always wins in auto mode;
-    there is no user-facing switch that demotes a working Abaqus by accident.
+    There is one backend. This is an Abaqus agent: without Abaqus there is
+    nothing to drive, so the honest answer is a refusal that names the
+    environment variable to set — not a second solver, and not a walkthrough
+    that looks like a run.
 
-    An explicit override naming an absent solver comes back as that backend
-    WITH a blocker — it fails loudly instead of quietly dropping to demo mode.
+    The returned decision is always ``abaqus``; ``supported`` is False when it
+    could not be found, and ``blockers`` carries the sentence to show the user.
     """
-    spec = spec or {}
     if abaqus_available is None:
         abaqus_available = check_abaqus_available()
-    if calculix_available is None:
-        calculix_available = check_calculix()
 
     requested = (override or "").strip().lower() or None
     source = "runner_cfg" if requested else "auto"
@@ -341,77 +172,41 @@ def select_backend(
             requested = env_value
             source = "env"
 
-    if requested and requested not in (BACKEND_ABAQUS, BACKEND_CALCULIX, BACKEND_DEMO):
+    if requested and requested != BACKEND_ABAQUS:
         return BackendDecision(
-            backend=BACKEND_DEMO,
-            label=backend_label(BACKEND_DEMO, None),
+            backend=BACKEND_ABAQUS,
+            label=backend_label(BACKEND_ABAQUS, None),
             reason=messages.render("backend.select.bad_env_value", "zh",
                                    env=ENV_BACKEND, value=requested),
             reason_key="backend.select.bad_env_value",
             reason_params={"env": ENV_BACKEND, "value": str(requested)},
             source=source,
             blockers=(_limit(ENV_BACKEND, str(requested),
-                             "backend.select.bad_env_hint", howto=False),),
+                             "backend.select.bad_env_hint", env=ENV_BACKEND),),
         )
 
-    if requested == BACKEND_DEMO:
+    if not abaqus_available:
         return BackendDecision(
-            backend=BACKEND_DEMO, label=backend_label(BACKEND_DEMO, None),
-            reason=messages.render("backend.select.demo_requested", "zh"),
-            reason_key="backend.select.demo_requested", source=source,
+            backend=BACKEND_ABAQUS, label=backend_label(BACKEND_ABAQUS, None),
+            reason=messages.render("backend.select.abaqus_not_found", "zh",
+                                   env=ENV_ABAQUS_CMD),
+            reason_key="backend.select.abaqus_not_found",
+            reason_params={"env": ENV_ABAQUS_CMD},
+            source=source,
+            blockers=(_limit(ENV_BACKEND, BACKEND_ABAQUS,
+                             "backend.select.abaqus_not_found",
+                             env=ENV_ABAQUS_CMD),),
         )
 
-    if requested == BACKEND_ABAQUS or (not requested and abaqus_available):
-        if not abaqus_available:
-            return BackendDecision(
-                backend=BACKEND_ABAQUS, label=backend_label(BACKEND_ABAQUS, None),
-                reason=messages.render("backend.select.abaqus_requested_missing", "zh"),
-                reason_key="backend.select.abaqus_requested_missing", source=source,
-                blockers=(_limit(ENV_BACKEND, BACKEND_ABAQUS,
-                                 "backend.select.abaqus_not_found",
-                                 howto=False, env=ENV_ABAQUS_CMD),),
-            )
-        release = detect_abaqus_release()
-        reason_key = ("backend.select.abaqus_auto" if source == "auto"
-                      else "backend.select.abaqus_explicit")
-        return BackendDecision(
-            backend=BACKEND_ABAQUS,
-            label=backend_label(BACKEND_ABAQUS, release),
-            reason=messages.render(reason_key, "zh"),
-            reason_key=reason_key,
-            source=source, version=release,
-        )
-
-    if requested == BACKEND_CALCULIX or (not requested and calculix_available):
-        if not calculix_available:
-            return BackendDecision(
-                backend=BACKEND_CALCULIX, label=backend_label(BACKEND_CALCULIX, None),
-                reason=messages.render("backend.select.calculix_requested_missing", "zh"),
-                reason_key="backend.select.calculix_requested_missing", source=source,
-                blockers=(_limit(ENV_BACKEND, BACKEND_CALCULIX,
-                                 "backend.select.calculix_not_found",
-                                 howto=False, env=ENV_CCX_EXE),),
-            )
-        version = detect_ccx_version()
-        blockers, caveats = calculix_capability(spec)
-        if version is None:
-            blockers = [_limit("calculix.version", "unknown",
-                               "backend.select.calculix_no_version",
-                               howto=False)] + blockers
-        reason_key = ("backend.select.calculix_fallback" if source == "auto"
-                      else "backend.select.calculix_explicit")
-        return BackendDecision(
-            backend=BACKEND_CALCULIX,
-            label=backend_label(BACKEND_CALCULIX, version),
-            reason=messages.render(reason_key, "zh"), reason_key=reason_key,
-            source=source, version=version,
-            blockers=tuple(blockers), caveats=tuple(caveats),
-        )
-
+    release = detect_abaqus_release()
+    reason_key = ("backend.select.abaqus_auto" if source == "auto"
+                  else "backend.select.abaqus_explicit")
     return BackendDecision(
-        backend=BACKEND_DEMO, label=backend_label(BACKEND_DEMO, None),
-        reason=messages.render("backend.select.no_solver", "zh"),
-        reason_key="backend.select.no_solver", source=source,
+        backend=BACKEND_ABAQUS,
+        label=backend_label(BACKEND_ABAQUS, release),
+        reason=messages.render(reason_key, "zh"),
+        reason_key=reason_key,
+        source=source, version=release,
     )
 
 
@@ -424,3 +219,19 @@ def refusal_messages(decision: BackendDecision,
     sep = "：" if lang == "zh" else ": "
     return ["%s = %s%s%s" % (b.feature, b.value, sep, b.localized(lang))
             for b in decision.blockers]
+
+
+def refusal_fields(decision: BackendDecision) -> dict:
+    """The run/result fields a refusal sets, in one place.
+
+    core.pipeline and agent.orchestrator both refuse, and they were building
+    the same four keys independently — which is how one of them ends up
+    carrying a notice the other does not, and a refusal reads differently
+    depending on which door the caller came through.
+    """
+    return {
+        "status": "FAILED",
+        "backend": decision.as_dict(),
+        "limitations": [b.as_dict() for b in decision.blockers],
+        "kpi_notice": "；".join(refusal_messages(decision)),
+    }

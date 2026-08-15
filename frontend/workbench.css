@@ -811,8 +811,9 @@
                    animation: pulse 1.4s var(--ease) infinite; }
   .schip.done { color: var(--green); border-color: var(--green-bd); background: var(--green-bg); }
   .schip.error { color: var(--red); border-color: var(--red-bd); background: var(--red-bg); }
-  /* skipped is NOT done: CalculiX has no syntaxcheck, and a green tick there
-     would claim a pre-check that never happened. */
+  /* skipped is NOT done: a stage the run chose not to perform (syntaxcheck
+     with syntaxcheck_first off, for one) must not wear a green tick, which
+     would claim a check that never happened. */
   .schip.skipped { color: var(--tx2); border-color: var(--bd2); background: var(--bg3);
                    text-decoration: line-through; }
   .backend-banner {

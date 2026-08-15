@@ -360,13 +360,19 @@ def test_copilot_status_card_renders_live_kpis():
 
 
 def test_workbench_surfaces_the_solver_backend_and_its_limits():
-    """A degraded run must never render as if a full Abaqus solve produced it."""
+    """A run that solved nothing must never render as if Abaqus produced it.
+
+    The markers this pinned until 2026-08-15 were about a CalculiX fallback
+    degrading in place. There is no fallback now, so the same screen has to
+    carry the harder message — nothing ran — and still say why.
+    """
     source = workbench_text()
 
     required_markers = [
-        "health.solver_backend === 'calculix'",
-        "降级模式（仅支持已验证的功能子集）",
-        "backend.backend === 'calculix'",
+        "backend.supported === false",
+        "backend.unavailable.title",
+        "未求解：本机没有 Abaqus",
+        "ABAQUS_AGENT_ABAQUS_CMD",
         'class="backend-banner"',
         "run.visuals_notice",
         "const noVisualsWhy = (run && run.visuals_notice)",
@@ -379,6 +385,15 @@ def test_workbench_surfaces_the_solver_backend_and_its_limits():
 
     missing_markers = [marker for marker in required_markers if marker not in source]
     assert missing_markers == []
+
+
+def test_the_workbench_no_longer_offers_a_second_solver():
+    """A leftover branch would light a LED for a backend that cannot exist."""
+    source = workbench_text()
+
+    for gone in ("calculix", "CalculiX", "calculix_available",
+                 "backend.fallback", "sb.release.degraded"):
+        assert gone not in source, gone
 
 
 def test_preview_parse_problems_survive_every_stats_rewrite():

@@ -179,30 +179,35 @@ class AbaqusOrchestrator:
     # -------------------------------------------------------------------------
 
     def _preflight(self) -> dict | None:
-        """Gate G2: without a resolvable Abaqus there is nothing to solve.
+        """Without a resolvable Abaqus there is nothing to drive. Refuse.
 
-        Delegate to the demo (flow-walkthrough) contract in core.pipeline —
-        never fabricate KPIs, never touch the case's runs/ cache dirs. Returns
-        a finished result dict to short-circuit run(), or None to proceed.
-        Subclasses (CalculiXOrchestrator) replace this with their own gate.
+        This used to hand off to a solver-less walkthrough, which put a running
+        pipeline on screen for a machine that could not solve anything.
+
+        Returns a finished refusal to short-circuit run(), or None to proceed.
+        A result dict, not an exception, because that is how every other
+        failure here arrives. run() returns before the capsule and result are
+        written, so a refusal leaves the case's runs/ cache untouched.
         """
         from core.helpers import check_abaqus
-        if not check_abaqus():
-            from core.pipeline import run_demo_flow
-            return run_demo_flow(
-                self.spec,
-                spec_path=self.spec_path,
-                workdir=self.workdir,
-                on_progress=self.on_progress,
-            )
-        return None
+        if check_abaqus():
+            return None
+
+        from core.backends import refusal_fields, refusal_messages, select_backend
+        from tools.errors import AbaqusAgentError, ErrorCode
+        decision = select_backend(self.spec, abaqus_available=False)
+        lines = refusal_messages(decision)
+        self.on_progress("validate_spec", {"refusals": lines})
+        self.result.update(refusal_fields(decision), finished_at=datetime.now().isoformat(),
+                           error=AbaqusAgentError(ErrorCode.ABAQUS_NOT_FOUND,
+                                                  "；".join(lines)).to_dict())
+        return self.result
 
     def run(self) -> dict:
         """Execute the full pipeline. Returns final result dict."""
-        preflight = self._preflight()
-        if preflight is not None:
-            self.result = preflight
-            return self.result
+        refusal = self._preflight()
+        if refusal is not None:
+            return refusal
 
         # Check for parametric sweep
         if self._is_parametric():
@@ -566,9 +571,8 @@ class AbaqusOrchestrator:
         """
         missing = missing_kpis(kpi_spec, self.result["kpis"], result.get("errors"))
         self.result["kpis_missing"] = missing
-        # Appended, never assigned: the CalculiX subclass has already put its
-        # capability caveats in this list by the time extraction runs, and an
-        # assignment here would erase them.
+        # Appended, never assigned: earlier stages put their own caveats here
+        # first, and an assignment would erase them.
         self.result.setdefault("limitations", []).extend(
             {"feature": "KPI", "value": m["name"], "kind": "kpi_not_extracted",
              "reason": "%s 这条 KPI 被 spec 要求了，但结果里没有。%s" % (
@@ -895,20 +899,16 @@ class AbaqusOrchestrator:
 
 
 # ---------------------------------------------------------------------------
-# Backend-aware factory
+# Orchestrator factory
 # ---------------------------------------------------------------------------
 
 def build_orchestrator(decision=None, **kwargs) -> AbaqusOrchestrator:
-    """Return the orchestrator for the chosen backend.
+    """Return the orchestrator that runs this spec — there is only one.
 
-    ``decision`` is a core.backends.BackendDecision (or None = Abaqus, the
-    historical behaviour). The CalculiX import is lazy so the Abaqus path never
-    pays for it and there is no import cycle through core.backends.
+    ``decision`` is accepted and ignored: it used to pick between Abaqus and a
+    CalculiX subclass, and the ~18 call sites still pass it. An unsupported
+    decision never reaches here; core.pipeline refuses before calling.
     """
-    backend = getattr(decision, "backend", None)
-    if backend == "calculix":
-        from agent.ccx_orchestrator import CalculiXOrchestrator
-        return CalculiXOrchestrator(decision=decision, **kwargs)
     return AbaqusOrchestrator(**kwargs)
 
 
@@ -924,10 +924,17 @@ if __name__ == "__main__":
     def _progress(stage, data):
         print(f"  [{stage}] {data}")
 
-    from core.backends import select_backend
+    from core.backends import refusal_messages, select_backend
     _spec = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
     _decision = select_backend(_spec)
     print(f"  [backend] {_decision.label} — {_decision.reason}")
+
+    # The whole answer for a machine with no Abaqus, said in one line rather
+    # than left for the caller to find inside a 40-line result blob.
+    if not _decision.supported:
+        for _line in refusal_messages(_decision):
+            print(f"  [refused] {_line}")
+        sys.exit(2)
 
     orch = build_orchestrator(
         decision=_decision,

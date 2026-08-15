@@ -36,23 +36,27 @@ def _make_run(run_id="test_real_001", spec=None):
 
 
 class TestRealPipelineDispatch:
-    """Test that run_pipeline dispatches to real vs simulated correctly."""
+    """Test that run_pipeline either drives the solver or refuses."""
 
-    def test_dispatches_to_simulated_when_no_abaqus(self):
+    def test_refuses_when_no_abaqus(self):
+        """There is one dispatch target now. Without Abaqus the pipeline used
+        to walk through the seven stages and finish COMPLETED; it was removed
+        2026-08-15, because on screen that was indistinguishable from a solve.
+        """
         from core.pipeline import run_pipeline
 
         runs = {}
-        run_id = "dispatch_sim"
+        run_id = "dispatch_refused"
         runs[run_id] = _make_run(run_id)
 
         with patch("core.pipeline.check_abaqus", return_value=False):
-            asyncio.get_event_loop().run_until_complete(
-                run_pipeline(run_id, runs)
-            )
+            asyncio.get_event_loop().run_until_complete(run_pipeline(run_id, runs))
 
-        assert runs[run_id]["status"] == "COMPLETED"
-        # Simulated path sets all stages, including physics contracts.
-        assert len(runs[run_id]["stages"]) == 7
+        assert runs[run_id]["status"] == "FAILED"
+        assert runs[run_id]["kpis"] == {}
+        # Only the stage that really ran. Six narrated ones would be six lies.
+        assert set(runs[run_id]["stages"]) == {"validate_spec"}
+        assert "ABAQUS_AGENT_ABAQUS_CMD" in runs[run_id]["kpi_notice"]
 
     def test_dispatches_to_real_when_abaqus_available(self):
         from core.pipeline import run_pipeline

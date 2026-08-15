@@ -371,43 +371,60 @@ def test_memory_search_endpoint(tmp_path):
 
 # ── the report must carry the caveats the run carried ───────────────────────
 
-def _demo_run() -> dict:
+def _unsolved_run() -> dict:
     """A run the way core/pipeline.py leaves one when no solver was found.
 
-    Note the status: the demo path sets demo_mode and then finishes the run as
-    COMPLETED, not DEMO. That matters below.
+    Whether it is unsolved is read off the backend decision, not off a flag
+    the run sets for itself: the flag was `demo_mode`, set by a walkthrough
+    that finished COMPLETED, so neither the flag nor the status told the
+    renderer the truth.
     """
     return {
-        "run_id": "demo-report",
-        "status": "COMPLETED",
+        "run_id": "unsolved-report",
+        "status": "FAILED",
         "spec": {"meta": {"model_name": "Beam", "abaqus_release": "2021"}},
         "kpis": {},
-        "demo_mode": True,
+        "backend": {"backend": "abaqus", "supported": False,
+                    "blockers": [{"feature": "ABAQUS_AGENT_SOLVER_BACKEND",
+                                  "value": "abaqus", "reason": "未检测到 Abaqus"}]},
         "kpi_notice": "未检测到 Abaqus，本次没有求解",
         "limitations": ["85 tie nodes were silently left unconstrained"],
         "kpis_missing": [{"name": "U_tip", "reason": "no odb was produced"}],
     }
 
 
-def test_a_demo_run_cannot_export_a_report_that_looks_real():
+def test_an_unsolved_run_cannot_export_a_report_that_looks_real():
     """The report outlives the session; it gets mailed to someone who never
-    saw the screen. _build_run_report used to drop demo_mode, and because the
-    demo path finishes as COMPLETED rather than DEMO, the renderer's status
-    fallback did not catch it either -- so a run in which nothing was solved
-    exported markdown, HTML and PDF with no demo marking anywhere."""
-    from reporting.templates import DEMO_BANNER
+    saw the screen. _build_run_report used to drop the flag entirely, and the
+    renderer's status fallback did not catch it either -- so a run in which
+    nothing was solved exported markdown, HTML and PDF with no marking
+    anywhere."""
+    from reporting.templates import NO_SOLVE_BANNER
 
-    report = server._build_run_report(_demo_run())
+    report = server._build_run_report(_unsolved_run())
 
-    assert report["demo_mode"] is True
-    assert DEMO_BANNER in report["markdown"]
-    assert DEMO_BANNER in report["html"]
+    assert report["unsolved"] is True
+    assert NO_SOLVE_BANNER in report["markdown"]
+    assert NO_SOLVE_BANNER in report["html"]
+
+
+def test_a_run_that_reached_the_solver_is_not_marked_unsolved():
+    """The other direction: a job that ran and aborted has a solver behind it
+    and a .msg file to read. Marking it "no solve" would send the reader to
+    the wrong problem."""
+    run = dict(_unsolved_run(), status="FAILED",
+               backend={"backend": "abaqus", "supported": True,
+                        "label": "Abaqus 2021"})
+
+    report = server._build_run_report(run)
+
+    assert report["unsolved"] is False
 
 
 def test_the_report_carries_the_limitations_the_run_recorded():
     """"85 tie nodes were silently left unconstrained" is the whole reason
     the limitations channel exists. It reached the screen and not the file."""
-    report = server._build_run_report(_demo_run())
+    report = server._build_run_report(_unsolved_run())
 
     assert report["limitations"] == [
         "85 tie nodes were silently left unconstrained"]
@@ -418,7 +435,8 @@ def test_the_report_carries_the_limitations_the_run_recorded():
 def test_the_report_names_the_kpis_that_were_asked_for_and_not_produced():
     """Without the denominator, a report showing 2 KPIs looks complete when 5
     were requested."""
-    run = dict(_demo_run(), demo_mode=False, kpis={"MISES_MAX": {"value": 1.0}})
+    run = dict(_unsolved_run(), kpis={"MISES_MAX": {"value": 1.0}},
+               backend={"backend": "abaqus", "supported": True})
 
     report = server._build_run_report(run)
 

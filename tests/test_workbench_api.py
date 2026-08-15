@@ -36,6 +36,17 @@ def client(wb):
     return TestClient(wb.app, raise_server_exceptions=False)
 
 
+@pytest.fixture
+def abaqus_present(monkeypatch):
+    """Get past the accept route's solver gate.
+
+    conftest hides the real Abaqus from the whole suite, and since 2026-08-15
+    /accept refuses with 400 before creating a run when there is none. Tests
+    about what accept does *after* that gate have to say so explicitly.
+    """
+    monkeypatch.setattr("core.helpers.check_abaqus", lambda: True)
+
+
 async def _fake_pipeline_completed(run_id: str, runs: dict, on_stage_update=None) -> None:
     runs[run_id]["status"] = "COMPLETED"
     runs[run_id]["progress_pct"] = 100
@@ -122,7 +133,7 @@ def test_chat_claude_cli_unavailable_reports_error(client):
 
 # ── Accept / reject ──────────────────────────────────────────────────────────
 
-def test_accept_runs_pipeline_and_syncs_session(client, wb, monkeypatch):
+def test_accept_runs_pipeline_and_syncs_session(client, wb, monkeypatch, abaqus_present):
     from workbench import routes
 
     monkeypatch.setattr(routes, "run_pipeline", _fake_pipeline_completed)
@@ -150,7 +161,7 @@ def test_accept_without_pending_409(client):
     assert client.post(f"/api/workbench/sessions/{sid}/accept", json={}).status_code == 409
 
 
-def test_accept_defaults_the_runner_cfg_and_the_caller_wins(client, wb, monkeypatch):
+def test_accept_defaults_the_runner_cfg_and_the_caller_wins(client, wb, monkeypatch, abaqus_present):
     """An empty runner_cfg must NOT fall through to the orchestrator's bare
     defaults (cpus=1, 30-minute ceiling): measured 2026-08-08, bearing_block
     accepted through this endpoint died inside them, while every shipped
@@ -172,7 +183,7 @@ def test_accept_defaults_the_runner_cfg_and_the_caller_wins(client, wb, monkeypa
     assert wb.RUNS[run_id]["runner_cfg"] == {"cpus": 8, "timeout_seconds": 600}
 
 
-def test_accept_blocked_while_run_active(client, monkeypatch):
+def test_accept_blocked_while_run_active(client, monkeypatch, abaqus_present):
     from workbench import routes
 
     monkeypatch.setattr(routes, "run_pipeline", _fake_pipeline_stuck_running)
@@ -894,86 +905,78 @@ def test_make_diff_marks_changed_lines():
     assert "+b: 3" in diff
 
 
-# ── Backend degradation surface ──────────────────────────────────────────────
+# ── What happens on a machine with no Abaqus ─────────────────────────────────
 
-def test_accept_refuses_an_unsupported_spec_before_creating_a_run(client, wb, monkeypatch):
-    """On a CalculiX-only machine the user is told no, with the field named,
-    and no run record is created to look like something happened."""
-    from core import backends
+def test_accept_refuses_without_abaqus_before_creating_a_run(client, wb, monkeypatch):
+    """The whole answer for a visitor who has no solver.
+
+    It used to be a CalculiX capability check here, refusing per spec field.
+    Now there is nothing to fall back to, so the refusal is one sentence — and
+    the part that has not changed is the part that mattered: no run record is
+    created, because a row in the session history reads as work that happened.
+    """
     from workbench import routes
 
     monkeypatch.setattr(routes, "run_pipeline", _fake_pipeline_completed)
-    monkeypatch.setattr(backends, "detect_ccx_version", lambda *a, **k: "2.23")
     monkeypatch.setattr("core.helpers.check_abaqus", lambda: False)
-    monkeypatch.setattr(backends, "check_calculix", lambda: True)
 
     sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
     _chat(client, sid, "悬臂梁 100x10x10，末端 1N")
 
-    # Force the pending spec onto something CalculiX must refuse.
-    import yaml
-    session = client.get(f"/api/workbench/sessions/{sid}").json()
-    spec = yaml.safe_load(session["pending"]["spec_yaml"])
-    spec["analysis"]["step_type"] = "Dynamic_Explicit"
-    spec["bc_load"]["load_type"] = "blast_conwep"
-    spec["bc_load"]["blast_tnt_kg"] = 1.0
-    spec["bc_load"]["blast_standoff_mm"] = 500.0
-
     before = set(wb.RUNS)
-    resp = client.post(f"/api/workbench/sessions/{sid}/accept",
-                       json={"spec_yaml": yaml.safe_dump(spec, allow_unicode=True)})
+    resp = client.post(f"/api/workbench/sessions/{sid}/accept", json={})
+
     assert resp.status_code == 400, resp.text
     detail = resp.json()["detail"]
-    assert detail["backend"]["backend"] == "calculix"
-    assert any("blast_conwep" in e for e in detail["errors"])
-    assert any("CONWEP" in e for e in detail["errors"])
+    assert detail["backend"]["supported"] is False
+    # A refusal that does not carry the way out is a dead end.
+    assert any("ABAQUS_AGENT_ABAQUS_CMD" in e for e in detail["errors"])
     assert set(wb.RUNS) == before, "a refused spec must not create a run record"
 
 
-def test_accept_allows_a_supported_spec_on_calculix(client, wb, monkeypatch):
-    from core import backends
+def test_accept_refuses_a_backend_that_no_longer_exists_by_name(client, wb, monkeypatch):
+    """`calculix` was a valid runner_cfg value until 2026-08-15. Someone's
+    saved config still says it, and silently running Abaqus instead would hand
+    them numbers from a solver they did not ask for."""
     from workbench import routes
 
     monkeypatch.setattr(routes, "run_pipeline", _fake_pipeline_completed)
-    monkeypatch.setattr(backends, "detect_ccx_version", lambda *a, **k: "2.23")
-    monkeypatch.setattr("core.helpers.check_abaqus", lambda: False)
-    monkeypatch.setattr(backends, "check_calculix", lambda: True)
-
-    import yaml
+    monkeypatch.setattr("core.helpers.check_abaqus", lambda: True)
 
     sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
     _chat(client, sid, "悬臂梁 100x10x10，末端 1N")
-    session = client.get(f"/api/workbench/sessions/{sid}").json()
-    spec = yaml.safe_load(session["pending"]["spec_yaml"])
-    # The template planner defaults to a pressure load, which CalculiX has not
-    # been verified for; the verified subset is a tip point load.
-    spec["bc_load"]["load_type"] = "concentrated_force"
-    spec["bc_load"]["direction"] = 2
+
+    before = set(wb.RUNS)
     resp = client.post(f"/api/workbench/sessions/{sid}/accept",
-                       json={"spec_yaml": yaml.safe_dump(spec, allow_unicode=True)})
-    assert resp.status_code == 200, resp.text
+                       json={"runner_cfg": {"backend": "calculix"}})
+
+    assert resp.status_code == 400, resp.text
+    assert any("calculix" in e for e in resp.json()["detail"]["errors"])
+    assert set(wb.RUNS) == before
 
 
 def test_session_record_keeps_the_backend_after_a_restart(client, wb, monkeypatch):
     """The archived view must still say which solver produced the numbers."""
     from workbench import routes
 
-    async def _ccx_pipeline(run_id, runs, on_stage_update=None):
+    async def _solved_pipeline(run_id, runs, on_stage_update=None):
         runs[run_id]["status"] = "COMPLETED"
         runs[run_id]["kpis"] = {"U_tip": -1.9e-3}
-        runs[run_id]["backend"] = {"backend": "calculix", "label": "CalculiX 2.23"}
+        runs[run_id]["backend"] = {"backend": "abaqus", "label": "Abaqus 2021",
+                                   "supported": True}
         runs[run_id]["limitations"] = [{"feature": "outputs.kpis[MISES].type",
                                         "value": "field_max", "reason": "定义不同",
                                         "kind": "caveat"}]
         runs[run_id]["kpi_provenance"] = {"U_tip": {"abaqus_equivalent": True}}
 
-    monkeypatch.setattr(routes, "run_pipeline", _ccx_pipeline)
+    monkeypatch.setattr(routes, "run_pipeline", _solved_pipeline)
+    monkeypatch.setattr("core.helpers.check_abaqus", lambda: True)
     sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
     _chat(client, sid, "悬臂梁 100x10x10，末端 1N")
     client.post(f"/api/workbench/sessions/{sid}/accept", json={})
 
     record = client.get(f"/api/workbench/sessions/{sid}").json()["runs"][0]
-    assert record["backend"]["label"] == "CalculiX 2.23"
+    assert record["backend"]["label"] == "Abaqus 2021"
     assert record["limitations"][0]["kind"] == "caveat"
 
 

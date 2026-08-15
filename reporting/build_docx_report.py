@@ -15,7 +15,7 @@ Design rules that are not negotiable:
   ``spec.meta.abaqus_release`` (unvalidated metadata that has drifted before);
 * figures are embedded byte-for-byte, so a picture inside the .docx hashes the
   same as the PNG the solver produced;
-* a demo-mode run (no solver detected) prints the G2 banner on the first screen
+* a run with no solver behind it prints the no-solve banner on the first screen
   and carries no numeric KPI table.
 
 Exit codes: 0 ok · 2 bad input/limits · 4 template has placeholders this tool
@@ -53,17 +53,17 @@ from reporting.limits import (  # noqa: E402
 from reporting.run_bundle import (  # noqa: E402
     RunBundle,
     actual_abaqus_release,
-    demo_notice,
     generated_at,
     load_run_bundle,
+    no_solve_notice,
 )
-from reporting.templates import DEMO_BANNER  # noqa: E402
+from reporting.templates import NO_SOLVE_BANNER  # noqa: E402
 
 FIGURE_WIDTH_INCHES = 5.8
 MAX_FIGURES = 3
 MAX_ARTIFACT_ROWS = 14
 NO_FIGURE_TEXT = "（本次运行未产出云图/曲线图，图位留空）"
-DEMO_KPI_ROW = f"（{DEMO_BANNER} —— 未生成任何数值 KPI）"
+NO_SOLVE_KPI_ROW = f"（{NO_SOLVE_BANNER} —— 未生成任何数值 KPI）"
 
 
 # ── docx helpers ──────────────────────────────────────────────────────
@@ -242,8 +242,8 @@ def _model_table(bundle: RunBundle) -> tuple[list[str], list[list[str]]]:
 def _kpi_table(bundle: RunBundle, descriptions: dict[str, str],
                judgements: list[Judgement]) -> tuple[list[str], list[list[str]]]:
     header = ["序号", "KPI", "提取口径", "数值", "单位", "数据来源文件"]
-    if bundle.demo_mode or not bundle.kpis:
-        return header, [["-", DEMO_KPI_ROW, "-", "-", "-", "-"]]
+    if bundle.unsolved or not bundle.kpis:
+        return header, [["-", NO_SOLVE_KPI_ROW, "-", "-", "-", "-"]]
     unit_by_name = {j.name: j.unit for j in judgements}
     source_name = Path(bundle.kpi_source).name if bundle.kpi_source else "-"
     rows = []
@@ -377,15 +377,15 @@ def build_report(
     embedded: list[Path] = []
     filled_blocks: list[str] = []
 
-    banner_paragraph = _find_block_paragraph(document, "{{DEMO_BANNER}}")
+    banner_paragraph = _find_block_paragraph(document, "{{NO_SOLVE_BANNER}}")
     if banner_paragraph is not None:
-        if bundle.demo_mode:
-            banner_paragraph.text = f"{DEMO_BANNER} —— {demo_notice(bundle)}"
+        if bundle.unsolved:
+            banner_paragraph.text = f"{NO_SOLVE_BANNER} —— {no_solve_notice(bundle)}"
             for run in banner_paragraph.runs:
                 run.bold = True
         else:
             _drop(banner_paragraph)
-        filled_blocks.append("{{DEMO_BANNER}}")
+        filled_blocks.append("{{NO_SOLVE_BANNER}}")
 
     block_specs: list[tuple[str, str, Any]] = [
         ("{{SPEC_SUMMARY}}", "lines", _spec_summary_lines(bundle, release)),
@@ -441,7 +441,7 @@ def build_report(
         "run_id": bundle.run_id,
         "model_name": bundle.model_name,
         "status": bundle.status,
-        "demo_mode": bundle.demo_mode,
+        "unsolved": bundle.unsolved,
         "abaqus_release": release,
         "spec_path": bundle.spec_path,
         "spec_declared_release": bundle.spec_release,

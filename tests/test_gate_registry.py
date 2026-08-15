@@ -87,8 +87,9 @@ def test_a_missing_private_gate_reports_not_distributed_with_its_reason(tmp_path
     that is NOT private-only has to fail, not skip."""
     monkeypatch.setattr(harness, "ROOT", tmp_path)
 
-    private = harness._run("free_solver", "scripts/run_free_solver_check.py",
-                           "calculix", timeout=1)
+    private = harness._run("hallucination_pack",
+                           "scripts/run_hallucination_pack_check.py",
+                           "abaqus", timeout=1)
     assert private["result"] == "NOT_DISTRIBUTED"
     assert "course/" in private["reason"]
     assert private["result"] in harness.PASSING

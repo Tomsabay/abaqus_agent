@@ -69,10 +69,10 @@ def test_env_overrides_system_but_not_an_explicit_request(monkeypatch):
 
 def test_render_interpolates_and_falls_back_without_raising():
     assert "ABAQUS_AGENT_ABAQUS_CMD" in M.render(
-        "ccx.howto", "en", env="ABAQUS_AGENT_ABAQUS_CMD")
+        "backend.select.abaqus_not_found", "en", env="ABAQUS_AGENT_ABAQUS_CMD")
 
     # An unknown key returns the producer's own prose rather than the key: a
-    # stale key must not turn a refusal into "ccx.load.blast".
+    # stale key must not turn a refusal into "backend.select.something".
     assert M.render("no.such.key", "en", fallback="中文兜底") == "中文兜底"
 
     # And with neither, the key itself — ugly, but never an exception in the
@@ -84,14 +84,31 @@ def test_catalogue_for_returns_a_flat_map_in_one_language():
     en = M.catalogue_for("en")
     zh = M.catalogue_for("zh")
     assert set(en) == set(zh) == set(M.CATALOGUE)
-    assert en["ccx.load.pressure"] != zh["ccx.load.pressure"]
+    assert (en["backend.select.abaqus_not_found"]
+            != zh["backend.select.abaqus_not_found"])
     assert all(isinstance(v, str) and v for v in en.values())
 
 
-def test_refusal_wording_keeps_the_measured_facts_in_english():
-    """The English must carry the same evidence, not a softened summary."""
-    blast = M.CATALOGUE["ccx.load.blast_conwep"]["en"]
-    assert "0.000000E+00" in blast and "exits 0" in blast
+def test_the_no_abaqus_refusal_is_actionable_in_both_languages():
+    """The one sentence a visitor without Abaqus ever sees.
 
-    stress = M.CATALOGUE["ccx.kpi.stress_not_comparable"]["en"]
-    assert "6%" in stress and "ELEMENT_NODAL" in stress
+    Until 2026-08-15 they got a CalculiX fallback or a walkthrough instead;
+    now this text IS the product's answer, so it has to name both ways out
+    (PATH or the variable) rather than only stating the problem.
+    """
+    for lang in ("en", "zh"):
+        text = M.render("backend.select.abaqus_not_found", lang,
+                        env="ABAQUS_AGENT_ABAQUS_CMD")
+        assert "ABAQUS_AGENT_ABAQUS_CMD" in text, lang
+        assert "PATH" in text, lang
+
+
+def test_no_key_still_offers_a_second_solver():
+    """A leftover CalculiX sentence would promise a backend that is gone."""
+    stale = [k for k in M.CATALOGUE if k.startswith("ccx.")]
+    assert stale == [], stale
+
+    for key, entry in M.CATALOGUE.items():
+        for lang, text in entry.items():
+            assert "CalculiX" not in text, f"{key}/{lang}: {text}"
+            assert "calculix" not in text.lower(), f"{key}/{lang}: {text}"

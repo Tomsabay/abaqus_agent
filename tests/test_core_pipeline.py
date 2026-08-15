@@ -96,39 +96,12 @@ class TestHelpers:
 
 class TestPipeline:
     def test_stages_defined(self):
-        from core.pipeline import STAGE_LOGS, STAGES
+        from core.pipeline import STAGES
         assert len(STAGES) == 7
         assert all(len(s) == 4 for s in STAGES)
-        assert len(STAGE_LOGS) == 7
-
-    def test_simulate_stage(self):
-        from core.pipeline import simulate_stage
-        result = simulate_stage("validate_spec", "Model", "2021", "standard", "abc12345")
-        assert result["status"] == "done"
-        assert isinstance(result["logs"], list)
-        assert len(result["logs"]) > 0
-        # G2: every demo log line must carry the DEMO MODE prefix.
-        assert all("DEMO MODE" in log["text"] for log in result["logs"])
-
-    def test_simulate_stage_unknown(self):
-        from core.pipeline import simulate_stage
-        result = simulate_stage("unknown_stage", "M", "2021", "standard", "x")
-        assert result["status"] == "done"
-        assert all("DEMO MODE" in log["text"] for log in result["logs"])
-
-    def test_demo_logs_never_claim_solver_output(self):
-        """G2: no demo log may claim solver output happened (unprefixed)."""
-        from core.pipeline import STAGE_LOGS, simulate_stage
-        for stage_id in STAGE_LOGS:
-            result = simulate_stage(stage_id, "Model", "2021", "standard", "abc12345")
-            for log in result["logs"]:
-                text = log["text"]
-                assert "DEMO MODE" in text
-                for claim in ("ANALYSIS COMPLETE", "JOB COMPLETED", "syntaxcheck PASSED"):
-                    assert claim not in text
 
     def test_no_kpi_fabrication_helpers_left(self):
-        """G2 criterion 1: the KPI fabrication helpers must stay gone."""
+        """The KPI fabrication helpers must stay gone."""
         import core.pipeline as pipeline_mod
         assert not hasattr(pipeline_mod, "mock_kpis")
         assert not hasattr(pipeline_mod, "compare_kpis")
@@ -136,38 +109,58 @@ class TestPipeline:
         assert "random.uniform" not in source
         assert "1234.5" not in source
 
-    def test_run_demo_flow_writes_kpi_free_result(self, tmp_path):
-        import json
+    def test_the_walkthrough_mode_is_gone(self):
+        """No Abaqus is an answer, not a thing to simulate around.
 
+        The walkthrough produced no numbers — that part was honest — but it
+        still narrated seven stages and finished COMPLETED, so a screenshot of
+        a machine that cannot solve anything was indistinguishable at a glance
+        from one that had. Removed 2026-08-15 along with the CalculiX
+        fallback; this pins the helpers so they cannot return quietly.
+        """
+        import core.pipeline as pipeline_mod
+
+        for gone in ("run_demo_flow", "simulate_stage", "STAGE_LOGS",
+                     "DEMO_PREFIX", "DEMO_KPI_NOTICE"):
+            assert not hasattr(pipeline_mod, gone), gone
+
+        source = Path(pipeline_mod.__file__).with_suffix(".py").read_text(encoding="utf-8")
+        assert "DEMO MODE" not in source
+
+    def test_a_machine_without_abaqus_is_refused_not_walked_through(self):
+        """The whole user-facing consequence, asserted end to end."""
         import yaml
 
-        from core.pipeline import run_demo_flow
+        from core import pipeline as pipeline_mod
+        from core.pipeline import run_pipeline
 
         spec_path = Path(__file__).parent.parent / "cases" / "cantilever" / "spec.yaml"
-        spec = yaml.safe_load(spec_path.read_text())
+        spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
 
-        events = []
-        result = run_demo_flow(
-            spec, spec_path=spec_path, workdir=tmp_path,
-            on_progress=lambda s, d: events.append((s, d)),
-        )
+        runs = {"r1": {"run_id": "r1", "spec": spec, "stages": {},
+                       "started_at": 0.0}}
+        original = pipeline_mod.check_abaqus
+        pipeline_mod.check_abaqus = lambda *a, **k: False
+        try:
+            asyncio.get_event_loop().run_until_complete(run_pipeline("r1", runs))
+        finally:
+            pipeline_mod.check_abaqus = original
 
-        assert result["status"] == "DEMO"
-        assert result["demo_mode"] is True
-        assert result["kpis"] == {}
-        assert "未检测到 Abaqus" in result["kpi_notice"]
+        run = runs["r1"]
+        assert run["status"] == "FAILED", "a refusal must not read as a run"
+        assert run.get("kpis", {}) == {}
+        assert not run.get("demo_mode")
+        # The refusal has to carry the way out, or it is a dead end.
+        assert "ABAQUS_AGENT_ABAQUS_CMD" in run["kpi_notice"]
+        # And it must not have narrated stages it did not perform.
+        assert set(run["stages"]) == {"validate_spec"}, run["stages"]
 
-        persisted = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
-        assert persisted["kpis"] == {}
-        assert persisted["demo_mode"] is True
-        assert "未检测到 Abaqus" in persisted["kpi_notice"]
+    def test_the_refusal_reaches_the_screen_through_the_callback(self):
+        """The workbench only ever learns what the callback tells it.
 
-        flat = repr(events)
-        assert "DEMO MODE" in flat
-        for claim in ("ANALYSIS COMPLETE", "JOB COMPLETED", "syntaxcheck PASSED"):
-            assert claim not in flat
-
-    def test_run_pipeline_async(self):
+        A refusal that updated `runs` but never fired would leave the browser
+        on "running" forever, which is worse than the walkthrough it replaced.
+        """
         import yaml
 
         from core.pipeline import run_pipeline
@@ -189,7 +182,6 @@ class TestPipeline:
             "progress_pct": 0,
         }
 
-        # Collect callback events
         events = []
 
         async def on_update(stage_id, snapshot):
@@ -199,18 +191,14 @@ class TestPipeline:
             run_pipeline(run_id, runs, on_stage_update=on_update)
         )
 
-        assert runs[run_id]["status"] == "COMPLETED"
-        assert runs[run_id]["progress_pct"] == 100
-        assert len(runs[run_id]["stages"]) == 7
-        assert len(events) > 0
-        # Last event should be "done"
-        assert events[-1][0] == "done"
-        # G2 demo contract: no solver -> no KPIs, explicit demo marking.
+        assert runs[run_id]["status"] == "FAILED"
         assert runs[run_id]["kpis"] == {}
-        assert runs[run_id]["demo_mode"] is True
-        assert "未检测到 Abaqus" in runs[run_id]["kpi_notice"]
+        assert not runs[run_id].get("demo_mode")
+        assert events, "the browser was never told anything"
+        assert events[-1][0] == "done"
 
     def test_run_pipeline_no_callback(self):
+        """Same path with no listener: it must return, not raise."""
         import yaml
 
         from core.pipeline import run_pipeline
@@ -236,7 +224,7 @@ class TestPipeline:
             run_pipeline(run_id, runs)
         )
 
-        assert runs[run_id]["status"] == "COMPLETED"
+        assert runs[run_id]["status"] == "FAILED"
 
 
 # ── core.spec_generator ──────────────────────────────────────────

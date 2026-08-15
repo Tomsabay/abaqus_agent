@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-08-15
+
+### Removed — the CalculiX backend, and the demo walkthrough with it
+
+This drives Abaqus. Without Abaqus there is nothing to drive, so the run is now
+refused with one sentence naming the environment variable that fixes it.
+
+The CalculiX fallback shipped 2026-08-01 and worked: on the frozen cantilever
+it matched the Abaqus baseline to seven significant figures. What it cost was a
+capability matrix — a per-feature statement of what a second solver could be
+trusted with — that had to be kept honest forever, because ccx drops load cards
+it does not recognise, exits 0, and returns every displacement as
+`0.000000E+00`. That is a permanent tax for reach this project does not want:
+someone with no Abaqus is not a user of an Abaqus workbench.
+
+The demo walkthrough went at the same time and for a related reason. It
+produced no numbers, which was the honest part, but it narrated seven stages
+and finished COMPLETED, so a screenshot of a machine that could not solve
+anything was indistinguishable at a glance from one that had.
+
+Gone: `agent/ccx_orchestrator.py`, `runner/ccx_*`, `post/extract_kpis_ccx.py`,
+`core.backends.calculix_capability`, `run_demo_flow`, `simulate_stage`, the 46
+`ccx.*` message-catalogue entries, and two gates. `select_backend` still
+returns a decision — `supported` is False with a blocker when Abaqus is missing
+— because every caller already reads it and a refusal has to carry its reason.
+
+`ABAQUS_AGENT_SOLVER_BACKEND` now accepts only `auto` and `abaqus`. A saved
+config that still says `calculix` is **refused by name** rather than silently
+running Abaqus instead, so nobody gets numbers from a solver they did not ask
+for. `ABAQUS_AGENT_CCX_EXE` is no longer read.
+
+The run flag `demo_mode` is now `unsolved` throughout the API and the report
+builders, and the report banner reads 未求解 · 无数值结果 instead of
+演示数据 · 非真实求解. `unsolved` is derived from the backend decision rather
+than set by the run on itself: a job that reached the solver and aborted is not
+this, and marking it so would send the reader to the wrong problem.
+
+What survived is what was never about CalculiX: no numeric KPI without a solver
+behind it, a KPI whose definition differs from Abaqus tagged with its
+provenance and excluded from pass/fail, and a refusal that names the spec field.
+
 ## [Unreleased] - 2026-08-10
 
 ### Changed — the deck oracle could not see the code it is meant to protect

@@ -1050,5 +1050,8 @@ class TestMCPProgress:
 
         # Verify we got progress updates
         assert len(events) > 0
-        # Final event should be COMPLETED
-        assert events[-1]["status"] == "COMPLETED"
+        # The suite hides Abaqus, and since 2026-08-15 no solver means the run
+        # is refused rather than walked through. What this test is about is the
+        # progress channel: a subscriber must be told how it ended, whichever
+        # way that was, instead of waiting on a queue that never closes.
+        assert events[-1]["status"] == "FAILED"

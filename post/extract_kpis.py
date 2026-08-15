@@ -831,8 +831,9 @@ def _component_index(component):
     typo produced a different wrong number depending on which KPI type it
     appeared in.
 
-    The CalculiX extractor has always raised here (see
-    ``extract_kpis_ccx.py``). The strict backend was the secondary one.
+    Refusing here is the whole point: a component name we cannot resolve has
+    no safe default, and every default this code used to fall back to returned
+    a different wrong number depending on the KPI type.
     """
     key = str(component).upper()
     if key in _COMPONENT_INDEX:
