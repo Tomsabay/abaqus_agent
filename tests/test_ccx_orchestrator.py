@@ -124,15 +124,29 @@ def test_a_refused_deck_ends_the_same_way_a_refused_spec_does(tmp_path, monkeypa
     assert saved["status"] == "REFUSED"
 
 
-def _boom_on_solver(*args, **kwargs):  # pragma: no cover - must not be reached
+_REAL_SUBPROCESS_RUN = subprocess.run
+
+
+def _boom_on_solver(*args, **kwargs):
+    """Any subprocess is treated as a solver launch, with one carve-out.
+
+    On Linux the stdlib itself calls `uname -p` the first time
+    platform.platform() renders (capsule/store.py records it), through
+    subprocess.run — measured on public CI 2026-08-15, where this boom fired
+    from inside functools' cached_property and failed a run that never went
+    near a solver. Windows reads the registry instead, which is why the trap
+    never fired locally. `uname` goes through; everything else still booms,
+    so the trap stays fail-closed for the thing it guards.
+    """
+    argv = args[0] if args else kwargs.get("args")
+    head = argv[0] if isinstance(argv, (list, tuple)) and argv else argv
+    if Path(str(head)).name == "uname":
+        return _REAL_SUBPROCESS_RUN(*args, **kwargs)
     raise AssertionError("a refused deck must not reach any solver")
 
 
 def test_refusal_never_touches_the_solver(tmp_path, monkeypatch):
-    def _boom(*args, **kwargs):  # pragma: no cover - must not be reached
-        raise AssertionError("a refused spec must not reach any solver")
-
-    monkeypatch.setattr(subprocess, "run", _boom)
+    monkeypatch.setattr(subprocess, "run", _boom_on_solver)
     orch = CalculiXOrchestrator(
         spec_dict=_spec(), workdir=tmp_path,
         decision=_decision(blockers=[Limitation("geometry.type", "cohesive_layer", "没有 cohesive 单元")]))
