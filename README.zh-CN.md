@@ -113,6 +113,11 @@ schema，等于这套方言永远只能建别人已经写过分支的形状。
 - 装配布尔造出没人划网的零件：`.inp` 里是空的 `*Part` 配活的 `*Instance`，
   全文件零个 `*Element`。
 
+**完整清单在 [docs/SILENT_FAILURES.md](docs/SILENT_FAILURES.md)** —— 七条实测出来的
+「Abaqus 把作业跑完了，还给你一个错答案」，全部带数字。包括那条最贵的：绑定约束
+留了 85 个节点没绑上，作业照常收敛，三个平衡恒等式照常通过。这份文档是写给
+**不用我们工具的人**看的，每一条你在自己的模型上都能直接用。
+
 这套方言下有五个跑通的算例——`bearing_block`、`two_plate_tie`、`two_plate_contact`、
 `block_friction_slide`、`plate_hole_v2`；证明这一层的门禁脚本在
 `scripts/run_generic_*_check.py`，其摘要输出提交在

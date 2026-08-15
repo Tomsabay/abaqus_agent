@@ -140,6 +140,12 @@ refusal rather than a guess:
 - An assembly boolean creates a part nothing meshes; the `.inp` carries an empty
   `*Part` with a live `*Instance` and not one `*Element`.
 
+**[docs/SILENT_FAILURES.md](docs/SILENT_FAILURES.md) is the full catalogue** —
+seven measured ways an Abaqus job finishes and hands back a wrong answer, with
+the numbers, including a tie constraint that left 85 nodes unconstrained while
+the job converged and every equilibrium check still passed. Written to be
+useful on your own model whether or not you ever run this tool.
+
 Five worked cases ship in this dialect — `bearing_block`, `two_plate_tie`,
 `two_plate_contact`, `block_friction_slide`, `plate_hole_v2` — and the gate
 scripts that prove the layer are in `scripts/run_generic_*_check.py`, with
