@@ -142,13 +142,30 @@ GATES = [
     ("grading_ui", "scripts/run_grading_ui_check.py", "browser"),
 ]
 
+# Scripts that exist only in the private development tree, and why. Their
+# gates stay in GATES because this registry is the one honest list of every
+# check that exists; in the public distribution each reports NOT_DISTRIBUTED
+# with its reason, instead of an absent file reading as a crash -- or worse,
+# the row silently disappearing. Keyed by file name so the registry tests can
+# use the same set for the one EXEMPT script that is also private-only.
+PRIVATE_ONLY = {
+    "run_free_solver_check.py":
+        "its CalculiX/OpenRadioss decks live in course/, not distributed",
+    "run_hallucination_pack_check.py":
+        "its sample decks live in course/, not distributed",
+    "run_error_gallery_check.py":
+        "its six failure captures live in course/, not distributed",
+    "run_from_scratch_planner_check.py":
+        "drives the local claude CLI login; also EXEMPT from GATES",
+}
+
 # PARTIAL means "no item failed, but some were skipped" -- eight gates build
 # their overall that way (`elif "skipped" in statuses`). It was on neither
 # list: not PASSING, so the harness counted it a failure and went red while the
 # gate itself exited 0 saying it was fine, and nobody could tell which of the
 # two was authoritative. It joins PASSING, and is counted and reported under
 # its own name so that a partial run can never read as a full pass.
-PASSING = ("PASS", "SKIPPED", "PARTIAL")
+PASSING = ("PASS", "SKIPPED", "PARTIAL", "NOT_DISTRIBUTED")
 
 
 def _payload(stdout: str) -> dict | None:
@@ -213,6 +230,16 @@ def _interesting(payload: dict) -> dict:
 def _run(name: str, script: str, solver: str, timeout: int) -> dict:
     t0 = time.time()
     detail: dict = {"name": name, "script": script, "solver": solver}
+    if not (ROOT / script).is_file():
+        detail["seconds"] = 0.0
+        reason = PRIVATE_ONLY.get(Path(script).name)
+        if reason:
+            detail["result"] = "NOT_DISTRIBUTED"
+            detail["reason"] = reason
+        else:
+            detail["result"] = "FAIL"
+            detail["reason"] = "GATES names a script that is not in this tree"
+        return detail
     try:
         proc = subprocess.run(
             [sys.executable, script],
@@ -293,6 +320,8 @@ def main(argv: list[str] | None = None) -> int:
                    "partial": len(partial),
                    "skipped": sum(1 for g in gates
                                   if g["result"] == "SKIPPED"),
+                   "not_distributed": sum(1 for g in gates
+                                          if g["result"] == "NOT_DISTRIBUTED"),
                    "fail": len(failed)},
         "gates": gates,
     }

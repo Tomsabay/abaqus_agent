@@ -57,12 +57,45 @@ def test_every_gate_script_is_registered_or_says_why_not():
 
 def test_the_registry_points_at_files_that_exist():
     """The other direction: a renamed or deleted script leaves an entry that
-    fails at run time, in the middle of a harness run that takes ~55 minutes."""
+    fails at run time, in the middle of a harness run that takes ~55 minutes.
+
+    PRIVATE_ONLY names may legitimately be absent: the public distribution
+    withholds them, and the harness reports each as NOT_DISTRIBUTED with its
+    reason rather than crashing on the missing file."""
     missing = sorted(script for _name, script, _solver in harness.GATES
-                     if not (ROOT / script).is_file())
+                     if not (ROOT / script).is_file()
+                     and Path(script).name not in harness.PRIVATE_ONLY)
 
     assert missing == [], "GATES names %d file(s) that are not there: %s" % (
         len(missing), missing)
+
+
+def test_private_only_names_are_registered_or_exempt():
+    """A typo in PRIVATE_ONLY would quietly turn a real registry rot back into
+    a mid-run crash: the misspelt entry guards nothing, and the gate it meant
+    to guard fails as an ordinary missing file."""
+    known = set(_registered()) | set(EXEMPT)
+    ghosts = sorted(set(harness.PRIVATE_ONLY) - known)
+
+    assert ghosts == [], (
+        "PRIVATE_ONLY lists %s, which is neither a GATES script nor EXEMPT"
+        % ghosts)
+
+
+def test_a_missing_private_gate_reports_not_distributed_with_its_reason(tmp_path, monkeypatch):
+    """Both directions, because the else branch is the trap: an absent file
+    that is NOT private-only has to fail, not skip."""
+    monkeypatch.setattr(harness, "ROOT", tmp_path)
+
+    private = harness._run("free_solver", "scripts/run_free_solver_check.py",
+                           "calculix", timeout=1)
+    assert private["result"] == "NOT_DISTRIBUTED"
+    assert "course/" in private["reason"]
+    assert private["result"] in harness.PASSING
+
+    rotted = harness._run("crack", "scripts/run_crack_check.py", "abaqus",
+                          timeout=1)
+    assert rotted["result"] == "FAIL"
 
 
 def test_gate_names_are_unique():
@@ -75,8 +108,11 @@ def test_gate_names_are_unique():
 
 
 def test_no_exemption_is_a_ghost():
-    """An exemption for a script that no longer exists reads as coverage."""
-    ghosts = sorted(set(EXEMPT) - _gate_scripts())
+    """An exemption for a script that no longer exists reads as coverage.
+
+    A PRIVATE_ONLY exemption is allowed to be absent -- that is the public
+    tree, where the script is withheld, not deleted."""
+    ghosts = sorted(set(EXEMPT) - _gate_scripts() - set(harness.PRIVATE_ONLY))
 
     assert ghosts == [], "EXEMPT lists %s, which is not in scripts/" % ghosts
 
@@ -118,6 +154,9 @@ def test_every_gate_prints_a_verdict_the_harness_can_read():
     """
     silent = []
     for _name, script, _solver in harness.GATES:
+        if (not (ROOT / script).is_file()
+                and Path(script).name in harness.PRIVATE_ONLY):
+            continue
         tree = ast.parse((ROOT / script).read_text(encoding="utf-8"))
         keys = {node.value for node in ast.walk(tree)
                 if isinstance(node, ast.Constant) and isinstance(node.value, str)}

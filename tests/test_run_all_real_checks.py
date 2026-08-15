@@ -93,7 +93,8 @@ def test_a_scenario_gates_number_survives(rarc):
 
 def test_every_listed_gate_exists(rarc):
     missing = [script for _n, script, _s in rarc.GATES
-               if not (ROOT / script).is_file()]
+               if not (ROOT / script).is_file()
+               and Path(script).name not in rarc.PRIVATE_ONLY]
     assert not missing, missing
 
 
@@ -154,7 +155,19 @@ def test_one_failure_fails_the_run(rarc, monkeypatch, tmp_path):
     code, summary = _summary(rarc, ["PASS", "FAIL"], monkeypatch, tmp_path)
     assert code == 1 and summary["overall"] == "FAIL"
     assert summary["counts"] == {"total": 2, "pass": 1, "partial": 0,
-                                 "skipped": 0, "fail": 1}
+                                 "skipped": 0, "not_distributed": 0, "fail": 1}
+
+
+def test_a_withheld_gate_does_not_fail_a_public_run(rarc, monkeypatch,
+                                                    tmp_path):
+    """The public tree runs a registry that names three course-line gates it
+    does not ship. Their NOT_DISTRIBUTED must not turn the whole run red --
+    and it must be counted under its own name, never folded into pass."""
+    code, summary = _summary(rarc, ["PASS", "NOT_DISTRIBUTED"], monkeypatch,
+                             tmp_path)
+    assert code == 0 and summary["overall"] == "PASS"
+    assert summary["counts"]["not_distributed"] == 1
+    assert summary["counts"]["pass"] == 1
 
 
 def test_an_unreadable_gate_fails_the_run(rarc, monkeypatch, tmp_path):
@@ -186,7 +199,7 @@ def test_a_partial_gate_is_not_reported_as_a_full_pass(rarc, monkeypatch,
     assert code == 0
     assert summary["overall"] == "PARTIAL"
     assert summary["counts"] == {"total": 2, "pass": 1, "partial": 1,
-                                 "skipped": 0, "fail": 0}
+                                 "skipped": 0, "not_distributed": 0, "fail": 0}
 
 
 def test_a_real_failure_still_outranks_a_partial(rarc, monkeypatch, tmp_path):
@@ -195,12 +208,15 @@ def test_a_real_failure_still_outranks_a_partial(rarc, monkeypatch, tmp_path):
 
 
 def test_the_partial_gates_really_do_emit_that_word(rarc):
-    """The verdict is only worth handling if something produces it. These are
-    the gates whose overall can be `partial`; if that stops being true the
-    branch above is dead code and should go, not linger."""
+    """The verdict is only worth handling if something produces it: if no gate
+    can say `partial`, the branch above is dead code and should go, not linger.
+
+    Non-empty, not a count: the original `>= 8` was a census snapshot, and it
+    rotted the day the public tree shipped one fewer emitter than the private
+    one -- the eighth lives in a withheld course-line gate."""
     import re
     emitters = [
         p.name for p in (ROOT / "scripts").glob("run_*check*.py")
         if re.search(r'overall\s*=\s*"partial"', p.read_text(encoding="utf-8"))
     ]
-    assert len(emitters) >= 8, emitters
+    assert emitters, "no gate can produce a `partial` overall any more"
