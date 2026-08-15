@@ -18,7 +18,6 @@ import re
 from core import selectors
 from runner.spec_base import SpecError, _parse
 
-
 # Mapping values that are not literals. Exactly one may appear in a mapping.
 _ARG_FORMS = ("select", "one", "sketch", "datum", "ref", "literal", "bool",
               "new", "instance", "surface", "set", "vertex", "wire_at",

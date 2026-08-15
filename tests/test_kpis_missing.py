@@ -34,9 +34,7 @@ if str(ROOT) not in sys.path:
 from agent.orchestrator import AbaqusOrchestrator  # noqa: E402
 from odb_lens import missing_kpis  # noqa: E402
 from reporting import templates  # noqa: E402
-
 from tests.frontend_sources import workbench_text  # noqa: E402
-
 
 # --- the diff itself -------------------------------------------------------
 
@@ -136,7 +134,7 @@ def test_recording_does_not_erase_limitations_already_there():
     orch._record_missing_kpis([{"name": "SCF", "type": "t"}],
                               {"kpis": {}, "errors": []})
 
-    features = [l["feature"] for l in orch.result["limitations"]]
+    features = [ln["feature"] for ln in orch.result["limitations"]]
     assert features == ["element", "KPI"]
 
 
@@ -230,7 +228,7 @@ def test_a_reason_containing_a_pipe_cannot_break_the_markdown_table():
     text = templates.render_run_report_markdown(
         _report({}, [{"name": "SCF", "type": "t",
                       "reason": "sets are A|B|C, pick one"}]))
-    row = [l for l in text.splitlines() if l.startswith("| SCF |")][0]
+    row = [ln for ln in text.splitlines() if ln.startswith("| SCF |")][0]
     assert row.count("|") == 4          # the three cell separators plus the end
 
 

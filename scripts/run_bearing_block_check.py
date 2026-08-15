@@ -215,8 +215,8 @@ def _datacheck(spec: dict, workdir: Path) -> dict:
     the model is assembled, not when it converges.
     """
     from runner.build_model import build_model
-    from runner.syntaxcheck import syntaxcheck_inp
     from runner.dat_warnings import parse_dat_warnings
+    from runner.syntaxcheck import syntaxcheck_inp
 
     workdir.mkdir(parents=True, exist_ok=True)
     spec_path = workdir / "spec.yaml"

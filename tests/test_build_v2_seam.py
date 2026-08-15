@@ -43,8 +43,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runner import build_v2  # noqa: E402
-from runner import spec_base
+from runner import (
+    build_v2,  # noqa: E402
+    spec_base,
+)
 
 SEAM = {"call": "assignSeam", "target": {"attr": "engineeringFeatures"},
         "regions": {"set": "face@z=5", "name": "SEAMFACE", "expect": "=1"}}

@@ -73,6 +73,10 @@ extend-exclude = ["artifacts", "evidence/real_abaqus_smoke_*"]
 # a colour map and a token dispatch harder to read, not easier. This file also
 # has to stay parseable by the Abaqus 2.7 kernel, where terse is idiomatic.
 "post/parse_inp.py" = ["E701", "E702"]
+# Tests and check scripts bootstrap sys.path before importing the tree,
+# so their imports cannot sit at the top of the file.
+"tests/*" = ["E402"]
+"scripts/*" = ["E402"]
 
 [tool.hatch.build.targets.wheel]
 packages = [

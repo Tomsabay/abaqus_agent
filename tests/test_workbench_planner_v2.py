@@ -32,10 +32,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core import selectors  # noqa: E402
-from runner import build_v2  # noqa: E402
-from runner import arg_forms
-from runner import mesh_policy
-from runner import spec_base
+from runner import (
+    arg_forms,
+    build_v2,  # noqa: E402
+    mesh_policy,
+    spec_base,
+)
 from scripts import run_generic_mesh_check as generic_check  # noqa: E402
 from tools.schema_validator import validate_spec  # noqa: E402
 from workbench import planner  # noqa: E402

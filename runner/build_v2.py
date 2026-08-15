@@ -30,20 +30,20 @@ import re
 from pathlib import Path
 
 from core import selectors
-from tools.errors import AbaqusAgentError, ErrorCode
 from runner import kernel_runtime
+from runner.arg_forms import _IDENT_RE, _IMPORT_LINE, _MODULES, _SYMBOL_RE, _arg_expr, _generic_call
+from runner.mesh_policy import (
+    _DIMENSIONALITY,
+    _SHAPES_FOR_DIMENSIONALITY,
+    _TECHNIQUE_CONSTANT,
+    DEFAULT_MESH_ELEMENT,
+    _mesh_shape,
+    _mesh_technique,
+)
+from runner.preview import _preview_dump
+
 # Re-exported: build_v2.SpecError is what the rest of the tree catches.
 from runner.spec_base import SpecError, _is_generic, _parse
-from runner.mesh_policy import (
-    DEFAULT_MESH_ELEMENT, _DIMENSIONALITY, _SHAPES_FOR_DIMENSIONALITY,
-    _TECHNIQUE_CONSTANT, _companions, _mesh_shape, _mesh_technique)
-from runner.preview import _preview_dump
-from runner.arg_forms import (
-    _IDENT_RE, _IMPORT_LINE, _MODULES, _SYMBOL_RE, _arg_expr, _generic_call)
-
-
-
-
 
 # ---------------------------------------------------------------------------
 # Cross-references JSON Schema cannot check

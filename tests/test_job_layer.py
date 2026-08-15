@@ -36,7 +36,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from runner.submit_job import (  # noqa: E402
-    _RESERVED_JOB_OPTIONS, _build_cmd, _job_option_args, _launcher_refused)
+    _RESERVED_JOB_OPTIONS,
+    _build_cmd,
+    _job_option_args,
+    _launcher_refused,
+)
 from tools.errors import AbaqusAgentError  # noqa: E402
 
 

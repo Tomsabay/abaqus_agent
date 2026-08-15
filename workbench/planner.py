@@ -30,7 +30,6 @@ import yaml
 
 from tools.abaqus_cmd import detect_abaqus_release
 from tools.schema_validator import validate_spec
-
 from workbench.planner_dialect import V2_DIALECT as _V2_DIALECT
 
 # Measured (sonnet, 2026-08-11): the modify path runs 50-100 s per call and

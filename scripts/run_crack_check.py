@@ -84,14 +84,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.helpers import check_abaqus            # noqa: E402
 # importlib, because `post/__init__.py` re-exports the FUNCTION
 # `extract_kpis`, so `from post import extract_kpis` binds that and not
 # the module the private extractor lives in.
-import importlib                                 # noqa: E402
+import importlib  # noqa: E402
+
+from core.helpers import check_abaqus  # noqa: E402
+
 extract_kpis = importlib.import_module("post.extract_kpis")
-from tools.abaqus_cmd import (                   # noqa: E402
-    detect_abaqus_release, get_abaqus_cmd)
+from tools.abaqus_cmd import detect_abaqus_release, get_abaqus_cmd  # noqa: E402
 
 W, H, A = 50.0, 100.0, 10.0
 E, NU, SIG = 210000.0, 0.3, 100.0

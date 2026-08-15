@@ -32,8 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runner import build_v2  # noqa: E402
-from runner import arg_forms
+from runner import arg_forms  # noqa: E402
 
 SCHEMA = json.loads(
     (ROOT / "schema" / "spec_schema.json").read_text(encoding="utf-8"))

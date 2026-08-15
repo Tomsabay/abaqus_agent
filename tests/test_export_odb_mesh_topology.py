@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from post.export_odb_mesh import (
     build_surface,
     element_faces,
@@ -12,8 +14,6 @@ from post.export_odb_mesh import (
     scope_instance_geometry,
     triangulate,
 )
-
-import pytest
 
 # A unit hex: nodes 1..8, bottom 1-4, top 5-8
 HEX_CONN = (1, 2, 3, 4, 5, 6, 7, 8)

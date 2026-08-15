@@ -28,8 +28,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runner import build_v2  # noqa: E402
-from runner import spec_base
+from runner import (
+    build_v2,  # noqa: E402
+    spec_base,
+)
 
 CASE = ROOT / "cases" / "two_plate_tie" / "spec.yaml"
 
@@ -374,7 +376,7 @@ def test_a_measurement_region_becomes_a_named_set(hole_spec):
 def test_the_hole_wall_is_named_by_radius_not_by_a_plane(hole_spec):
     """No plane can name it: the hole's bounding box is the whole plate."""
     script = build_v2.generate_script(hole_spec)
-    line = [l for l in script.splitlines() if "REGION_HOLEWALL" in l][0]
+    line = [ln for ln in script.splitlines() if "REGION_HOLEWALL" in ln][0]
     assert "'r', '6'" in line
 
 

@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from runner.spec_base import SpecError
 
-
 # What a `mesh:` block with no `element:` key gets. Named rather than inlined
 # because core/element_risk.py has to warn about it by name: this is a
 # first-order reduced-integration hex, so the value a spec receives by saying

@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 @pytest.fixture
 def server_app(monkeypatch, tmp_path):
     import server
+
     # The store and the routes that own it live in copilot/routes.py; the
     # names patched here have to be the ones the routes read, so they are
     # patched there. server.COPILOT_SESSIONS is the same dict object.

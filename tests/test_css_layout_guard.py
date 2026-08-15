@@ -12,6 +12,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
+
 from tests.frontend_sources import workbench_text
 
 ROOT = Path(__file__).resolve().parent.parent

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from runner import build_v2
 from runner import arg_forms
 from runner.build_v2 import SpecError
 

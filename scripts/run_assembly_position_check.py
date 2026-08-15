@@ -63,10 +63,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.helpers import check_abaqus            # noqa: E402
-from runner import build_v2                      # noqa: E402
-from tools.abaqus_cmd import (                   # noqa: E402
-    detect_abaqus_release, get_abaqus_cmd)
+from core.helpers import check_abaqus  # noqa: E402
+from runner import build_v2  # noqa: E402
+from tools.abaqus_cmd import detect_abaqus_release, get_abaqus_cmd  # noqa: E402
 
 # Two 10 mm cubes. Fixed spans 0..10; Mover starts 40 mm away in +x, centroid
 # (45, 5, 5). FaceToFace(flip=OFF, clearance=0) makes the two faces COINCIDENT

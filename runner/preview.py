@@ -19,7 +19,6 @@ import re
 
 from runner.spec_base import _is_generic
 
-
 # Node/element ceiling for the preview dump. Above it the dump is skipped
 # entirely rather than truncated: half an assembly drawn without saying so is
 # a wrong picture, and the .inp fallback can still produce something honest.

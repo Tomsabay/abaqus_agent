@@ -8,8 +8,7 @@ FRONTEND_WORKBENCH = Path(__file__).resolve().parent.parent / "frontend" / "work
 # workbench_viewport.js since the split. Reading only the .html would not
 # fail these tests loudly -- it would quietly stop finding what they guard.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tests.frontend_sources import (  # noqa: E402
-    index_text, page_files, workbench_text)
+from tests.frontend_sources import index_text, page_files, workbench_text  # noqa: E402
 
 
 def test_workbench_results_render_dynamic_animation_card():

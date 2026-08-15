@@ -408,7 +408,6 @@ def main() -> int:
                     return _skip("the server did not come up on :%d" % args.port)
                 run()
     except Exception as exc:                     # chromium missing, WebGL off
-        name = type(exc).__name__
         if "playwright" in repr(type(exc)).lower() and "executable" in str(exc).lower():
             return _skip("chromium is not installed for playwright")
         raise

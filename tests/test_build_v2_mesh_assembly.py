@@ -31,9 +31,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runner import build_v2  # noqa: E402
-from runner import arg_forms
-from runner import spec_base
+from runner import (
+    arg_forms,
+    build_v2,  # noqa: E402
+    spec_base,
+)
 
 CASE = ROOT / "cases" / "two_plate_tie" / "spec.yaml"
 

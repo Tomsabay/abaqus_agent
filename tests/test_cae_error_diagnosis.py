@@ -11,7 +11,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from copilot import routes as copilot_routes
-
 from doctor.cae_errors import diagnose_cae_traceback, list_cae_error_patterns
 
 # Shapes captured from real plugin failures. The paths are rewritten to a

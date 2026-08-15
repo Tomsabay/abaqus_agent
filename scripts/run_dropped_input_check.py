@@ -81,10 +81,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.helpers import check_abaqus            # noqa: E402
-from runner import build_v2                      # noqa: E402
-from tools.abaqus_cmd import (                   # noqa: E402
-    detect_abaqus_release, get_abaqus_cmd)
+from core.helpers import check_abaqus  # noqa: E402
+from runner import build_v2  # noqa: E402
+from tools.abaqus_cmd import detect_abaqus_release, get_abaqus_cmd  # noqa: E402
 
 MODEL = "DroppedInputCheck"
 W = H = 10.0
@@ -521,7 +520,7 @@ def check_output_variables(work: Path) -> dict:
 
     solved = None
     if out.get("inp_written"):
-        proc = subprocess.run(
+        subprocess.run(
             [get_abaqus_cmd(), "job=%s" % MODEL, "interactive",
              "ask_delete=OFF"],
             cwd=str(folder), capture_output=True, text=True, errors="replace",
@@ -552,7 +551,6 @@ def check_output_variables(work: Path) -> dict:
 
 def check_kernel_crash(work: Path) -> dict:
     """A crash inside Abaqus must not be reported as a modelling problem."""
-    from tools.errors import AbaqusAgentError
     spec = _spec({"name": "Steel", "E": E, "nu": NU, "density": RHO},
                  STATIC,
                  [FIX,

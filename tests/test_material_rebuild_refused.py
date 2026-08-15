@@ -245,7 +245,7 @@ def test_the_generated_check_actually_catches_an_erased_material():
     text = build_v2.generate_script(spec)
     body = text.split("# --- Model setup")[1].split("# --- Parts")[0]
     lines = body.splitlines()
-    start = next(i for i, l in enumerate(lines) if l.startswith("for _mat_name"))
+    start = next(i for i, ln in enumerate(lines) if ln.startswith("for _mat_name"))
     block = "\n".join(lines[start:])
 
     class Mat:

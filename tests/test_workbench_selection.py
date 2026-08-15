@@ -27,8 +27,7 @@ if str(ROOT) not in sys.path:
 
 from workbench import planner  # noqa: E402
 from workbench.model_tree import build_tree  # noqa: E402
-from workbench.selection import (  # noqa: E402
-    SelectionError, prompt_section, resolve_refs)
+from workbench.selection import SelectionError, prompt_section, resolve_refs  # noqa: E402
 
 V2 = {
     "meta": {"abaqus_release": "2021", "model_name": "TwoPlates",

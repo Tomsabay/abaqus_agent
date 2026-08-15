@@ -120,7 +120,8 @@ def test_a_reversed_extension_direction_is_refused_on_its_sign():
     # sign distinguishes them.
     outer_ok = MEASURED_OK[1:]
     outer_bad = MEASURED_BACKWARDS[1:]
-    spread = lambda vs: (max(vs) - min(vs)) / abs(sum(vs) / len(vs))
+    def spread(vs):
+        return (max(vs) - min(vs)) / abs(sum(vs) / len(vs))
     assert spread(outer_ok) == pytest.approx(spread(outer_bad), rel=1e-9)
     assert spread(outer_ok) < 1e-3
 

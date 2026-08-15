@@ -48,7 +48,6 @@ import copy
 import json
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -58,10 +57,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.helpers import check_abaqus            # noqa: E402
-from runner import build_v2                      # noqa: E402
-from tools.abaqus_cmd import (                   # noqa: E402
-    detect_abaqus_release, get_abaqus_cmd)
+from core.helpers import check_abaqus  # noqa: E402
+from runner import build_v2  # noqa: E402
+from tools.abaqus_cmd import detect_abaqus_release, get_abaqus_cmd  # noqa: E402
 
 TIE_CASE = "two_plate_tie"
 CONTACT_CASE = "two_plate_contact"

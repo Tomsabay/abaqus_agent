@@ -12,9 +12,9 @@ import base64
 import json
 
 import pytest
+from fastapi.testclient import TestClient
 
 from copilot import routes as copilot_routes
-from fastapi.testclient import TestClient
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"restart-me"
 
@@ -22,6 +22,7 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"restart-me"
 @pytest.fixture
 def persistent_server(monkeypatch, tmp_path):
     import server
+
     # The store lives in copilot/routes.py now, so patch the names the routes
     # actually read. server.COPILOT_SESSIONS is the same dict object.
     from copilot import routes as copilot_routes

@@ -39,7 +39,6 @@ against P L^3 / 3EI = -0.19047619, 0.53% out. Nothing here runs Abaqus.
 
 from __future__ import annotations
 
-import copy
 import sys
 from pathlib import Path
 
@@ -50,9 +49,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core import selectors  # noqa: E402
-from runner import build_v2  # noqa: E402
-from runner import spec_base
-
+from runner import (
+    build_v2,  # noqa: E402
+    spec_base,
+)
 
 # --- the selector grammar --------------------------------------------------
 

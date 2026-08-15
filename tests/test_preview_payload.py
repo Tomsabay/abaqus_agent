@@ -30,9 +30,11 @@ if str(ROOT) not in sys.path:
 
 from post import parse_inp as parse_inp_mod  # noqa: E402
 from post.parse_inp import parts_from_instance_dump  # noqa: E402
-from runner import build_v2  # noqa: E402
-from runner import kernel_runtime
-from runner import preview
+from runner import (
+    build_v2,  # noqa: E402
+    kernel_runtime,
+    preview,
+)
 
 # One unit hex, corners 1-8: bottom face 1-2-3-4, top face 5-6-7-8.
 HEX = (1, 2, 3, 4, 5, 6, 7, 8)

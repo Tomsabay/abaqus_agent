@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator
 
 import yaml
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -136,8 +136,6 @@ if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 # Cursor-style workbench (chat → spec diff → accept → run)
-from workbench.routes import configure as configure_workbench  # noqa: E402
-from workbench.routes import router as workbench_router  # noqa: E402
 # The 21 /api/copilot/* routes and the session store they own.
 # COPILOT_SESSIONS is re-exported because tests and the CAE plug-in path reach
 # for it here; it is the same dict object, so mutating it through either name
@@ -145,6 +143,8 @@ from workbench.routes import router as workbench_router  # noqa: E402
 # Path (COPILOT_SESSION_FILE) here would leave the routes reading the old one.
 from copilot.routes import COPILOT_SESSIONS  # noqa: E402,F401
 from copilot.routes import router as copilot_router  # noqa: E402
+from workbench.routes import configure as configure_workbench  # noqa: E402
+from workbench.routes import router as workbench_router  # noqa: E402
 
 configure_workbench(RUNS)
 app.include_router(workbench_router)

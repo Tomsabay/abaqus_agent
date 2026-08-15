@@ -51,7 +51,6 @@ from core.element_risk import (  # noqa: E402
 )
 from reporting import templates  # noqa: E402
 
-
 # --- the grammar -----------------------------------------------------------
 
 def test_the_node_count_is_the_last_digit_run_not_the_first():
@@ -404,5 +403,5 @@ def test_a_clean_run_gets_no_limitations_section():
 def test_the_section_survives_a_pipe_in_the_reason():
     text = templates.render_run_report_markdown(
         _report([{"feature": "f", "value": "v", "reason": "a|b|c"}]))
-    row = [l for l in text.splitlines() if l.startswith("| f |")][0]
+    row = [ln for ln in text.splitlines() if ln.startswith("| f |")][0]
     assert row.count("|") == 4

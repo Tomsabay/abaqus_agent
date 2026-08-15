@@ -41,10 +41,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runner import build_v2  # noqa: E402
-from runner import kernel_runtime
-from runner import mesh_policy
-from runner import spec_base
+from runner import (
+    build_v2,  # noqa: E402
+    kernel_runtime,
+    mesh_policy,
+    spec_base,
+)
 
 CASE = ROOT / "cases" / "two_plate_tie" / "spec.yaml"
 
@@ -290,6 +292,7 @@ def test_the_schema_declares_target_once_for_every_dispatch_path():
 
 def test_the_schema_types_the_target_object():
     import json
+
     import jsonschema
     schema = json.loads((ROOT / "schema" / "spec_schema.json")
                         .read_text(encoding="utf-8"))

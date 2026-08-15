@@ -12,8 +12,7 @@ import copy
 
 import pytest
 
-from runner import build_v2
-from runner import mesh_policy
+from runner import build_v2, mesh_policy
 from runner.build_v2 import SpecError
 
 BASE = {

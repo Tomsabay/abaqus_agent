@@ -35,7 +35,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from post.parse_inp import _rotate_point, parse_inp, parts_from_instance_dump, place_nodes  # noqa: E402
+from post.parse_inp import (  # noqa: E402
+    _rotate_point,
+    parse_inp,
+    parts_from_instance_dump,
+    place_nodes,
+)
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 ROTATED_INP = FIXTURES / "assembly_rotated.inp"
