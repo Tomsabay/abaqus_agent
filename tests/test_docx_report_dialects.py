@@ -18,11 +18,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+pytest.importorskip("docx", reason="python-docx is an optional [report] dependency")
 
 from reporting.build_docx_report import (  # noqa: E402
     RunBundle,
