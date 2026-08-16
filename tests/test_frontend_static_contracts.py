@@ -563,6 +563,26 @@ def test_the_workbench_empty_state_offers_a_way_in():
     assert "height: auto" in onboard_card
 
 
+def test_the_spec_box_does_not_reject_the_dialect_the_planner_writes():
+    """It did. `required` was the v1 key list, unconditionally.
+
+    So every v2 spec — the dialect the planner now writes for anything new, and
+    the one the offline template produces — was reported invalid in the editor
+    before it was ever sent, naming `geometry:` and `bc_load:` as missing
+    fields. Same for `solver:`, which v2 and deck specs need not carry at all.
+    """
+    source = index_text()
+    body = source.split("function validateSpecText(", 1)[1].split("\nfunction ", 1)[0]
+
+    assert "/^deck:/m" in body, "a deck spec describes no model and needs no parts"
+    assert "/^parts:/m" in body, "the v2 branch is what makes this not reject v2"
+    assert "'parts:', 'assembly:', 'steps:'" in body
+    # The v1 list is still reachable, because a v1 spec opened from disk is
+    # still edited here; what it may not be any more is the only list.
+    assert "'geometry:'" in body and "'bc_load:'" in body
+    assert "yaml.match(/^analysis:/m) && !yaml.match(/solver:" in body
+
+
 def test_the_deleted_licensing_badge_stays_deleted():
     source = index_text()
     markup = source.split("<body", 1)[1] if "<body" in source else source

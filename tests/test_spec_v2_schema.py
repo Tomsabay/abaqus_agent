@@ -35,10 +35,6 @@ from tools.schema_validator import _manual_validate, validate_spec  # noqa: E402
 
 SCHEMA = json.loads((ROOT / "schema" / "spec_schema.json").read_text(encoding="utf-8"))
 CASE_SPECS = sorted((ROOT / "cases").glob("*/spec.yaml"))
-# Split by dialect rather than by a hardcoded list of directory names, so a new
-# case joins the right group by being what it is.
-V1_CASE_SPECS = [p for p in CASE_SPECS
-                 if "parts" not in yaml.safe_load(p.read_text(encoding="utf-8"))]
 
 # The vertical slice this dialect exists for: two plates, tied, one step.
 V2_SPEC_YAML = """
@@ -114,7 +110,7 @@ def _accept(spec: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 1. v1 is untouched
+# 1. every shipped case, and the hashes they are graded under
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("spec_path", CASE_SPECS, ids=lambda p: p.parent.name)
@@ -123,54 +119,53 @@ def test_every_shipped_case_still_validates(spec_path):
     assert ok, "%s: %s" % (spec_path.parent.name, errors)
 
 
-def test_the_frozen_cantilever_run_id_is_unchanged():
-    """The one number that retires the most evidence if it moves."""
-    spec = _load_spec(ROOT / "cases" / "cantilever" / "spec.yaml")
-    assert _run_id(spec) == "dd6ec1145b8de62f"
+# Recomputed once, on 2026-08-16, when the seven v1 cases were replaced by v2
+# twins that reproduce their frozen KPIs (four of them to the last digit). Every
+# id below moved that day and none may move again without the same evidence.
+# The runs made under the OLD ids are unreproducible and are kept in
+# artifacts/runs_archive/; see docs/ENV_TRUTH.md 2026-08-16.
+FROZEN_RUN_IDS = {
+    "bearing_block": "640f2b9d2756528c",
+    "blast_plate": "9fb0cd56c29eed40",
+    "block_friction_slide": "7fccf9a3e3b81e2a",
+    "cantilever": "c3607454a98d91af",
+    "cantilever_plastic": "8aa3c913b89aac1c",
+    "explicit_impact": "20aee0b43cf2060a",
+    "modal": "7bd85393d229b652",
+    "plate_hole": "29584892c1b437cb",
+    "plate_hole_v2": "bbdfa6c6959208e7",
+    "steel_frame_blast": "3471985902835e46",
+    "two_plate_contact": "26e184bdcbcd4044",
+    "two_plate_tie": "d8ecc5f4eb25d554",
+}
 
 
-@pytest.mark.parametrize("spec_path", V1_CASE_SPECS, ids=lambda p: p.parent.name)
-def test_no_v2_key_is_defaulted_into_a_v1_spec(spec_path):
-    """The load path must leave absent v2 fields absent.
+@pytest.mark.parametrize("spec_path", CASE_SPECS, ids=lambda p: p.parent.name)
+def test_every_shipped_case_keeps_its_run_id(spec_path):
+    """The numbers that retire the most evidence if they move.
 
-    A default of None counts as present to json.dumps and therefore to the
-    hash, so this is a stronger check than "the run_id happens to match": it
-    fails on the mechanism rather than on one case's digest.
+    run_id = sha256(spec), so a single edited character retires that case's
+    baseline: the run directory it names can never be regenerated. Pinning all
+    twelve rather than one means a case cannot drift in unnoticed either.
     """
-    spec = _load_spec(spec_path)
-    for key in ("parts", "assembly", "interactions", "steps"):
-        assert key not in spec, (
-            "%s came out of the loader carrying %r — that alone changes its "
-            "run_id and retires its frozen baseline"
-            % (spec_path.parent.name, key))
+    name = spec_path.parent.name
+    assert name in FROZEN_RUN_IDS, (
+        "%s is a new case with no pinned run id. Add it — a case whose hash "
+        "nobody pinned is a case whose baseline can move in silence." % name)
+    assert _run_id(_load_spec(spec_path)) == FROZEN_RUN_IDS[name]
 
 
-def test_defaulting_a_v2_key_would_in_fact_move_the_hash():
+def test_defaulting_a_key_would_in_fact_move_the_hash():
     """Guard the guard: prove the mechanism above is worth guarding.
 
-    If _run_id ever stopped being sensitive to added keys, the test above would
-    still pass while protecting nothing.
+    A default of None counts as present to json.dumps and therefore to the
+    hash. If _run_id ever stopped being sensitive to added keys, the pins above
+    would still pass while protecting nothing.
     """
     spec = _load_spec(ROOT / "cases" / "cantilever" / "spec.yaml")
     polluted = dict(spec)
-    polluted["parts"] = None
+    polluted["some_key_no_loader_writes"] = None
     assert _run_id(polluted) != _run_id(spec)
-
-
-def test_v1_still_requires_its_own_blocks():
-    spec = yaml.safe_load((ROOT / "cases" / "cantilever" / "spec.yaml").read_text(encoding="utf-8"))
-    for key in ("geometry", "analysis", "bc_load"):
-        stripped = {k: v for k, v in spec.items() if k != key}
-        errors = _reject(stripped)
-        assert any(key in e for e in errors), (
-            "dropping %r produced errors that never name it: %s" % (key, errors))
-
-
-def test_v1_still_requires_analysis_step_type():
-    spec = yaml.safe_load((ROOT / "cases" / "cantilever" / "spec.yaml").read_text(encoding="utf-8"))
-    spec["analysis"] = {k: v for k, v in spec["analysis"].items() if k != "step_type"}
-    errors = _reject(spec)
-    assert any("step_type" in e for e in errors), errors
 
 
 # ---------------------------------------------------------------------------
@@ -389,10 +384,28 @@ def test_a_typo_in_a_v2_block_is_rejected_not_ignored(v2_spec):
 # 4. The no-jsonschema fallback must agree with the schema
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("spec_path", V1_CASE_SPECS, ids=lambda p: p.parent.name)
-def test_fallback_accepts_every_v1_case(spec_path):
+@pytest.mark.parametrize("spec_path", CASE_SPECS, ids=lambda p: p.parent.name)
+def test_fallback_accepts_every_shipped_case(spec_path):
+    """Every dialect, not just the one this fallback was first written for.
+
+    It knew v1 and then v2; a `deck:` spec went to the v1 branch and was
+    rejected for "missing geometry" — on machines without jsonschema only,
+    which is the worst place for a validator to disagree with its own schema.
+    """
     ok, errors = _manual_validate(yaml.safe_load(spec_path.read_text(encoding="utf-8")))
     assert ok, errors
+
+
+def test_the_fallback_refuses_a_deck_that_also_describes_a_model():
+    ok, errors = _manual_validate({
+        "meta": {"abaqus_release": "2021", "model_name": "M"},
+        "material": {"name": "S", "E": 1.0, "nu": 0.3},
+        "outputs": {"kpis": [{"name": "k", "type": "field_max"}]},
+        "deck": {"file": "m.inp"},
+        "steps": [],
+    })
+    assert not ok
+    assert any("deck" in e for e in errors), errors
 
 
 def test_fallback_accepts_v2_and_rejects_the_mixed_dialect(v2_spec):
@@ -405,6 +418,33 @@ def test_fallback_accepts_v2_and_rejects_the_mixed_dialect(v2_spec):
     mixed["geometry"] = {"type": "cantilever_block"}
     ok, errors = _manual_validate(mixed)
     assert not ok and any("geometry" in e for e in errors), errors
+
+
+def test_a_whole_v1_spec_is_refused_by_the_fallback_too():
+    """The fallback used to REQUIRE v1's keys in its final else branch, which
+    meant a complete v1 spec passed here and was refused by the real schema.
+
+    That is the one disagreement that costs something. jsonschema is installed
+    on this machine, so the divergence would have shipped invisibly and only
+    appeared where jsonschema is absent -- and it would appear as a v1 spec
+    getting all the way to the builder before failing, instead of being told at
+    the door that the dialect is gone.
+    """
+    v1 = {
+        "meta": {"abaqus_release": "2021", "model_name": "M"},
+        "geometry": {"type": "cantilever_block", "L": 100.0, "W": 10.0, "H": 10.0},
+        "material": {"name": "S", "E": 210000.0, "nu": 0.3},
+        "analysis": {"solver": "standard", "step_type": "Static"},
+        "bc_load": {"fixed_face": "z=0", "load_type": "pressure", "value": 1.0},
+        "outputs": {"kpis": [{"name": "k", "type": "field_max"}]},
+    }
+    schema_ok, _ = validate_spec(copy.deepcopy(v1))
+    fallback_ok, fallback_errors = _manual_validate(copy.deepcopy(v1))
+    assert not schema_ok, "the schema must refuse v1"
+    assert not fallback_ok, (
+        "the fallback accepted a v1 spec the schema refuses; on a machine "
+        "without jsonschema this dialect would appear to still work")
+    assert any("declares no model" in e for e in fallback_errors), fallback_errors
 
 
 # ---------------------------------------------------------------------------

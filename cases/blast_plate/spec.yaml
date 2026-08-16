@@ -2,34 +2,112 @@ meta:
   abaqus_release: "2021"
   model_name: "BlastSteelPlate"
   units: "mm_MPa_t"
-  description: "Q345 steel plate (2m x 2m x 25mm) under 10kg TNT air blast at 2m standoff. All edges clamped. Friedlander pressure-time history (Kingery-Bulmash empirical)."
-
-geometry:
-  type: square_plate
-  L: 2000.0          # mm side length
-  thickness: 25.0    # mm
-  seed_size: 100.0   # mm mesh seed (~20x20 elements)
+  description: "2 m x 2 m x 25 mm Q345 plate, clamped on all four edges, under a
+    Friedlander air-blast history for 10 kg TNT at 2 m standoff. The empirical
+    fit (Kingery-Bulmash / Mills / Kinney-Graham) is written out below as the
+    table it is: it is a modelling input, not something a spec dialect owns."
 
 material:
   name: Steel_Q345
-  E: 210000.0        # MPa
+  E: 210000.0
   nu: 0.3
-  density: 7.85e-9   # t/mm^3
-  yield: 345.0       # MPa
-  hardening: 2000.0  # MPa (used for bilinear plastic)
+  density: 7.85e-9
+  yield: 345.0
+  hardening: 2000.0
 
-analysis:
-  solver: explicit
-  step_type: Dynamic_Explicit
-  time_period: 4.0e-3  # 4 ms
-  cpus: 2
-  mp_mode: threads
+parts:
+  - name: Plate
+    # A surface in space: THREE_D, no cells, meshed with shell quads.
+    features:
+      - op: sketch
+        id: profile
+        plane: XY
+        profile:
+          rect:
+            corner1: [0.0, 0.0]
+            corner2: [2000.0, 2000.0]
+      - {call: BaseShell, sketch: {sketch: profile}}
+    section: {type: shell, material: Steel_Q345, thickness: 25.0}
+    mesh: {seed: 100.0, element: S4R, hourglass_control: ENHANCED}
+    expect:
+      area: 4000000.0
+      faces: 1
 
-bc_load:
-  fixed_face: "all_edges"
-  load_type: blast_conwep
-  blast_tnt_kg: 10.0          # 10 kg TNT
-  blast_standoff_mm: 2000.0   # 2m standoff above plate center
+assembly:
+  instances:
+    - {name: PL-1, part: Plate, translate: [0.0, 0.0, 0.0]}
+  expect:
+    instances: 1
+
+steps:
+  - call: ExplicitDynamicsStep
+    name: {literal: Step-1}
+    previous: {literal: Initial}
+    timePeriod: 4.0e-3
+    description: {literal: Explicit blast dynamics}
+
+conditions:
+  - call: EncastreBC
+    name: {literal: Fixed}
+    createStepName: {literal: Initial}
+    region: {set: "PL-1:edges@all", name: FIXED_EDGES, expect: "=4"}
+  # Kingery-Bulmash scaled distance Z = 2.0 / 10^(1/3) = 0.928 m/kg^(1/3),
+  # Mills incident overpressure, reflected by 2 + 6*exp(-Z/2), Kinney-Graham
+  # positive phase td = 0.967 ms, Friedlander decay b = 1.0 sampled at 30 points
+  # and held at zero to the end of the step. Peak reflected pressure below.
+  - call: TabularAmplitude
+    name: {literal: BlastAmp}
+    timeSpan: STEP
+    smooth: SOLVER_DEFAULT
+    data:
+      - [0.000000e+00, 1.000000e+00]
+      - [3.224871e-05, 9.349756e-01]
+      - [6.449743e-05, 8.731399e-01]
+      - [9.674614e-05, 8.143537e-01]
+      - [1.289949e-04, 7.584835e-01]
+      - [1.612436e-04, 7.054014e-01]
+      - [1.934923e-04, 6.549846e-01]
+      - [2.257410e-04, 6.071153e-01]
+      - [2.579897e-04, 5.616808e-01]
+      - [2.902384e-04, 5.185728e-01]
+      - [3.224871e-04, 4.776875e-01]
+      - [3.547358e-04, 4.389257e-01]
+      - [3.869846e-04, 4.021920e-01]
+      - [4.192333e-04, 3.673951e-01]
+      - [4.514820e-04, 3.344475e-01]
+      - [4.837307e-04, 3.032653e-01]
+      - [5.159794e-04, 2.737682e-01]
+      - [5.482281e-04, 2.458793e-01]
+      - [5.804768e-04, 2.195247e-01]
+      - [6.127256e-04, 1.946338e-01]
+      - [6.449743e-04, 1.711390e-01]
+      - [6.772230e-04, 1.489756e-01]
+      - [7.094717e-04, 1.280814e-01]
+      - [7.417204e-04, 1.083971e-01]
+      - [7.739691e-04, 8.986579e-02]
+      - [8.062178e-04, 7.243303e-02]
+      - [8.384666e-04, 5.604672e-02]
+      - [8.707153e-04, 4.065697e-02]
+      - [9.029640e-04, 2.621605e-02]
+      - [9.352127e-04, 1.267829e-02]
+      - [9.674614e-04, 4.084282e-17]
+      - [4.000000e-03, 0.000000e+00]
+  # Positive magnitude is INTO the surface, which is what a blast does to the
+  # face it arrives on.
+  - call: Pressure
+    name: {literal: AirBlast}
+    createStepName: {literal: Step-1}
+    region: {surface: "PL-1:face@all", name: BLAST_SURF, expect: "=1"}
+    magnitude: 12.692901153243024
+    amplitude: {literal: BlastAmp}
+    distributionType: UNIFORM
+  # ALLPD_MAX reads this. Without it there is no energy history in the ODB and
+  # the KPI has nothing to find.
+  - call: HistoryOutputRequest
+    name: {literal: Energy}
+    createStepName: {literal: Step-1}
+    variables: [{literal: ALLKE}, {literal: ALLIE}, {literal: ALLPD},
+                {literal: ALLSE}]
 
 outputs:
   kpis:
@@ -44,3 +122,4 @@ outputs:
     - name: ALLPD_MAX
       type: history_output_max
       variable: ALLPD
+  field_variables: [S, PE, PEEQ, U, V, A]

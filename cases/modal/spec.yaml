@@ -2,29 +2,52 @@ meta:
   abaqus_release: "2021"
   model_name: "ModalBeam"
   units: "mm_MPa_t"
-  description: "Cantilever modal analysis of a 3D beam (fixed at z=0), first 6 natural frequencies"
-
-geometry:
-  type: cantilever_block
-  L: 200.0
-  W: 20.0
-  H: 10.0
-  seed_size: 10.0
+  description: "First six modes of a 20x10x200 steel box, encastre at z=0."
 
 material:
   name: Steel
   E: 210000.0
   nu: 0.3
-  density: 7.85e-9   # t/mm^3
+  density: 7.85e-9
 
-analysis:
-  solver: standard
-  step_type: Frequency
-  num_eigenmodes: 6
-  cpus: 2
+parts:
+  - name: Beam
+    features:
+      - op: sketch
+        id: profile
+        plane: XY
+        profile:
+          rect:
+            corner1: [0.0, 0.0]
+            corner2: [20.0, 10.0]   # W x H, so the weak axis is H
+      - op: extrude
+        sketch: profile
+        depth: 200.0
+    section: {type: solid, material: Steel}
+    mesh: {seed: 10.0, element: C3D20R}
+    expect:
+      volume: 40000.0
+      cells: 1
 
-bc_load:
-  fixed_face: "z=0"   # cantilever: fix one end so we get real bending modes (not RBM)
+assembly:
+  instances:
+    - {name: Beam-1, part: Beam, translate: [0.0, 0.0, 0.0]}
+  expect:
+    instances: 1
+
+steps:
+  # The step IS the Abaqus method, so the mode count is that method's own
+  # keyword rather than a field this dialect invents a name for.
+  - call: FrequencyStep
+    name: {literal: Step-1}
+    previous: {literal: Initial}
+    numEigen: 6
+
+conditions:
+  - call: EncastreBC
+    name: {literal: Fixed}
+    createStepName: {literal: Initial}
+    region: {set: "Beam-1:face@z=min", name: FIXED_END, expect: "=1"}
 
 outputs:
   kpis:
@@ -37,3 +60,4 @@ outputs:
     - name: freq_3
       type: eigenfrequency
       location: mode_3
+  field_variables: [U]

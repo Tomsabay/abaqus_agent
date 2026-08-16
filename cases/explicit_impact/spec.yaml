@@ -2,41 +2,82 @@ meta:
   abaqus_release: "2021"
   model_name: "ExplicitImpact"
   units: "mm_MPa_t"
-  description: "Explicit dynamic: uniform axial compression of an elastic aluminum block (top face displaced -2mm in Z, smooth-step ramp)"
-
-geometry:
-  type: cantilever_block
-  L: 20.0
-  W: 20.0
-  H: 10.0
-  seed_size: 2.0
+  description: "Explicit dynamic uniform axial compression of an elastic
+    aluminium block, top face driven -2 mm in z on a smooth-step ramp."
 
 material:
   name: AluminumBlock
   E: 70000.0
   nu: 0.33
-  density: 2.7e-9   # t/mm^3
+  density: 2.7e-9   # t/mm^3 — explicit has no static solve to fall back on
 
-analysis:
-  solver: explicit
-  step_type: Dynamic_Explicit
-  time_period: 1.0e-4    # seconds
-  cpus: 2
-  mp_mode: threads
+parts:
+  - name: Block
+    features:
+      - op: sketch
+        id: profile
+        plane: XY
+        profile:
+          rect:
+            corner1: [0.0, 0.0]
+            corner2: [20.0, 10.0]   # W x H
+      - op: extrude
+        sketch: profile
+        depth: 20.0                 # L, along +z
+    section: {type: solid, material: AluminumBlock}
+    # ENHANCED is not decoration. Measured: the same mesh without it reports
+    # 33501 N of reaction against this case's frozen 31817 N, and completes.
+    mesh: {seed: 2.0, element: C3D8R, hourglass_control: ENHANCED}
+    expect:
+      volume: 4000.0
+      cells: 1
 
-bc_load:
-  fixed_face: "z=0"
-  load_type:  displacement
-  value: -2.0
-  direction: 3
+assembly:
+  instances:
+    - {name: IMP-1, part: Block, translate: [0.0, 0.0, 0.0]}
+  expect:
+    instances: 1
+
+steps:
+  - call: ExplicitDynamicsStep
+    name: {literal: Step-1}
+    previous: {literal: Initial}
+    timePeriod: 1.0e-4
+    description: {literal: Explicit dynamic}
+
+conditions:
+  - call: EncastreBC
+    name: {literal: Fixed}
+    createStepName: {literal: Initial}
+    region: {set: "IMP-1:face@z=min", name: FIXED_END, expect: "=1"}
+  # Declared BEFORE the BC that names it: conditions are emitted in spec order,
+  # and an amplitude referenced before it exists is a kernel-side failure.
+  - call: SmoothStepAmplitude
+    name: {literal: Amp-1}
+    timeSpan: STEP
+    data: [[0.0, 0.0], [1.0e-4, 1.0]]
+  # u1 and u2 are pinned as well as u3: the top face is driven down AND held
+  # laterally. Dropping the two zeros is a different problem with a different
+  # reaction force, and it is the held one this case is graded against.
+  - call: DisplacementBC
+    name: {literal: Load-1}
+    createStepName: {literal: Step-1}
+    region: {set: "IMP-1:face@z=max", name: LOAD_END, expect: "=1"}
+    u1: 0.0
+    u2: 0.0
+    u3: -2.0
+    amplitude: {literal: Amp-1}
+    distributionType: UNIFORM
+    fixed: "OFF"
 
 outputs:
   kpis:
     - name: RF_Z_MAX
       type: reaction_force_max
-      location: fixed_face
+      location: FIXED_END
       component: RF3
     - name: U_Z_MIN
       type: field_min
-      location: top_face
+      location: LOAD_END
       component: U3
+  field_variables: [S, E, U, V, RF]

@@ -29,18 +29,68 @@ def _simulate_abaqus_present(monkeypatch):
     monkeypatch.setattr(core.helpers, "check_abaqus", lambda: True)
 
 
-def _write_spec(tmp_path: Path, step_type: str = "Static") -> Path:
+def _write_spec(tmp_path: Path) -> Path:
+    """A deck spec: hand over a finished .inp and say nothing about the model.
+
+    This file is about what the capsule records, not about how the model got
+    built, so the spec that says the least is the right one. It used to be
+    written `geometry: {type: custom_inp}` — the same passthrough in the v1
+    dialect, which dragged `analysis` and `bc_load` along as required siblings
+    that nothing read.
+    """
     spec = {
-        "meta": {"abaqus_release": "2024", "model_name": "CapsuleModel"},
-        "geometry": {"type": "custom_inp", "inp_path": "model.inp"},
+        "meta": {"abaqus_release": "2021", "model_name": "CapsuleModel"},
+        "deck": {"file": "model.inp"},
         "material": {"name": "Steel", "E": 210000, "nu": 0.3},
-        "analysis": {"solver": "standard", "step_type": step_type},
-        "bc_load": {},
+        "analysis": {"solver": "standard"},
         "outputs": {"kpis": [{"name": "U_tip", "type": "nodal_displacement"}]},
     }
     spec_path = tmp_path / "spec.yaml"
     spec_path.write_text(yaml.safe_dump(spec), encoding="utf-8")
     (tmp_path / "model.inp").write_text("*Heading\nmodel\n", encoding="utf-8")
+    return spec_path
+
+
+def _write_stepped_spec(tmp_path: Path, step_call: str) -> Path:
+    """A described model, for the two tests whose subject IS the step type.
+
+    v1 stated the analysis kind in `analysis.step_type` ("Static" against
+    "Dynamic_Explicit"); v2 states it by naming the Abaqus step method, and a
+    `deck` spec cannot state it at all — the steps live inside the .inp and
+    nothing in the spec reports what they are. So the animation pair keeps the
+    dialect that can still express the distinction, and differs in exactly the
+    one thing being tested: the step call.
+    """
+    spec = {
+        "meta": {"abaqus_release": "2021", "model_name": "CapsuleModel",
+                 "units": "mm_MPa_t"},
+        "material": {"name": "Steel", "E": 210000.0, "nu": 0.3},
+        "parts": [{
+            "name": "Bar",
+            "features": [
+                {"op": "sketch", "id": "s", "plane": "XY",
+                 "profile": {"rect": {"corner1": [0.0, 0.0],
+                                      "corner2": [10.0, 10.0]}}},
+                {"op": "extrude", "sketch": "s", "depth": 100.0},
+            ],
+            "section": {"type": "solid", "material": "Steel"},
+            "mesh": {"seed": 5.0, "element": "C3D8I"},
+        }],
+        "assembly": {"instances": [
+            {"name": "Bar-1", "part": "Bar", "translate": [0.0, 0.0, 0.0]}]},
+        "steps": [{"call": step_call, "name": {"literal": "Step-1"},
+                   "previous": {"literal": "Initial"}}],
+        "conditions": [{
+            "call": "EncastreBC", "name": {"literal": "Fixed"},
+            "createStepName": {"literal": "Initial"},
+            "region": {"set": "Bar-1:face@z=min", "name": "FIXED_END",
+                       "expect": "=1"},
+        }],
+        "outputs": {"kpis": [{"name": "U_tip", "type": "field_min",
+                              "component": "U2", "location": "whole_model"}]},
+    }
+    spec_path = tmp_path / "spec.yaml"
+    spec_path.write_text(yaml.safe_dump(spec), encoding="utf-8")
     return spec_path
 
 
@@ -114,7 +164,7 @@ def test_orchestrator_collects_exported_odb_images(tmp_path, monkeypatch):
 
 def test_orchestrator_exports_animation_for_dynamic_step(tmp_path, monkeypatch):
     workdir = tmp_path / "run"
-    spec_path = _write_spec(tmp_path, step_type="Dynamic_Explicit")
+    spec_path = _write_stepped_spec(tmp_path, "ExplicitDynamicsStep")
     orch = AbaqusOrchestrator(spec_path=spec_path, workdir=workdir)
 
     def fake_build():
@@ -155,7 +205,7 @@ def test_orchestrator_exports_animation_for_dynamic_step(tmp_path, monkeypatch):
 
 def test_orchestrator_skips_animation_for_static_step(tmp_path, monkeypatch):
     workdir = tmp_path / "run"
-    spec_path = _write_spec(tmp_path)
+    spec_path = _write_stepped_spec(tmp_path, "StaticStep")
     orch = AbaqusOrchestrator(spec_path=spec_path, workdir=workdir)
 
     def fake_build():

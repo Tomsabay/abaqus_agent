@@ -18,19 +18,29 @@ nodal against S22 2.8420 integration point -- see `_at_element_nodal`). Dividing
 `SCF` by the nominal stress by hand does not recover the Kt the note promises,
 and the shortfall is a position, not a rounding.
 
-WHY IT IS NOT FIXED. `run_id = sha256(spec)`. The name and the note both live
-in `cases/plate_hole/spec.yaml`, so correcting either -- even the note, even a
-comment -- changes the hash, and the frozen Abaqus baseline under
+WHY IT WENT UNFIXED FOR SO LONG. `run_id = sha256(spec)`. The name and the note
+both lived in `cases/plate_hole/spec.yaml`, so correcting either -- even the
+note, even a comment -- changed the hash, and the frozen Abaqus baseline under
 `cases/plate_hole/runs/` was measured once on one machine and cannot be
-recomputed for a spec that has since changed. The cost of the honest rename is
-a piece of unreproducible evidence; the cost of leaving it is a misleading name
-with this file attached to it.
+recomputed for a spec that has since changed. The cost of the honest rename was
+a piece of unreproducible evidence.
 
-WHAT THIS FILE IS FOR. Two directions, like every other guard here. It fails if
-someone "fixes" the extractor into returning a ratio (which would silently
-change what every existing plate_hole baseline means), and it fails if the
-misleading `note` is quietly edited out of the spec (which would change the
-run_id without anyone weighing that).
+WHAT CHANGED ON 2026-08-16. That case was rewritten in the v2 dialect, so its
+hash moved anyway -- for reasons that had nothing to do with this -- and the
+old run directory retired with it (kept in artifacts/runs_archive/). With the
+constraint gone, the ported spec simply does not carry the `SCF` KPI: a NEW
+spec has no baseline to protect, and shipping a KPI whose name states something
+its code does not do would have propagated a known defect for no benefit. The
+reason is written into cases/plate_hole/spec.yaml beside `outputs:`.
+
+THE EXTRACTOR IS UNCHANGED. `derived_stress_concentration` still returns a
+stress, because other specs may use it and because changing what it means would
+silently change what every number ever extracted with it meant.
+
+WHAT THIS FILE IS FOR. It fails if someone "fixes" the extractor into returning
+a ratio (which would silently change the meaning of every value it has ever
+produced), if the schema stops documenting what the type actually returns, or
+if the misnamed KPI quietly reappears in the shipped case.
 """
 
 from __future__ import annotations
@@ -87,29 +97,30 @@ def test_the_branch_does_not_extrapolate_to_element_nodes():
         "whole comparison moot and the docstring above it wrong")
 
 
-def test_the_shipped_case_still_carries_the_misleading_note():
-    """Deliberately unfixed, so its being unfixed has to stay visible.
+def test_the_shipped_case_no_longer_carries_the_misnamed_kpi():
+    """It was dropped when the case was ported, and it may not come back.
 
-    If this fails because the note was corrected, that is not automatically
-    wrong -- but it means a run_id changed, so `cases/plate_hole/runs/` has to
-    be archived first (NG-11) and this file updated to say so.
+    A KPI named `SCF` that returns ~300 MPa is a defect whose only defence was
+    a frozen hash. That hash is gone, so the defence is gone with it, and the
+    spec says why in a comment beside `outputs:` rather than leaving the next
+    reader to wonder where it went.
     """
     spec = yaml.safe_load(SPEC.read_text(encoding="utf-8"))
-    scf = [k for k in spec["outputs"]["kpis"] if k["name"] == "SCF"]
-    assert len(scf) == 1
-    assert scf[0]["type"] == "derived_stress_concentration"
-    assert "3.0" in scf[0].get("note", ""), (
-        "the note promising a dimensionless ~3.0 is gone. Good, if the run "
-        "directory was archived and the baseline re-measured; a silent hash "
-        "change otherwise")
+    names = [k["name"] for k in spec["outputs"]["kpis"]]
+    assert "SCF" not in names, (
+        "the misnamed KPI is back in the shipped case. It reports a STRESS "
+        "under a name that says ratio; see this file's docstring")
+    assert "derived_stress_concentration" in SPEC.read_text(encoding="utf-8"), (
+        "the spec stopped explaining why it does not use that KPI type, so the "
+        "next reader has nothing to go on")
 
 
 def test_the_baseline_never_pinned_the_scf_value():
-    """Why this has cost nothing so far: nothing checks the misleading number.
+    """Why the wrong name cost nothing while it shipped: nothing checked it.
 
-    `expected.json` grades MISES_HOLE_EDGE and U_X_MAX. SCF is extracted,
-    reported, and compared against nothing -- so the wrong name has never made
-    a run pass or fail.
+    `expected.json` grades MISES_HOLE_EDGE and U_X_MAX. SCF was extracted,
+    reported, and compared against nothing -- so it never made a run pass or
+    fail, which is also why dropping it changes no verdict.
     """
     expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
     assert "SCF" not in expected["kpis"]

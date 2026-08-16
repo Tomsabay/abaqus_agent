@@ -166,20 +166,17 @@ def test_a_part_with_no_mesh_block_is_not_walked():
     assert spec_hourglass_findings(_spec(None)) == []
 
 
-def test_a_v1_spec_produces_nothing():
-    """v1 has no element key, and build_model's own choices are correct.
+def test_a_deck_spec_produces_nothing():
+    """A deck names no element, so there is nothing here to have an opinion on.
 
-    Standard gets C3D20R; Explicit gets C3D8R with `hourglassControl=ENHANCED`,
-    which is the textbook right way to use a reduced element. Warning on it
-    would teach the reader to ignore this channel.
+    Its mesh came in the .inp. Reporting a hourglass risk against a spec that
+    chose no element would be a finding the reader cannot act on, and this
+    channel is only worth reading if everything in it is actionable.
     """
-    v1 = yaml.safe_load((ROOT / "cases" / "cantilever" / "spec.yaml")
-                        .read_text(encoding="utf-8"))
-    assert spec_hourglass_findings(v1) == []
-    build_model = (ROOT / "runner" / "build_model.py").read_text(encoding="utf-8")
-    assert "hourglassControl=_C.ENHANCED" in build_model, (
-        "the explicit path stopped asking for enhanced hourglass control, so "
-        "v1 now has the very problem this file says it does not")
+    deck = yaml.safe_load((ROOT / "cases" / "steel_frame_blast" / "spec.yaml")
+                          .read_text(encoding="utf-8"))
+    assert "parts" not in deck, "this case stopped being a deck; pick another"
+    assert spec_hourglass_findings(deck) == []
 
 
 def test_no_shipped_case_trips_the_warning():
@@ -354,7 +351,16 @@ def test_both_planners_are_told_not_to_reach_for_the_risky_default(rel):
     # The sharp half. An LLM copies the examples, not the prose: every
     # `element:` written in either prompt must classify CLEAR. This is checked
     # with the same classifier the engine warns with, so it cannot go stale.
-    written = re.findall(r"element:\s*([A-Z][A-Z0-9]*)", text)
+    #
+    # Unless the same line also sets `hourglass_control`. A reduced element with
+    # enhanced hourglass control is the one form this engine RECOMMENDS for an
+    # explicit step (core/element_risk.FIX says so, and spec_hourglass_findings
+    # stops warning about it), so an example of it is an example of the right
+    # thing. What the rule is really about is a NAKED risky element getting
+    # copied, and that is what the line-scoped match keeps out.
+    written = [code for line in text.splitlines()
+               for code in re.findall(r"element:\s*([A-Z][A-Z0-9]*)", line)
+               if "hourglass_control" not in line]
     assert written, "%s stopped showing any element at all" % rel
     risky = sorted({code for code in written
                     if hourglass_verdict(code)["verdict"] == RISK})

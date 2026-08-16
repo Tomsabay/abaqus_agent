@@ -230,37 +230,61 @@ class TestPipeline:
 # ── core.spec_generator ──────────────────────────────────────────
 
 class TestSpecGenerator:
-    def test_generate_template_spec(self):
+    """The offline template path, which is what a machine with no API key gets.
+
+    Every branch is asserted to BUILD, not merely to carry the right keys. This
+    is the one spec in the product nobody reviews before it runs, and a keyword
+    branch that produces something the generator refuses is a dead end reached
+    only by the user who had no LLM to fall back from.
+    """
+
+    @staticmethod
+    def _generate(text, release="2024"):
         from core.spec_generator import generate_spec_async
-        spec, missing = asyncio.get_event_loop().run_until_complete(
-            generate_spec_async("简单悬臂梁分析", "2024", "template")
-        )
+        return asyncio.get_event_loop().run_until_complete(
+            generate_spec_async(text, release, "template"))
+
+    @staticmethod
+    def _buildable(spec):
+        from runner.build_v2 import generate_script
+        from tools.schema_validator import validate_spec
+        ok, errors = validate_spec(spec)
+        assert ok, errors
+        return generate_script(spec)
+
+    def test_generate_template_spec(self):
+        spec, _missing = self._generate("简单悬臂梁分析")
         assert "meta" in spec
-        assert "geometry" in spec
         assert "material" in spec
         assert spec["meta"]["abaqus_release"] == "2024"
+        # v2, like everything else written from scratch.
+        assert "parts" in spec and "geometry" not in spec and "bc_load" not in spec
+        self._buildable(spec)
 
     def test_generate_spec_with_hole(self):
-        from core.spec_generator import generate_spec_async
-        spec, _ = asyncio.get_event_loop().run_until_complete(
-            generate_spec_async("带孔板分析 plate with hole", "2024", "template")
-        )
-        assert spec["geometry"]["type"] == "plate_with_hole"
+        spec, _ = self._generate("带孔板分析 plate with hole")
+        assert spec["parts"][0]["dimensionality"] == "TWO_D_PLANAR"
+        assert any(c["call"] == "XsymmBC" for c in spec["conditions"])
+        self._buildable(spec)
 
     def test_generate_spec_modal(self):
-        from core.spec_generator import generate_spec_async
-        spec, _ = asyncio.get_event_loop().run_until_complete(
-            generate_spec_async("模态频率分析", "2024", "template")
-        )
-        assert spec["analysis"]["step_type"] == "Frequency"
+        spec, _ = self._generate("模态频率分析")
+        assert spec["steps"][0]["call"] == "FrequencyStep"
+        # An eigenvalue step takes no load, and a load left on one is ignored
+        # rather than refused.
+        assert all(str(c["call"]).endswith("BC") for c in spec["conditions"])
+        assert spec["material"]["density"]
+        self._buildable(spec)
 
     def test_generate_spec_explicit(self):
-        from core.spec_generator import generate_spec_async
-        spec, _ = asyncio.get_event_loop().run_until_complete(
-            generate_spec_async("显式冲击分析 explicit", "2024", "template")
-        )
-        assert spec["analysis"]["step_type"] == "Dynamic_Explicit"
-        assert spec["analysis"]["solver"] == "explicit"
+        spec, _ = self._generate("显式冲击分析 explicit")
+        assert spec["steps"][0]["call"] == "ExplicitDynamicsStep"
+        assert spec["material"]["density"]
+        # C3D8I is Standard-only, so the default element cannot survive here.
+        mesh = spec["parts"][0]["mesh"]
+        assert mesh["element"] == "C3D8R"
+        assert mesh["hourglass_control"] == "ENHANCED"
+        assert "elemLibrary=EXPLICIT" in self._buildable(spec)
 
 
 # ── where a spec that arrived as text gets built ────────────────────────────

@@ -25,10 +25,8 @@ def test_custom_inp_build_copies_input_without_abaqus(tmp_path):
     source_inp.write_text("*Heading\ncustom input\n", encoding="utf-8")
     spec = {
         "meta": {"abaqus_release": "2024", "model_name": "CustomModel"},
-        "geometry": {"type": "custom_inp", "inp_path": "source.inp"},
+        "deck": {"file": "source.inp"},
         "material": {"name": "Steel", "E": 210000, "nu": 0.3},
-        "analysis": {"solver": "standard", "step_type": "Static"},
-        "bc_load": {},
         "outputs": {"kpis": [{"name": "U_tip", "type": "nodal_displacement"}]},
     }
     spec_path = tmp_path / "spec.yaml"

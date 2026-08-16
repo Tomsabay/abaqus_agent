@@ -173,7 +173,7 @@ def hourglass_verdict(code: str) -> dict:
 
 
 def _v2_mesh_elements(spec: dict) -> list[tuple]:
-    """(where, code, is_default) for every part that declares a mesh block.
+    """(where, code, is_default, hourglass) for every part with a mesh block.
 
     `is_default` is the case worth having this whole module for: `mesh:` with
     no `element:` key gets **C3D8R**, so the 90x answer is what a spec gets by
@@ -189,12 +189,14 @@ def _v2_mesh_elements(spec: dict) -> list[tuple]:
         if not isinstance(mesh, dict):
             continue
         name = str(part.get("name", index))
+        hourglass = str(mesh.get("hourglass_control") or "").upper()
         declared = mesh.get("element")
         if declared is None:
             rows.append(("parts[%s].mesh（没写 element:）" % name,
-                         DEFAULT_MESH_ELEMENT, True))
+                         DEFAULT_MESH_ELEMENT, True, hourglass))
         else:
-            rows.append(("parts[%s].mesh.element" % name, str(declared), False))
+            rows.append(("parts[%s].mesh.element" % name, str(declared), False,
+                         hourglass))
     return rows
 
 
@@ -206,11 +208,24 @@ def spec_hourglass_findings(spec: dict) -> list[dict]:
     `hourglassControl=ENHANCED` under Explicit — the second is the textbook
     correct use of a reduced element, so there is nothing to warn about and
     warning anyway would teach the reader to ignore this channel.
+
+    A v2 spec that writes that same combination itself — `hourglass_control`
+    other than DEFAULT, in a model whose steps are explicit — is the same
+    textbook case and is treated the same way. BOTH halves are required. Under
+    Standard the warning stands whatever the hourglass setting says, because the
+    92x measurement above is a static bending case, and nothing here has
+    measured ENHANCED rescuing one; assuming it would is exactly the kind of
+    unmeasured claim this module exists to avoid making.
     """
+    from runner.build_v2 import _element_library
+
+    explicit = _element_library(spec or {}) == "EXPLICIT"
     findings = []
-    for where, code, is_default in _v2_mesh_elements(spec or {}):
+    for where, code, is_default, hourglass in _v2_mesh_elements(spec or {}):
         verdict = hourglass_verdict(code)
         if verdict["verdict"] != RISK:
+            continue
+        if explicit and hourglass and hourglass != "DEFAULT":
             continue
         findings.append({
             "where": where,

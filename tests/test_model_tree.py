@@ -50,9 +50,14 @@ def _labels(tree: dict, gid: str) -> list[str]:
     ("two_plate_contact", "v2"),
     ("block_friction_slide", "v2"),
     ("plate_hole_v2", "v2"),
-    ("cantilever", "v1"),
-    ("modal", "v1"),
-    ("plate_hole", "v1"),
+    ("cantilever", "v2"),
+    ("modal", "v2"),
+    ("plate_hole", "v2"),
+    ("blast_plate", "v2"),
+    ("explicit_impact", "v2"),
+    ("cantilever_plastic", "v2"),
+    ("bearing_block", "v2"),
+    ("steel_frame_blast", "deck"),
 ])
 def test_every_shipped_spec_produces_a_tree(case, dialect):
     tree = build_tree(_spec(case))
@@ -61,6 +66,16 @@ def test_every_shipped_spec_produces_a_tree(case, dialect):
     assert tree["unknown_keys"] == [], (
         "%s carries top-level keys the tree cannot read: %s"
         % (case, tree["unknown_keys"]))
+
+
+def test_a_deck_spec_says_so_instead_of_drawing_an_empty_model():
+    """Empty `零件` and `分析步` groups would read as "this model has none".
+
+    It has a whole deck of both; the tree just cannot see inside a .inp.
+    """
+    tree = build_tree(_spec("steel_frame_blast"))
+    assert [g["id"] for g in tree["groups"]] == ["materials", "deck", "outputs"]
+    assert _labels(tree, "deck") == ["SteelFrameBlast.inp"]
 
 
 def test_the_instance_count_is_the_instance_count():

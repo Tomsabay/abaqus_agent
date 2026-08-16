@@ -111,14 +111,42 @@ class TestRepairStrategies:
         assert "_repair_history" in repaired["meta"]
 
     def test_apply_seed_size_reduction(self):
-        spec = {"geometry": {"seed_size": 10.0}, "analysis": {}}
+        spec = {"parts": [{"name": "A", "mesh": {"seed": 10.0}},
+                          {"name": "B", "mesh": {"seed": 4.0}}],
+                "analysis": {}}
         diagnosis = {
             "parameter_changes": [
                 {"param": "seed_size", "current": "10", "suggested": "reduce by 50%", "reason": "test"},
             ],
         }
         repaired = apply_repairs(spec, diagnosis)
-        assert repaired["geometry"]["seed_size"] == 5.0
+        assert [p["mesh"]["seed"] for p in repaired["parts"]] == [5.0, 2.0]
+        assert "geometry" not in repaired
+
+    def test_apply_absolute_seed_size_does_not_invent_a_geometry_block(self):
+        """The branch that used to `setdefault("geometry", {})`.
+
+        On a v2 spec that wrote a top-level key the schema refuses, so the
+        retry was rejected as SPEC_INVALID instead of being re-solved -- a
+        recoverable failure turned into a fatal one by the repair itself.
+        """
+        spec = {"parts": [{"name": "A", "mesh": {"seed": 10.0}}], "analysis": {}}
+        diagnosis = {
+            "parameter_changes": [
+                {"param": "seed_size", "current": "10", "suggested": "2.5", "reason": "test"},
+            ],
+        }
+        repaired = apply_repairs(spec, diagnosis)
+        assert repaired["parts"][0]["mesh"]["seed"] == 2.5
+        assert "geometry" not in repaired
+
+    def test_a_deck_spec_has_nothing_to_reseed_and_is_left_alone(self):
+        """A finished .inp carries its own mesh; there is no seed to halve."""
+        spec = {"deck": {"file": "x.inp"}, "meta": {}}
+        repaired = apply_repairs(spec, {"parameter_changes": [
+            {"param": "seed_size", "current": "10", "suggested": "reduce by 50%"},
+        ]})
+        assert "geometry" not in repaired and "parts" not in repaired
 
     def test_apply_increment_change(self):
         spec = {"analysis": {"step_type": "Static"}, "meta": {}}

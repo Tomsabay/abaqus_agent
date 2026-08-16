@@ -262,27 +262,28 @@ python agent/orchestrator.py cases/cantilever/spec.yaml \
   cases/cantilever/runner.json
 ```
 
-Use an existing `.inp` as a first-class input:
+Use an existing `.inp` as a first-class input. The deck already carries its own
+parts, steps, boundary conditions and loads, so the spec describes none of them —
+and `parts`/`assembly`/`steps`/`conditions` are refused here rather than ignored,
+because a spec that states a load the deck does not contain would describe a
+model that never ran:
 
 ```yaml
 meta:
   abaqus_release: "2021"
   model_name: "CustomerModel"
-geometry:
-  type: custom_inp
-  inp_path: model.inp
+deck:
+  file: model.inp        # relative to this spec file
 material:
   name: Placeholder
   E: 210000
   nu: 0.3
-analysis:
-  solver: standard
-  step_type: Static
-bc_load: {}
 outputs:
   kpis:
     - name: U_tip
-      type: nodal_displacement
+      type: field_min
+      component: U2
+      location: whole_model
 ```
 
 Create an experiment capsule from an `.inp`:

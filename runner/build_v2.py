@@ -35,6 +35,7 @@ from runner.arg_forms import _IDENT_RE, _IMPORT_LINE, _MODULES, _SYMBOL_RE, _arg
 from runner.mesh_policy import (
     _DIMENSIONALITY,
     _SHAPES_FOR_DIMENSIONALITY,
+    _SHAPES_FOR_SHELL,
     _TECHNIQUE_CONSTANT,
     DEFAULT_MESH_ELEMENT,
     _mesh_shape,
@@ -921,9 +922,40 @@ def _plasticity(where: str, name: str, mat: dict) -> list[str]:
 
 def _parts(spec: dict, model: str) -> str:
     lines = ["# --- Parts -----------------------------------------------------------------"]
+    library = _element_library(spec)
     for part_spec in spec["parts"]:
-        lines.append(_one_part(part_spec))
+        lines.append(_one_part(part_spec, library))
     return "\n".join(lines)
+
+
+# Abaqus/Explicit steps, by the CAE method that creates them. `Explicit` in the
+# name is not the test: TempDisplacementDynamicsStep is an Explicit step and
+# does not contain the word, and no Standard method does contain it.
+_EXPLICIT_STEP_CALLS = frozenset((
+    "ExplicitDynamicsStep",
+    "TempDisplacementDynamicsStep",
+))
+
+
+def _element_library(spec: dict) -> str:
+    """STANDARD or EXPLICIT, decided by the steps the spec declares.
+
+    Not a spec key, because a model cannot hold both: Abaqus/Standard and
+    Abaqus/Explicit steps do not coexist in one model, so there is no case where
+    an author would legitimately want the other one.
+
+    It used to be the constant "STANDARD", and that is a silent failure, not a
+    formality. Measured on Abaqus 2021 with cases/explicit_impact: the deck the
+    constant produced carried `*Element, type=C3D8R` -- the same line as the
+    frozen v1 deck -- and no `*Section Controls`, because hourglassControl is
+    only reachable on the EXPLICIT library. The job COMPLETED with no error,
+    and the reaction force came out 33501 N against the frozen 31817 N, a 5.3%
+    error on a case whose own tolerance is 5%.
+    """
+    for step_spec in spec.get("steps") or []:
+        if _is_generic(step_spec) and str(step_spec.get("call")) in _EXPLICIT_STEP_CALLS:
+            return "EXPLICIT"
+    return "STANDARD"
 
 
 
@@ -1135,7 +1167,7 @@ def _import_lines(part_spec: dict) -> list[str]:
     return lines
 
 
-def _one_part(part_spec: dict) -> str:
+def _one_part(part_spec: dict, library: str = "STANDARD") -> str:
     name = str(part_spec["name"])
     mesh_spec = part_spec.get("mesh") or {}
     orphan = _is_orphan_import(part_spec)
@@ -1174,19 +1206,36 @@ def _one_part(part_spec: dict) -> str:
                ", ".join(sorted(_DIMENSIONALITY))))
     body = _DIMENSIONALITY[dimensionality]
 
+    # A shell is a surface in space: THREE_D, because that is what the Abaqus
+    # constant says a part in three coordinates is, but with faces for a body
+    # and no cells at all. Everything downstream reads `body`, so saying it once
+    # here is what keeps `Set(cells=p.cells)` -- 0 cells, section assigned to
+    # nothing, no exception -- from happening to every shell part.
+    shell = str(part_spec["section"].get("type", "solid")).lower() == "shell"
+    if shell:
+        if dimensionality != "THREE_D":
+            raise SpecError(
+                "part %r declares a shell section and dimensionality %s. A "
+                "shell is a surface in space, which Abaqus calls THREE_D. An "
+                "axisymmetric shell is a LINE (SAX1), not a face, and this "
+                "generator does not build one." % (name, dimensionality))
+        body = "faces"
+
     element = str(mesh_spec.get("element", DEFAULT_MESH_ELEMENT))
     shape, elem_codes = _mesh_shape(name, element)
-    allowed_shapes = _SHAPES_FOR_DIMENSIONALITY[dimensionality]
+    allowed_shapes = (_SHAPES_FOR_SHELL if shell
+                      else _SHAPES_FOR_DIMENSIONALITY[dimensionality])
     if mesh_spec and shape not in allowed_shapes:
+        what = "a shell" if shell else dimensionality
         raise SpecError(
             "part %r is %s and asks for mesh.element %r, which is a %s "
             "element. A %s part can only be meshed with %s. Abaqus does not "
             "refuse this pairing -- elemShape defaults to HEX and a shape a "
             "body has none of meshes nothing without raising, which is the "
             "silent failure this layer exists to stop."
-            % (name, dimensionality, element, shape, dimensionality,
+            % (name, what, element, shape, what,
                " or ".join(allowed_shapes)))
-    library = "STANDARD"
+    hourglass = mesh_spec.get("hourglass_control")
 
     # A planar section carries a thickness; a 3D one must not. Measured on
     # Abaqus 2021: `thickness=None` on a plane-strain part is accepted and
@@ -1194,14 +1243,35 @@ def _one_part(part_spec: dict) -> str:
     # stiffness with nothing said. It is therefore read from the spec when the
     # part is planar, and refused on a 3D part where it would mean nothing.
     thickness = part_spec["section"].get("thickness")
-    if thickness is not None and dimensionality == "THREE_D":
+    if thickness is not None and dimensionality == "THREE_D" and not shell:
         raise SpecError(
             "part %r is THREE_D and its section states a thickness. A solid "
             "section on a 3D body has no thickness -- the geometry is the "
             "thickness. Drop the key, or declare the part TWO_D_PLANAR." % name)
-    section_line = ("m.HomogeneousSolidSection(name=%r, material=%r, thickness=%s)"
-                    % ("SEC_" + name, str(part_spec["section"]["material"]),
-                       "None" if thickness is None else repr(float(thickness))))
+    if shell:
+        if thickness is None:
+            # The one dimension a shell part's geometry does NOT carry. Abaqus
+            # has no default for it, and a section without one is the whole
+            # stiffness of the model left unstated.
+            raise SpecError(
+                "part %r has a shell section and no thickness. A surface has "
+                "no thickness of its own -- the section is the only place it "
+                "is written." % name)
+        # numIntPts=5 and SIMPSON, matching the frozen square_plate decks: five
+        # points through a plate that yields on its outer fibres is the count
+        # that resolves the plastic hinge, and 3 would report less of one.
+        section_line = (
+            "m.HomogeneousShellSection(name=%r, preIntegrate=OFF, material=%r,\n"
+            "    thicknessType=UNIFORM, thickness=%r,\n"
+            "    integrationRule=SIMPSON, numIntPts=%d)"
+            % ("SEC_" + name, str(part_spec["section"]["material"]),
+               float(thickness),
+               int(part_spec["section"].get("integration_points", 5))))
+    else:
+        section_line = (
+            "m.HomogeneousSolidSection(name=%r, material=%r, thickness=%s)"
+            % ("SEC_" + name, str(part_spec["section"]["material"]),
+               "None" if thickness is None else repr(float(thickness))))
     assigns_own = _assigns_its_own_section(part_spec)
 
     if "import" in part_spec:
@@ -1261,8 +1331,15 @@ def _one_part(part_spec: dict) -> str:
         ]
     if mesh_spec:
         lines.append("p.setElementType(regions=(p.%s,), elemTypes=(" % body)
-        lines += ["    mesh.ElemType(elemCode=%s, elemLibrary=%s)," % (code, library)
-                  for code in elem_codes]
+        # hourglassControl goes only on the element the spec named. The
+        # compatible shapes this dialect adds beside it -- the wedge and the tet
+        # a free mesh falls back on -- are fully integrated and have no
+        # hourglass modes to control.
+        lines += ["    mesh.ElemType(elemCode=%s, elemLibrary=%s%s)," %
+                  (code, library,
+                   ", hourglassControl=%s" % str(hourglass).upper()
+                   if hourglass and i == 0 else "")
+                  for i, code in enumerate(elem_codes)]
         # A one-element tuple keeps its comma. Without it the kernel says
         # "elemTypes; found ElemType, expecting tuple" -- which is a loud
         # failure, but only reachable once a single-shape element exists.

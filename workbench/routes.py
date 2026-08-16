@@ -294,22 +294,23 @@ def _preview_workdir(key: str) -> Path:
     return d
 
 
-def _resolve_custom_inp(spec_yaml: str) -> str:
-    """A custom_inp spec may carry a RELATIVE inp_path, which build_model
-    resolves against the spec file's own directory. Preview copies the spec into
-    a hashed scratch workdir, so a relative path would resolve there and always
-    miss — which is why cases/steel_frame_blast could never be previewed.
+def _resolve_deck_path(spec_yaml: str) -> str:
+    """A deck spec may carry a RELATIVE path, which build_model resolves against
+    the spec file's own directory. Preview copies the spec into a hashed scratch
+    workdir, so a relative path would resolve there and always miss — which is
+    why cases/steel_frame_blast could never be previewed.
 
-    Rewrite a relative inp_path to an absolute one before the spec leaves its
+    Rewrite a relative path to an absolute one before the spec leaves its
     original context. Returns the spec unchanged when there is nothing to fix or
     no candidate exists, so the normal FILE_NOT_FOUND error still surfaces.
     """
     try:
         spec = yaml.safe_load(spec_yaml)
-        geo = (spec or {}).get("geometry") or {}
-        if geo.get("type") != "custom_inp":
+        deck = (spec or {}).get("deck") or {}
+        if not deck.get("file"):
             return spec_yaml
-        raw = geo.get("inp_path")
+        holder, key = deck, "file"
+        raw = holder.get(key)
         if not raw or Path(raw).is_absolute():
             return spec_yaml
 
@@ -326,7 +327,7 @@ def _resolve_custom_inp(spec_yaml: str) -> str:
 
         for c in candidates:
             if c.is_file():
-                geo["inp_path"] = str(c.resolve())
+                holder[key] = str(c.resolve())
                 return yaml.safe_dump(spec, allow_unicode=True, sort_keys=False)
     except Exception:
         pass
@@ -343,7 +344,7 @@ def _run_preview_build(spec_yaml: str, key: str) -> dict:
 
     workdir = _preview_workdir(key)
     spec_path = workdir / "spec.yaml"
-    spec_path.write_text(_resolve_custom_inp(spec_yaml), encoding="utf-8")
+    spec_path.write_text(_resolve_deck_path(spec_yaml), encoding="utf-8")
     try:
         result = build_model(spec_path, workdir)
     except Exception as e:

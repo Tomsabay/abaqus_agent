@@ -2303,14 +2303,26 @@ function applyDetectedRelease(release) {
 
 function validateSpecText(yaml) {
   const errors = [];
-  const required = ['meta:', 'geometry:', 'material:', 'analysis:', 'bc_load:', 'outputs:'];
+  // Three dialects reach this box, and the required keys differ by dialect.
+  // This list used to be the v1 one only, so EVERY v2 spec — the dialect the
+  // planner now writes for anything new — was reported invalid here before it
+  // was ever sent. `deck:` hands over a finished .inp and describes nothing.
+  const required = yaml.match(/^deck:/m)
+    ? ['meta:', 'material:', 'outputs:']
+    : (yaml.match(/^parts:/m)
+      ? ['meta:', 'material:', 'parts:', 'assembly:', 'steps:', 'outputs:']
+      : ['meta:', 'geometry:', 'material:', 'analysis:', 'bc_load:', 'outputs:']);
   required.forEach(k => { if (!yaml.includes(k)) errors.push(t('validate.missingField', { field: k })); });
   // Must track schema/spec_schema.json's enum. Hardcoding 2023/2024/2025 told
   // anyone on 2021 — including this build's own machine — that their perfectly
   // valid spec was invalid.
   if (!yaml.match(/abaqus_release:\s*["']?(2019|2020|2021|2022|2023|2024|2025|2026)/))
     errors.push(t('validate.releaseRange'));
-  if (!yaml.match(/solver:\s*(standard|explicit)/)) errors.push(t('validate.solverEnum'));
+  // Only when there IS an analysis block. v1 requires one; v2 and deck specs do
+  // not have to carry one at all, and the ported cases do not — so demanding a
+  // solver line unconditionally rejected valid specs for a key they never need.
+  if (yaml.match(/^analysis:/m) && !yaml.match(/solver:\s*(standard|explicit)/))
+    errors.push(t('validate.solverEnum'));
   if (!yaml.includes('kpis:')) errors.push(t('validate.kpisRequired'));
   return { valid: errors.length === 0, errors };
 }

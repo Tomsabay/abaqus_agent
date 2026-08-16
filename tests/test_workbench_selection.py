@@ -106,7 +106,16 @@ def test_a_material_resolves_for_both_spellings():
     assert got["path"] == "materials[1]"
 
 
-def test_v1_rows_resolve_too():
+def test_a_v1_mention_fails_closed_now_that_the_tree_draws_no_v1_rows():
+    """This was `test_v1_rows_resolve_too`, and its subject is gone.
+
+    v1 was removed 2026-08-16, so the tree no longer stamps `geometry`,
+    `bc_load` or `step:v1` on anything. The property that matters is the one
+    this file exists for: a mention the tree did not draw must RAISE, naming the
+    ref, rather than resolving to whatever else happens to live at that path.
+    A saved chat that still carries an old @-mention is exactly how a stale ref
+    reaches the resolver, so this is a live path, not a hypothetical.
+    """
     v1 = {"meta": {"abaqus_release": "2021", "model_name": "Beam",
                    "units": "mm_MPa_t"},
           "material": {"name": "Steel", "E": 210000.0, "nu": 0.3},
@@ -117,11 +126,26 @@ def test_v1_rows_resolve_too():
                       "load_type": "pressure", "value": -1.0, "direction": 2},
           "outputs": {"kpis": [{"name": "U_tip", "type": "nodal_displacement",
                                 "location": "tip_center"}]}}
-    got = resolve_refs(v1, [{"ref": "geometry"}])[0]
-    assert got["path"] == "geometry"
-    assert "cantilever_block" in got["fragment"]
-    assert resolve_refs(v1, [{"ref": "bc_load"}])[0]["path"] == "bc_load"
-    assert resolve_refs(v1, [{"ref": "step:v1"}])[0]["path"] == "analysis"
+    for ref in ("geometry", "bc_load", "step:v1"):
+        with pytest.raises(SelectionError) as exc_info:
+            resolve_refs(v1, [{"ref": ref}])
+        assert ref in str(exc_info.value), (
+            "the refusal has to name the offending ref, or the user cannot tell "
+            "which mention went stale")
+
+
+def test_a_deck_row_resolves():
+    """The deck dialect draws exactly one mentionable row, and it has to work:
+    it is the only handle a user has on a spec whose model is a whole .inp.
+    """
+    spec = {"meta": {"abaqus_release": "2021", "model_name": "Frame",
+                     "units": "mm_MPa_t"},
+            "material": {"name": "Steel", "E": 210000.0, "nu": 0.3},
+            "deck": {"file": "SteelFrameBlast.inp"},
+            "outputs": {"kpis": [{"name": "U", "type": "field_max"}]}}
+    got = resolve_refs(spec, [{"ref": "deck"}])[0]
+    assert got["path"] == "deck"
+    assert "SteelFrameBlast.inp" in got["fragment"]
 
 
 def test_every_row_the_tree_stamps_a_path_on_actually_resolves():

@@ -40,9 +40,8 @@ A language model's job here ends at a spec — a YAML document. That spec is
 validated against `schema/spec_schema.json` before anything is built
 (`agent/llm_planner.py`, `agent/orchestrator.py`), and the Python script that
 `abaqus cae` actually runs is generated from the validated spec by this
-repository's own code (`runner/build_v2.py` for the v2 dialect,
-`runner/build_model.py` for v1). Nothing a model emits is written to a `.py`
-and executed.
+repository's own code (`runner/build_v2.py`). Nothing a model emits is written
+to a `.py` and executed.
 
 Understand what this is and is not. It means prompt injection cannot reach the
 filesystem by writing Python, because that path does not exist. It does **not**

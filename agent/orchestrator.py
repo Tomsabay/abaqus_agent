@@ -599,9 +599,9 @@ class AbaqusOrchestrator:
         if mesh_result.get("mesh_file"):
             self.result["mesh_file"] = Path(mesh_result["mesh_file"]).name
 
-        # Frame-by-frame animation only makes sense for dynamic steps (best-effort)
-        step_type = self.spec.get("analysis", {}).get("step_type")
-        if step_type in ("Dynamic_Explicit", "Dynamic_Implicit"):
+        # Animation only for a step that integrates in time (best-effort).
+        from core.helpers import has_dynamic_step
+        if has_dynamic_step(self.spec):
             anim_result = export_odb_animation(odb_path, self.workdir)
             self.result["stages"]["export_odb_animation"] = anim_result
             self.result["animation"] = {

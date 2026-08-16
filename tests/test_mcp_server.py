@@ -69,7 +69,9 @@ class TestMCPTools:
             generate_spec(text="带孔板 plate with hole", abaqus_release="2024")
         )
         data = json.loads(result)
-        assert data["spec_dict"]["geometry"]["type"] == "plate_with_hole"
+        spec = data["spec_dict"]
+        assert spec["meta"]["model_name"] == "PlateWithHole"
+        assert spec["parts"][0]["dimensionality"] == "TWO_D_PLANAR"
 
     def test_validate_spec_valid(self):
         from mcp_server import validate_spec_tool
@@ -362,7 +364,13 @@ class TestMCPTools:
         data = json.loads(result)
         assert "features" in data
         assert "capabilities" in data
-        assert len(data["features"]) >= 5
+        # Pinned by name, not by a `>= 5` floor. The floor was written when
+        # features/geometry/ was a fifth module; it existed only to serve the
+        # v1 `geometry.type` dispatch and went with that dialect on 2026-08-16,
+        # and a threshold is exactly the assertion that says nothing until the
+        # count happens to cross it.
+        assert set(data["features"]) == {
+            "coupling", "adaptivity", "parametric", "autorepair"}
         # The licence gate is gone: no entitlement field may survive anywhere
         # in the payload.
         assert "enabled" not in json.dumps(data)

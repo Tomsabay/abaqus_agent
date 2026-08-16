@@ -57,7 +57,7 @@ parts:
       - {op: sketch, id: hole, plane: XY,
          profile: {circle: {center: [30.0, 120.0], r: 6.0}}}
       - {op: cut_extrude, sketch: hole, depth: 5.0}
-    section: {type: solid, material: Steel}    # type 只有 solid
+    section: {type: solid, material: Steel}    # solid | shell
     mesh:
       seed: 5.0
       element: C3D8I          # 常用这四个：C3D8I | C3D20R | C3D8 | C3D8R
@@ -66,6 +66,22 @@ parts:
       local_seeds:
         - {region: "edges@r=6", size: 1.2, expect: "=2"}
 ```
+
+**板壳零件**（钢板、楼板、薄壁件）：`section.type: shell` + 必写 `thickness`。
+零件仍是 `dimensionality: THREE_D`——空间里的一张面就是三维零件，Abaqus 没有
+第四种 dimensionality——但它的**本体是 face 不是 cell**，用 `{call: BaseShell}` 造，
+`expect` 写 `area` 不写 `volume`，单元用壳单元（S4R / S4 / S3 / S8R）：
+```yaml
+    section: {type: shell, material: Steel_Q345, thickness: 25.0}
+    mesh: {seed: 100.0, element: S4R, hourglass_control: ENHANCED}
+    expect: {area: 4000000.0, faces: 1}
+```
+- `thickness` 是壳唯一一处写厚度的地方（几何里没有），不写直接拒绝。
+- 厚度方向积分点默认 5（Simpson）。板外纤维屈服要靠这 5 个点解出塑性铰，
+  改成 3 会少报塑性，要改写 `section.integration_points`。
+- ⚠️ `hourglass_control` 不是装饰：实测 explicit_impact 同一套网格，
+  带 ENHANCED 报 31817 N 支反力，不带报 33501 N，差 5.3%，**两个作业都正常完成**。
+  缩减积分单元（末尾 R）配 explicit 步就要写它。
 名义 op 的硬规矩：
 - 草图 plane 只有 XY，base 拉伸沿 +z——所以零件的"长度"方向是 z。
 - 只能拉伸一次（第二次 extrude 会替换本体）；cut_extrude 必须在 extrude 之后。
@@ -133,6 +149,20 @@ parts:
   没说文件里到底来了什么。
 - orphan mesh 零件**不许再写 `mesh:` 块**（网格已经在文件里了），也不能写体积/面数——
   实测它 `getVolume()` 返回 0.0 且不报错。截面按 `ALL` 集合整体指派。
+
+### 用户已经有一份完整 .inp
+整份 deck 直接跑，别照着它把模型重描一遍。用顶层 `deck:`，此时
+parts / assembly / steps / conditions / interactions **一个都不许写**：
+```yaml
+deck:
+  file: SteelFrameBlast.inp     # 相对**这份 spec 文件**，不是相对 run 目录
+```
+- deck 自带零件、分析步、边界条件、载荷。spec 再写一份等于给读的人一个和实际
+  跑的东西不一致的说法，所以是拒绝而不是忽略。
+- 只有 `meta` / `material` / `outputs` 跟着走；KPI 照常从 ODB 里取。
+- .inp 的**内容**会进构建指纹。原地改 .inp 而路径不变，缓存曾经把上一版 deck
+  原样递回来：实测源文件 100N 改成 900N、重跑、cached=True、作业 COMPLETED、
+  跑的是 100N 那份。
 - `PartFromInputFile` 不收 `name:`，零件名由 deck 决定（实测 deck 里叫 Bar 的进来是
   `BAR`），这边会自动改回 spec 里的名字；文件里如果有多个零件会被指名拒绝，不猜。
 - 路径写 `{file: <相对路径>}`，相对的是 **spec 文件所在目录**。文件不存在当场拒，
@@ -368,6 +398,14 @@ conditions:
     createStepName: {literal: Press}
     region: {surface: "Bar:face@y=max", name: TOP, expect: "=1"}
     magnitude: 0.1
+  - call: SurfaceTraction
+    name: {literal: Shear}
+    createStepName: {literal: Press}
+    region: {surface: "Bar:face@z=max", name: SHEAR, expect: "=1"}
+    magnitude: 0.25
+    directionVector: [[0.0, 0.0, 0.0], [0.0, -1.0, 0.0]]
+    distributionType: UNIFORM
+    traction: GENERAL
 ```
 - 区域写 `{set: "<实例>:<kind>@<位置>", name: <集合名>, expect: "=N"}`（BC、集中力）
   或 `{surface: ...}`（压力、面牵引）。集合名会原样大写建在装配上。
@@ -375,6 +413,13 @@ conditions:
   只留后面那个的 region 和 step，第一步里一张边界卡都不剩，而且照样跑完。
   如果本意是「同一个条件在第二步改值」，那要写成
   `{call: setValuesInStep, target: {ref: <as 绑的名字>}, stepName: {literal: Two}, ...}`。
+- ⚠️ **SurfaceTraction 没有 tr1/tr2/tr3**。方向靠 `directionVector`（两个点，向量从
+  第一个指向第二个），大小靠 `magnitude`（单位是应力，总力 = magnitude × 受载面积），
+  再加 `traction: GENERAL` 和 `distributionType: UNIFORM`。实测：照 cf2 类推写 `tr2`，
+  CAE 停在 `keyword error on tr2`，.inp 根本不生成。
+  **横向分布力用这个，不要用 Pressure**——Pressure 只能沿面法向，把「端面上向下压」
+  写成 Pressure 就变成了沿梁轴的压缩，作业照样 COMPLETED（实测应力 0.47 MPa，
+  而该有的是 15 MPa）。同一道题用上面这个 SurfaceTraction 写法实测得 15.72 MPa。
 - ⚠️ **spec 里那个数不是载荷**：ConcentratedForce 的 cf1/cf2/cf3 是**每节点**
   写进 *Cload 的。实测 4 个角点上 cf2=-100，总载荷是 400 N（作业 COMPLETED、零警告）；
   同样 4 个点上 cf2=-25 才是 100 N。所以集中力必须做两件事：

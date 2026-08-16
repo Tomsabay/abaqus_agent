@@ -170,6 +170,49 @@ def _kpi_descriptions(bundle: RunBundle) -> dict[str, str]:
     return described
 
 
+def _v2_parts_summary(spec: dict) -> str:
+    """One phrase per part: what it is dimensionally, and how finely it is meshed.
+
+    v1 had a single `geometry` block whose scalars were the whole story. v2 has
+    N parts each with its own mesh, so the seed has to be attributed to a part
+    or it means nothing.
+    """
+    described = []
+    for part in spec.get("parts") or []:
+        if not isinstance(part, dict):
+            continue
+        bits = [str(part.get("name") or "?")]
+        if part.get("dimensionality"):
+            bits.append(str(part["dimensionality"]))
+        mesh = part.get("mesh") if isinstance(part.get("mesh"), dict) else {}
+        if mesh.get("seed") is not None:
+            bits.append(f"seed={mesh['seed']}")
+        if mesh.get("element"):
+            bits.append(str(mesh["element"]))
+        described.append(" ".join(bits))
+    return "；".join(described) if described else "（未记录）"
+
+
+def _v2_conditions_summary(spec: dict) -> str:
+    """The Abaqus call each condition makes, with the step it is created in.
+
+    Deliberately the call name and not a prettified label: `Pressure` vs
+    `SurfaceTraction` is the difference between a load along the surface normal
+    and one along a stated vector, and a report that blurred them would be
+    describing a different analysis than the one that ran.
+    """
+    described = []
+    for cond in spec.get("conditions") or []:
+        if not isinstance(cond, dict):
+            continue
+        call = str(cond.get("call") or "?")
+        magnitude = cond.get("magnitude")
+        if magnitude is not None:
+            call += f"({magnitude})"
+        described.append(call)
+    return "、".join(described) if described else "（未记录）"
+
+
 def _spec_summary_lines(bundle: RunBundle, release: str) -> list[str]:
     spec = bundle.spec if isinstance(bundle.spec, dict) else {}
     meta = spec.get("meta", {}) if isinstance(spec.get("meta"), dict) else {}
@@ -181,10 +224,21 @@ def _spec_summary_lines(bundle: RunBundle, release: str) -> list[str]:
     lines = []
     if meta.get("description"):
         lines.append(f"工程/算例描述：{meta['description']}")
+    # `geometry` / `bc_load` are v1's, removed 2026-08-16. The reads stay
+    # because reports are built from ARCHIVED run directories, and the v1 spec
+    # frozen inside one of those must still render. New runs take the v2 branch
+    # below; without it the report silently dropped both lines, which reads as
+    # "the model had no geometry and no loads" rather than as a missing feature.
     if geometry:
         geo = "、".join(f"{k}={v}" for k, v in geometry.items() if not isinstance(v, (dict, list)))
         if geo:
             lines.append(f"几何与网格参数：{geo}")
+    elif spec.get("parts"):
+        lines.append(f"几何与网格参数：{_v2_parts_summary(spec)}")
+    elif isinstance(spec.get("deck"), dict):
+        lines.append(
+            f"几何与网格参数：整份 .inp 原样提交（{spec['deck'].get('file') or '?'}），"
+            "零件/网格/边界条件均由该文件定义")
     if material:
         mat = "、".join(f"{k}={v}" for k, v in material.items() if not isinstance(v, (dict, list)))
         lines.append(f"材料参数：{mat}")
@@ -194,6 +248,8 @@ def _spec_summary_lines(bundle: RunBundle, release: str) -> list[str]:
     if bc_load:
         load = "、".join(f"{k}={v}" for k, v in bc_load.items() if not isinstance(v, (dict, list)))
         lines.append(f"边界与荷载：{load}")
+    elif spec.get("conditions"):
+        lines.append(f"边界与荷载：{_v2_conditions_summary(spec)}")
     if meta.get("units"):
         lines.append(f"单位制：{meta['units']}")
     lines.append(f"Problem Spec 文件：{bundle.spec_path or '（未记录）'}")
@@ -230,6 +286,13 @@ def _model_table(bundle: RunBundle) -> tuple[list[str], list[list[str]]]:
             rows.append(["求解器", str(analysis["solver"])])
         if analysis.get("step_type"):
             rows.append(["分析步类型", str(analysis["step_type"])])
+    # v2 names the step by the Abaqus method it calls, and can declare several.
+    # Reading only `analysis.step_type` left this row blank on every new run.
+    if isinstance(bundle.spec, dict) and not analysis.get("step_type"):
+        calls = [str(s.get("call")) for s in (bundle.spec.get("steps") or [])
+                 if isinstance(s, dict) and s.get("call")]
+        if calls:
+            rows.append(["分析步类型", " → ".join(calls)])
     if bundle.started_at:
         rows.append(["求解开始", bundle.started_at])
     if bundle.finished_at:

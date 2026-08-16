@@ -229,27 +229,26 @@ python agent/orchestrator.py cases/cantilever/spec.yaml \
   cases/cantilever/runner.json
 ```
 
-把现成的 `.inp` 当一等输入用：
+把现成的 `.inp` 当一等输入用。deck 自带零件、分析步、边界条件和载荷，所以 spec
+一样都不描述——`parts`/`assembly`/`steps`/`conditions` 在这里是**拒绝**而不是忽略：
+spec 里写了一条 deck 里没有的载荷，等于给读的人一个从没跑过的模型。
 
 ```yaml
 meta:
   abaqus_release: "2021"
   model_name: "CustomerModel"
-geometry:
-  type: custom_inp
-  inp_path: model.inp
+deck:
+  file: model.inp        # 相对这份 spec 文件
 material:
   name: Placeholder
   E: 210000
   nu: 0.3
-analysis:
-  solver: standard
-  step_type: Static
-bc_load: {}
 outputs:
   kpis:
     - name: U_tip
-      type: nodal_displacement
+      type: field_min
+      component: U2
+      location: whole_model
 ```
 
 从 `.inp` 建一个实验胶囊：

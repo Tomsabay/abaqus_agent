@@ -56,9 +56,21 @@ MARKER = "# --- Materials"
 # archived to artifacts/runs_archive/20260808_frozen_pin_79/ (8 dirs, file
 # counts verified) because build_model fingerprints the whole script and will
 # rebuild them in place on next use.
+# Six more added 2026-08-16, when the v1 cases were replaced by v2 twins whose
+# KPIs reproduce the frozen baselines (four of them to the last digit; see
+# docs/ENV_TRUTH.md). The five above are BYTE-IDENTICAL across that change,
+# which is the evidence that the generator work behind it — the element library
+# now following the step, hourglass control, shell sections — altered no deck
+# that did not ask for it.
 FROZEN = {
     "bearing_block": "30e3d6fee2e4f3e8",
+    "blast_plate": "58514cb28f5f37e7",
     "block_friction_slide": "b14269ae5a0516e9",
+    "cantilever": "e274ea1884064652",
+    "cantilever_plastic": "ad716280ec00983c",
+    "explicit_impact": "641f9d60de3cd849",
+    "modal": "53b39927dd73469a",
+    "plate_hole": "33e7303929cffa3a",
     "plate_hole_v2": "bc6b8f85a77b7afa",
     "two_plate_contact": "d69e35bb79222724",
     "two_plate_tie": "0f16a4a37be3515d",

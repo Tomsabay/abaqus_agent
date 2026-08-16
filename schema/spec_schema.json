@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AbaqusAgentProblemSpec",
-  "description": "Abaqus automation agent problem specification schema. Two dialects share this file. v1 (`geometry` + `analysis` + `bc_load`) names one of a closed list of shapes and can express exactly one part, one instance, one step, one BC and one load. v2 (`parts` + `assembly` + `steps`) builds parts from a feature grammar and assembles any number of them. The `allOf` block below makes them mutually exclusive rather than merely both-allowed: a spec carrying both would leave which one wins up to the builder, and a silently ignored `interactions` block is a missing contact pair in a model that still solves.",
+  "description": "Abaqus automation agent problem specification schema. A spec either DESCRIBES a model — `parts` + `assembly` + `steps`, built from a feature grammar, any number of parts — or HANDS ONE OVER as a finished .inp under `deck`. The `allOf` below makes those mutually exclusive rather than merely both-allowed: a spec carrying both would leave which one wins up to the builder, and a silently ignored `interactions` block is a missing contact pair in a model that still solves. An earlier enumerated dialect (`geometry` naming one of a closed list of shapes, plus `bc_load`, one part and one step) was removed on 2026-08-16 after its seven cases were ported here and reproduced their baselines; see docs/ENV_TRUTH.md.",
   "type": "object",
   "required": [
     "meta",
@@ -12,28 +12,29 @@
     {
       "if": {
         "required": [
-          "parts"
+          "deck"
         ]
       },
       "then": {
+        "description": "A finished .inp, handed over as it is. It already carries its own parts, steps, boundary conditions and loads, so every key that would describe those is forbidden here rather than silently ignored — a spec that states a load the deck does not contain is a spec whose reader is wrong about what ran.",
+        "not": {
+          "anyOf": [
+            {"required": ["geometry"]},
+            {"required": ["parts"]},
+            {"required": ["assembly"]},
+            {"required": ["steps"]},
+            {"required": ["conditions"]},
+            {"required": ["interactions"]},
+            {"required": ["bc_load"]}
+          ]
+        }
+      },
+      "else": {
         "required": [
+          "parts",
           "assembly",
           "steps"
         ],
-        "not": {
-          "anyOf": [
-            {
-              "required": [
-                "geometry"
-              ]
-            },
-            {
-              "required": [
-                "bc_load"
-              ]
-            }
-          ]
-        },
         "properties": {
           "analysis": {
             "required": [
@@ -44,28 +45,28 @@
                 "step_type"
               ]
             },
-            "description": "In v2 `analysis` carries only job-level settings (solver, cpus, memory). `step_type` is forbidden here because steps[].type already says it, and two places to say the same thing is two places to disagree."
-          }
-        }
-      },
-      "else": {
-        "required": [
-          "geometry",
-          "analysis",
-          "bc_load"
-        ],
-        "properties": {
-          "analysis": {
-            "required": [
-              "solver",
-              "step_type"
-            ]
+            "description": "`analysis` carries only job-level settings (solver, cpus, memory). `step_type` is forbidden here because steps[] already says it, and two places to say the same thing is two places to disagree."
           }
         }
       }
     }
   ],
   "properties": {
+    "deck": {
+      "type": "object",
+      "description": "Run this .inp as it stands. The v2 spelling of what v1 called `geometry: {type: custom_inp}` — which put a whole-deck passthrough inside the key that names one of four built-in shapes, and dragged `analysis` and `bc_load` along as required siblings that nothing read.",
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the .inp, relative to THIS spec file (not to the run directory). Its CONTENTS are hashed into the build fingerprint: the deck path alone is not enough, because editing the .inp in place would otherwise leave the fingerprint identical and the cache would hand back the previous deck. Measured once already — source edited 100 N to 900 N, rerun, cached=True, COMPLETED, stale physics."
+        }
+      },
+      "additionalProperties": false
+    },
     "meta": {
       "type": "object",
       "required": [
@@ -107,154 +108,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "geometry": {
-      "type": "object",
-      "required": [
-        "type"
-      ],
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "cantilever_block",
-            "plate_with_hole",
-            "axisymmetric_disk",
-            "custom_inp",
-            "shell_plate",
-            "beam_frame",
-            "composite_plate",
-            "cohesive_layer",
-            "square_plate"
-          ]
-        },
-        "L": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "W": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "H": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "R": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "seed_size": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "inp_path": {
-          "type": "string"
-        },
-        "thickness": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "profile": {
-          "type": "object",
-          "description": "Beam cross-section profile (features.geometry: beam_frame)",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "rectangular",
-                "circular",
-                "I_beam",
-                "pipe"
-              ]
-            },
-            "width": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "height": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "radius": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "flange_width": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "flange_thickness": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "web_thickness": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "wall_thickness": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            }
-          }
-        },
-        "layup": {
-          "type": "array",
-          "description": "Composite layup definition (features.geometry: composite_plate)",
-          "items": {
-            "type": "object",
-            "required": [
-              "material",
-              "thickness",
-              "orientation"
-            ],
-            "properties": {
-              "material": {
-                "type": "string"
-              },
-              "thickness": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "orientation": {
-                "type": "number"
-              }
-            }
-          }
-        },
-        "cohesive_thickness": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "num_segments": {
-          "type": "integer",
-          "minimum": 2
-        },
-        "points": {
-          "type": "array",
-          "description": "Beam frame node coordinates",
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            },
-            "minItems": 2,
-            "maxItems": 3
-          }
-        },
-        "connections": {
-          "type": "array",
-          "description": "Beam frame element connectivity",
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            },
-            "minItems": 2,
-            "maxItems": 2
-          }
-        }
-      }
     },
     "material": {
       "type": "object",
@@ -424,24 +277,13 @@
     },
     "analysis": {
       "type": "object",
-      "description": "`solver` and `step_type` are required here in the v1 dialect and applied from the top-level allOf, not from this object, because v2 forbids step_type.",
+      "description": "Job-level settings only, and optional as a whole — most shipped cases carry no `analysis` block at all. What the analysis IS gets said in `steps`, by naming the Abaqus method: a second place to say it is a second place to disagree, which is why `step_type` is refused here by the top-level allOf.",
       "properties": {
         "solver": {
           "type": "string",
           "enum": [
             "standard",
             "explicit"
-          ]
-        },
-        "step_type": {
-          "type": "string",
-          "enum": [
-            "Static",
-            "Frequency",
-            "Dynamic_Explicit",
-            "Dynamic_Implicit",
-            "Coupled_Temperature_Displacement",
-            "Coupled_Thermal_Electrical"
           ]
         },
         "cpus": {
@@ -532,78 +374,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "bc_load": {
-      "type": "object",
-      "properties": {
-        "fixed_face": {
-          "type": "string"
-        },
-        "load_face": {
-          "type": "string"
-        },
-        "load_type": {
-          "type": "string",
-          "enum": [
-            "pressure",
-            "concentrated_force",
-            "displacement",
-            "temperature",
-            "heat_flux",
-            "body_heat_flux",
-            "blast_conwep"
-          ]
-        },
-        "value": {
-          "type": "number"
-        },
-        "direction": {
-          "type": "integer",
-          "enum": [
-            1,
-            2,
-            3
-          ]
-        },
-        "thermal_bc": {
-          "type": "object",
-          "description": "Thermal boundary conditions (features.coupling)",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "temperature",
-                "heat_flux",
-                "convection",
-                "radiation"
-              ]
-            },
-            "face": {
-              "type": "string"
-            },
-            "value": {
-              "type": "number"
-            },
-            "film_coeff": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "sink_temperature": {
-              "type": "number"
-            }
-          }
-        },
-        "blast_tnt_kg": {
-          "type": "number",
-          "exclusiveMinimum": 0,
-          "description": "TNT-equivalent mass in kg"
-        },
-        "blast_standoff_mm": {
-          "type": "number",
-          "exclusiveMinimum": 0,
-          "description": "Standoff distance from blast source to target (mm)"
-        }
-      }
     },
     "outputs": {
       "type": "object",
@@ -803,8 +573,10 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "solid"
-                ]
+                  "solid",
+                  "shell"
+                ],
+                "description": "`shell` makes the part a surface in space: it stays THREE_D, which is what Abaqus calls a part in three coordinates, but its body becomes faces and it meshes with shell quads and triangles (S4R, S3, S8R). It is the section rather than the dimensionality that says so because Abaqus has no dimensionality that does."
               },
               "material": {
                 "type": "string",
@@ -814,7 +586,13 @@
               "thickness": {
                 "type": "number",
                 "exclusiveMinimum": 0,
-                "description": "Out-of-plane thickness, for a TWO_D_PLANAR or AXISYMMETRIC part only; refused on a THREE_D part, where the geometry is the thickness. Left out, Abaqus assumes 1.0 and says nothing, so a plane-stress part that meant 5 mm gets a fifth of the stiffness with no warning."
+                "description": "Out-of-plane thickness. Required on a shell section — a surface carries no thickness of its own and Abaqus has no default. Otherwise for a TWO_D_PLANAR or AXISYMMETRIC part only, and refused on a THREE_D solid where the geometry is the thickness. Left out on a planar part, Abaqus assumes 1.0 and says nothing, so a plane-stress part that meant 5 mm gets a fifth of the stiffness with no warning."
+              },
+              "integration_points": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 5,
+                "description": "Simpson points through a shell's thickness. Five is the default because that is what resolves a plastic hinge in a plate that yields on its outer fibres; three reports less plasticity than there is."
               }
             },
             "additionalProperties": false
@@ -1829,6 +1607,18 @@
           "pattern": "^[A-Z][A-Z0-9]{2,15}$",
           "default": "C3D8R",
           "description": "The Abaqus element code for the hex/brick family this part is meshed with. Not enumerated here on purpose: runner/build_v2.py:_COMPANION is the authority, because what the schema would have to encode is not the list of legal Abaqus elements but the list this generator can pair with a wedge and a tet — and that pairing cannot be derived from the name (DC3D8 takes DC3D6, C3D8RT takes C3D6T and not C3D6RT). An element with no recorded pairing is refused by name, with the recorded ones listed, because the alternative is Abaqus quietly meshing the cells a sweep leaves behind with a default element of a different formulation. Recorded today: C3D20, C3D20E, C3D20R, C3D20RT, C3D8, C3D8E, C3D8H, C3D8I, C3D8R, C3D8RT, C3D8T, DC3D20, DC3D8, Q3D8."
+        },
+        "hourglass_control": {
+          "type": "string",
+          "enum": [
+            "DEFAULT",
+            "ENHANCED",
+            "RELAX_STIFFNESS",
+            "STIFFNESS",
+            "VISCOUS",
+            "COMBINED"
+          ],
+          "description": "Hourglass control for a reduced-integration element, passed to mesh.ElemType and written as *Section Controls. Only the element named in `element` gets it; the compatible wedge and tet beside it are fully integrated. Measured on Abaqus 2021 with cases/explicit_impact: the same C3D8R mesh with and without ENHANCED gives 33501 N against 31817 N of reaction force, a 5.3% spread, and BOTH jobs complete without a warning."
         },
         "technique": {
           "type": "string",

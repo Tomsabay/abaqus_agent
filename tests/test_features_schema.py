@@ -16,7 +16,8 @@ CASES_DIR = Path(__file__).parent.parent / "cases"
 class TestSchemaBackwardCompatibility:
     """Ensure existing free-tier specs still validate after schema extension."""
 
-    @pytest.fixture(params=["cantilever", "plate_hole", "modal", "explicit_impact"])
+    @pytest.fixture(params=["cantilever", "plate_hole", "modal", "explicit_impact",
+                            "blast_plate", "steel_frame_blast"])
     def case_spec_path(self, request):
         path = CASES_DIR / request.param / "spec.yaml"
         if path.exists():
@@ -31,16 +32,32 @@ class TestSchemaBackwardCompatibility:
 class TestFeatureSchemaFields:
     """Test that feature-module-specific fields are accepted by schema."""
 
-    def test_coupled_step_type_accepted(self):
+    def test_a_coupled_step_is_written_as_the_abaqus_method(self):
+        """`analysis.step_type: Coupled_Temperature_Displacement` is gone with
+        the dialect that carried it. A coupled step is now the method itself,
+        which is also the only form that can take that method's own keywords."""
         spec = _make_base_spec()
-        spec["analysis"]["step_type"] = "Coupled_Temperature_Displacement"
+        spec["steps"] = [{"call": "CoupledTempDisplacementStep",
+                          "name": {"literal": "Heat"},
+                          "previous": {"literal": "Initial"},
+                          "deltmx": 10.0}]
         valid, errors = validate_spec(spec)
-        assert valid, f"Coupled step type rejected: {errors}"
+        assert valid, f"Coupled step rejected: {errors}"
 
-    def test_shell_plate_geometry_accepted(self):
+    def test_a_shell_plate_is_a_section_not_a_shape_name(self):
+        """What `geometry.type: shell_plate` used to name. It is a section now,
+        so a shell is any surface the feature grammar can draw rather than the
+        one rectangular plate the enumerated shape could."""
         spec = _make_base_spec()
-        spec["geometry"]["type"] = "shell_plate"
-        spec["geometry"]["thickness"] = 2.0
+        spec["parts"][0]["features"] = [
+            {"op": "sketch", "id": "s", "plane": "XY",
+             "profile": {"rect": {"corner1": [0.0, 0.0], "corner2": [100.0, 100.0]}}},
+            {"call": "BaseShell", "sketch": {"sketch": "s"}},
+        ]
+        spec["parts"][0]["section"] = {"type": "shell", "material": "Steel",
+                                       "thickness": 2.0}
+        spec["parts"][0]["mesh"] = {"seed": 10.0, "element": "S4R"}
+        spec["parts"][0]["expect"] = {"area": 10000.0, "faces": 1}
         valid, errors = validate_spec(spec)
         assert valid, f"Shell plate rejected: {errors}"
 
@@ -56,7 +73,7 @@ class TestFeatureSchemaFields:
         spec = _make_base_spec()
         spec["parametric"] = {
             "parameters": [
-                {"path": "geometry.L", "values": [100, 200]}
+                {"path": "parts[0].features[1].depth", "values": [100, 200]}
             ],
             "strategy": "full_factorial",
         }
@@ -82,9 +99,23 @@ def _make_base_spec() -> dict:
     """Create a minimal valid spec for testing."""
     return {
         "meta": {"abaqus_release": "2024", "model_name": "TestModel"},
-        "geometry": {"type": "cantilever_block", "L": 100, "W": 10, "H": 10},
         "material": {"name": "Steel", "E": 210000, "nu": 0.3},
-        "analysis": {"solver": "standard", "step_type": "Static"},
-        "bc_load": {"value": -1},
-        "outputs": {"kpis": [{"name": "U_tip", "type": "nodal_displacement"}]},
+        "analysis": {"solver": "standard"},
+        "parts": [{
+            "name": "Bar",
+            "features": [
+                {"op": "sketch", "id": "s", "plane": "XY",
+                 "profile": {"rect": {"corner1": [0.0, 0.0],
+                                      "corner2": [10.0, 10.0]}}},
+                {"op": "extrude", "sketch": "s", "depth": 100.0},
+            ],
+            "section": {"type": "solid", "material": "Steel"},
+            "mesh": {"seed": 5.0, "element": "C3D8I"},
+        }],
+        "assembly": {"instances": [{"name": "Bar-1", "part": "Bar",
+                                    "translate": [0.0, 0.0, 0.0]}]},
+        "steps": [{"call": "StaticStep", "name": {"literal": "Step-1"},
+                   "previous": {"literal": "Initial"}}],
+        "outputs": {"kpis": [{"name": "U_tip", "type": "field_min",
+                              "component": "U2", "location": "whole_model"}]},
     }

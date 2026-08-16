@@ -98,9 +98,11 @@ def test_chat_template_creates_proposal_with_diff(client):
     pending = data["pending"]
     assert pending is not None
     assert pending["backend"] == "template"
-    assert "cantilever" in pending["spec_yaml"]
+    # The template writes v2 now, like everything else written from scratch.
+    assert "parts:" in pending["spec_yaml"]
+    assert "geometry:" not in pending["spec_yaml"]
     # First proposal diffs against an empty spec: everything is an addition.
-    assert "+geometry:" in pending["diff"] or "+  type: cantilever_block" in pending["diff"]
+    assert "+parts:" in pending["diff"]
 
     session = data["session"]
     assert session["title"] != "新会话"
@@ -253,33 +255,61 @@ def test_every_asset_the_workbench_asks_for_is_actually_served(client):
 
 # ── Planner unit tests ───────────────────────────────────────────────────────
 
+# What a good answer from the model looks like. v2, because that is now the
+# only dialect a spec written from scratch may come back in — the planner
+# validates every draft against the real schema, so a fixture in the removed
+# dialect would make these tests exercise the repair loop instead of the path
+# they are about.
 _VALID_SPEC_YAML = """meta:
-  abaqus_release: "2024"
+  abaqus_release: "2021"
   model_name: "TestBeam"
   units: "mm_MPa_t"
-geometry:
-  type: cantilever_block
-  L: 100.0
-  W: 10.0
-  H: 10.0
 material:
   name: Steel
   E: 210000.0
   nu: 0.3
-analysis:
-  solver: standard
-  step_type: Static
-  cpus: 1
-bc_load:
-  fixed_face: "x=0"
-  load_face: "x=L"
-  load_type: concentrated_force
-  value: -1.0
+parts:
+  - name: Beam
+    features:
+      - {op: sketch, id: profile, plane: XY,
+         profile: {rect: {corner1: [0.0, 0.0], corner2: [10.0, 10.0]}}}
+      - {op: extrude, sketch: profile, depth: 100.0}
+    section: {type: solid, material: Steel}
+    mesh: {seed: 5.0, element: C3D8I}
+assembly:
+  instances:
+    - {name: Beam-1, part: Beam, translate: [0.0, 0.0, 0.0]}
+steps:
+  - {call: StaticStep, name: {literal: Step-1}, previous: {literal: Initial}}
+conditions:
+  - {call: EncastreBC, name: {literal: Fixed}, createStepName: {literal: Initial},
+     region: {set: "Beam-1:face@z=min", name: FIXED_END, expect: "=1"}}
+  - {call: ConcentratedForce, name: {literal: Tip},
+     createStepName: {literal: Step-1},
+     region: {set: "Beam-1:node@box=4.9,4.9,99.9,5.1,5.1,100.1",
+              name: TIP_NODES, expect: "=1"},
+     cf2: -1.0, expect: {points: 1}}
 outputs:
   kpis:
-    - name: U_tip
-      type: nodal_displacement
-      location: tip_center
+    - {name: U_tip, type: nodal_displacement, location: TIP_NODES,
+       component: U2}
+"""
+
+# A spec that hands over a finished .inp. Nothing here describes a model, so
+# there is nothing for the v2 generator to lint.
+_DECK_SPEC_YAML = """meta:
+  abaqus_release: "2021"
+  model_name: "TestDeck"
+  units: "mm_MPa_t"
+deck:
+  file: model.inp
+material:
+  name: Steel
+  E: 210000.0
+  nu: 0.3
+outputs:
+  kpis:
+    - {name: U_tip, type: nodal_displacement, location: tip_center}
 """
 
 
@@ -865,8 +895,10 @@ def test_builder_errors_name_what_the_schema_lets_through():
     errs = planner._builder_errors(_face_seed_variant())
     assert len(errs) == 1
     assert "selects face" in errs[0]
-    # v1 specs go through a different generator; the lint stays out of their way.
-    assert planner._builder_errors(_yaml.safe_load(_VALID_SPEC_YAML)) == []
+    # A deck spec describes no model, so the v2 generator never runs on one;
+    # the lint has to stay out of its way rather than refuse it for having no
+    # `parts:`.
+    assert planner._builder_errors(_yaml.safe_load(_DECK_SPEC_YAML)) == []
 
 
 def test_the_builder_lint_feeds_the_repair_loop(monkeypatch):
@@ -1202,7 +1234,7 @@ def test_chat_selection_resolves_and_is_recorded(client):
     data = client.post(
         f"/api/workbench/sessions/{sid}/chat",
         json={"text": "@几何 加长一倍", "backend": "template",
-              "selection": [{"ref": "geometry", "label": "几何"}]})
+              "selection": [{"ref": "part:Beam", "label": "零件"}]})
     assert data.status_code == 200, data.text
     session = data.json()["session"]
     user_msgs = [m for m in session["messages"] if m["role"] == "user"]
@@ -1234,7 +1266,7 @@ def test_chat_selection_with_no_spec_is_a_400(client):
     resp = client.post(
         f"/api/workbench/sessions/{sid}/chat",
         json={"text": "@x", "backend": "template",
-              "selection": [{"ref": "geometry", "label": "几何"}]})
+              "selection": [{"ref": "part:Beam", "label": "零件"}]})
     assert resp.status_code == 400
     assert "先让助手生成" in resp.json()["detail"]
 
@@ -1269,8 +1301,10 @@ def test_chat_selection_reaches_the_claude_prompt(client, monkeypatch):
     resp = client.post(
         f"/api/workbench/sessions/{sid}/chat",
         json={"text": "@几何 加长一倍", "backend": "claude_cli",
-              "selection": [{"ref": "geometry", "label": "几何"}]})
+              "selection": [{"ref": "part:Beam", "label": "零件"}]})
     assert resp.status_code == 200, resp.text
-    assert captured["selection"] and captured["selection"][0]["path"] == "geometry"
+    assert captured["selection"] and captured["selection"][0]["path"] == "parts[0]"
     assert "## 用户选中" in captured["prompt"]
-    assert "cantilever_block" in captured["prompt"].split("## 用户选中", 1)[1]
+    # The resolved FRAGMENT rides the prompt, not just the row's label — that is
+    # the whole point of resolving at send time against the spec the tree drew.
+    assert "name: Beam" in captured["prompt"].split("## 用户选中", 1)[1]

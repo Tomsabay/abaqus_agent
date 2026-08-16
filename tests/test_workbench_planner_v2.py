@@ -791,18 +791,43 @@ def test_prompt_teaches_the_reversed_step_order_trap(prompt):
     assert "第二步的 previous 必须写第一步的名字" in prompt
 
 
-def test_prompt_still_teaches_v1_and_says_when_to_use_it(prompt):
-    """The v1 rules that still hold are still there. plate_with_hole is a
-    quarter-symmetry model and its fixed_face is a fixed string — a rule the v2
-    work has no reason to touch and every reason not to lose."""
-    for rule in ("cantilever_block", "plate_with_hole", "axisymmetric_disk",
-                 "custom_inp", "x=0_symmetry", "geometry.type", "bc_load.load_type"):
+def test_prompt_teaches_the_deck_dialect_and_its_one_prohibition(prompt):
+    """`deck:` is four lines, which is exactly why it needs saying.
+
+    The prohibition is the part that matters: a deck already carries its own
+    parts, steps and loads, so a spec that also states them describes a model
+    that never ran. It is refused rather than ignored, and the prompt has to
+    say so or the model will helpfully fill the blocks in.
+    """
+    for rule in ("deck.file", "parts / assembly / steps / conditions / interactions",
+                 "拒绝而不是忽略"):
         assert rule in prompt
 
 
 def test_prompt_routes_between_the_dialects(prompt):
     assert "不许混写" in prompt
-    assert "拿不准就用 v2" in prompt
+
+
+def test_prompt_sends_every_new_spec_to_v2(prompt):
+    """Routing flipped 2026-08-16. It used to send the simple shapes to v1, and
+    a measured run showed what that costs: v1's load enum has no direction on
+    `pressure`, so a request for 100 N downward came back as an "equivalent"
+    0.25 MPa pressure, which Abaqus applies along the face normal — bending
+    became axial compression, the job finished COMPLETED, and the stress read
+    0.47 MPa against the 15 MPa the planner itself had predicted.
+
+    The dialect itself went the same day. What the prompt must now say about a
+    spec that still carries those keys is NOT "keep editing it in place" — the
+    schema refuses them, so that advice produces a spec that cannot validate —
+    but "say so and offer to rewrite it". Rewriting silently would change the
+    spec's run id and void whatever baseline it is graded against, which is why
+    the offer has to be explicit rather than assumed."""
+    assert "描述模型一律用 v2（parts:），没有例外" in prompt
+    assert "任何时候都不要写它们" in prompt
+    assert "提出改写成 v2，不要默默改" in prompt
+    # The reason travels with the rule; a rule with no measurement behind it is
+    # the first thing a later edit trims.
+    assert "0.47" in prompt and "15 MPa" in prompt
 
 
 def test_prompt_forbids_step_type_in_v2(prompt):

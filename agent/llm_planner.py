@@ -180,7 +180,13 @@ class LLMPlanner:
         return response.content[0].text.strip()
 
     def _template_fallback(self, user_text: str) -> tuple[dict, list[str]]:
-        """Return a default cantilever spec with missing questions."""
+        """Return a default cantilever spec with missing questions.
+
+        v2, like everything else written from scratch. This is what a machine
+        with no API key gets, so it is also the dialect a first-time reader
+        sees first — and a placeholder that demonstrated the frozen dialect
+        would teach the one thing the planner is now told never to write.
+        """
         spec = {
             "meta": {
                 "abaqus_release": detect_abaqus_release() or "unknown",
@@ -195,11 +201,48 @@ class LLMPlanner:
                     "What KPIs should be extracted?",
                 ],
             },
-            "geometry": {"type": "cantilever_block", "L": 100.0, "W": 10.0, "H": 10.0},
             "material": {"name": "Steel", "E": 210000.0, "nu": 0.3},
-            "analysis": {"solver": "standard", "step_type": "Static", "cpus": 1},
-            "bc_load": {"fixed_face": "x=0", "load_face": "x=L", "load_type": "pressure", "value": -1.0},
-            "outputs": {"kpis": [{"name": "U_tip", "type": "nodal_displacement", "location": "tip_center"}]},
+            "parts": [{
+                "name": "Beam",
+                "features": [
+                    {"op": "sketch", "id": "profile", "plane": "XY",
+                     "profile": {"rect": {"corner1": [0.0, 0.0],
+                                          "corner2": [10.0, 10.0]}}},
+                    {"op": "extrude", "sketch": "profile", "depth": 100.0},
+                ],
+                "section": {"type": "solid", "material": "Steel"},
+                # Not the C3D8R default: one element through a 10 mm thickness
+                # measures 92x the closed form on exactly this bar.
+                "mesh": {"seed": 5.0, "element": "C3D8I"},
+                "expect": {"volume": 10000.0, "cells": 1},
+            }],
+            "assembly": {"instances": [{"name": "Beam-1", "part": "Beam",
+                                        "translate": [0.0, 0.0, 0.0]}]},
+            "steps": [{"call": "StaticStep", "name": {"literal": "Step-1"},
+                       "previous": {"literal": "Initial"}}],
+            "conditions": [
+                {"call": "EncastreBC", "name": {"literal": "Fixed"},
+                 "createStepName": {"literal": "Initial"},
+                 "region": {"set": "Beam-1:face@z=min", "name": "FIXED_END",
+                            "expect": "=1"}},
+                # SurfaceTraction, not Pressure: an Abaqus pressure acts along
+                # the surface NORMAL, so a "downward" load on the tip face is
+                # axial compression and the bar never bends.
+                {"call": "SurfaceTraction", "name": {"literal": "Load-1"},
+                 "createStepName": {"literal": "Step-1"},
+                 "region": {"surface": "Beam-1:face@z=max", "name": "LOAD_SURF",
+                            "expect": "=1"},
+                 "magnitude": 0.01,
+                 "directionVector": [[0.0, 0.0, 0.0], [0.0, -1.0, 0.0]],
+                 "distributionType": "UNIFORM", "traction": "GENERAL"},
+            ],
+            "outputs": {
+                # field_min, not field_max: every U2 is negative under a
+                # downward load, so a max returns the node closest to zero.
+                "kpis": [{"name": "U_tip", "type": "field_min",
+                          "component": "U2", "location": "whole_model"}],
+                "field_variables": ["S", "E", "U", "RF"],
+            },
         }
         return spec, spec["meta"]["missing_questions"]
 

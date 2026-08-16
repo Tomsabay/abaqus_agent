@@ -35,6 +35,30 @@ def list_cases() -> list[str]:
     ]
 
 
+# Step methods that integrate in time, so one frame is not the whole answer.
+DYNAMIC_STEP_CALLS = ("ExplicitDynamicsStep", "ImplicitDynamicsStep")
+
+
+def has_dynamic_step(spec) -> bool:
+    """Does this spec run an analysis worth animating frame by frame?
+
+    Read off `steps[].call`, which is where the v2 dialect says what the
+    analysis IS. The orchestrator used to ask `analysis.step_type` for
+    "Dynamic_Explicit" / "Dynamic_Implicit" instead -- a v1 field the schema
+    now refuses everywhere, `analysis` being closed and `step_type` not among
+    its keys. So once that dialect was removed the question was answered False
+    for every spec that validates at all, and the ODB animation stopped being
+    exported, in silence and for every case including the two explicit ones.
+
+    False for a `deck` spec on purpose: its steps are inside the .inp and
+    nothing here has read them. False for the named step shorthand too --
+    `steps[].type` has exactly one legal value, and it is Static.
+    """
+    return any(isinstance(step, dict)
+               and step.get("call") in DYNAMIC_STEP_CALLS
+               for step in (spec or {}).get("steps") or [])
+
+
 def run_id_for_spec(spec) -> str:
     """The one definition of a run's identity: a hash of its parsed content.
 

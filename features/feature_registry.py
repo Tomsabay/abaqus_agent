@@ -24,15 +24,21 @@ FEATURE_MODULES: dict[str, str] = {
     "coupling":     "Multi-Physics Coupling",
     "adaptivity":   "Automatic Mesh Adaptivity",
     "parametric":   "Batch Parametric Sweeps",
-    "geometry_ext": "Extended Geometry Types",
     "autorepair":   "Failure Auto-Repair",
 }
 
 # -----------------------------------------------------------------
-# Geometry dispatch registry
+# Dispatch registries
 # -----------------------------------------------------------------
 
-# Maps geometry type string -> generator function
+# Maps geometry type string -> generator function.
+#
+# EMPTY SINCE 2026-08-16, and left in place rather than deleted because the
+# lookup is what makes its emptiness legible: `geometry_types: []` in
+# list_capabilities() says "this build registers no extra shapes", where a
+# missing key would say nothing at all. The four modules that used to fill it
+# (features/geometry/) were reachable only from the v1 `geometry.type` dispatch,
+# which is gone -- in v2 a shape is written in `parts:`, not named from a list.
 _GEOMETRY_REGISTRY: dict[str, Callable] = {}
 
 # Maps step type string -> generator function
@@ -79,7 +85,6 @@ def register_hook(stage: str, hook: Callable) -> None:
 # Sub-packages whose import populates the registries above. Import order is
 # irrelevant; each registers only its own entries.
 _REGISTERING_PACKAGES = (
-    "features.geometry",
     "features.coupling",
     "features.adaptivity",
     "features.parametric",

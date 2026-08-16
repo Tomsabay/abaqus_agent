@@ -78,8 +78,24 @@ _COMPANION_2D = {
     "DC2D4": ("DC2D3",), "DC2D8": ("DC2D6",),
     "DCAX4": ("DCAX3",), "DCAX8": ("DCAX6",),
 }
+# Shells. A shell's leftover is a triangle, like a quad's, but the pairing is
+# not the 2D one and cannot be guessed: the second-order shells pair with
+# STRI65, and S4R5 with S3R5 rather than S3.
+#
+# Continuum shells (SC8R and its family) are deliberately absent. They are hex
+# SHAPES carrying a shell formulation, so they belong on a solid body, and
+# putting them in this table would let a surface part ask for one and mesh
+# nothing quietly -- the failure this whole layer exists to stop.
+_COMPANION_SHELL = {
+    "S4": ("S3",), "S4R": ("S3",),
+    "S4R5": ("S3R5",),
+    "S8R": ("STRI65",), "S8R5": ("STRI65",),
+}
+
 _TRI_PRIMARY = set()
 for _companions in _COMPANION_2D.values():
+    _TRI_PRIMARY.update(_companions)
+for _companions in _COMPANION_SHELL.values():
     _TRI_PRIMARY.update(_companions)
 # The plain second-order triangles, which are nobody's companion above but are
 # elements a spec may legitimately ask for on their own.
@@ -184,6 +200,8 @@ def _mesh_shape(part_name: str, element: str) -> tuple:
     # it fill them with a default of some other formulation.
     if element in _COMPANION_2D:
         return "QUAD", (element,) + tuple(_COMPANION_2D[element])
+    if element in _COMPANION_SHELL:
+        return "QUAD", (element,) + tuple(_COMPANION_SHELL[element])
     if element in _TRI_PRIMARY:
         return "TRI", (element,)
     raise SpecError(
@@ -194,10 +212,12 @@ def _mesh_shape(part_name: str, element: str) -> tuple:
         "Recorded wedges: %s. Add the family's own wedge and tet to _COMPANION "
         "in runner/build_v2.py -- the names do not follow a rule (DC3D8 pairs "
         "with DC3D6, C3D8RT with C3D6T), so they have to be looked up, not "
-        "derived. Recorded 2D quads: %s. Recorded 2D triangles: %s."
+        "derived. Recorded 2D quads: %s. Recorded 2D triangles: %s. Recorded "
+        "shells: %s."
         % (part_name, element, ", ".join(sorted(_COMPANION)),
            ", ".join(sorted(_TET_PRIMARY)), ", ".join(sorted(_WEDGE_PRIMARY)),
-           ", ".join(sorted(_COMPANION_2D)), ", ".join(sorted(_TRI_PRIMARY))))
+           ", ".join(sorted(_COMPANION_2D)), ", ".join(sorted(_TRI_PRIMARY)),
+           ", ".join(sorted(_COMPANION_SHELL))))
 
 # Which elemShapes belong to which dimensionality. A planar part meshed with a
 # hex element is not a slightly-wrong choice, it is nonsense -- and Abaqus's
@@ -208,6 +228,13 @@ _SHAPES_FOR_DIMENSIONALITY = {
     "TWO_D_PLANAR": ("QUAD", "TRI"),
     "AXISYMMETRIC": ("QUAD", "TRI"),
 }
+
+# A shell part is THREE_D -- that is the Abaqus constant and it is not negotiable,
+# a surface in space is a 3D part -- but its body is faces and it meshes with
+# quads and triangles like a planar part does. Abaqus offers no dimensionality
+# that says so, so it is the SECTION that says it, and this is the row that
+# replaces the THREE_D one when it does.
+_SHAPES_FOR_SHELL = ("QUAD", "TRI")
 
 def _mesh_technique(part_name: str, shape: str, technique) -> str:
     """The technique to write, refused here when the shape cannot take it.

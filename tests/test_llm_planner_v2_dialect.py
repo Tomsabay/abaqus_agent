@@ -90,13 +90,45 @@ def examples() -> list[tuple[int, str]]:
 def test_the_prompt_carries_an_example_of_each_dialect(examples):
     """One example each is the minimum for the routing rule to mean anything.
 
-    The prompt spends a paragraph on when to use v1 and when to use v2. With
-    only v1 examples -- which is what this file used to hold -- that paragraph
-    is advice the model has never seen carried out, and every spec comes back v1.
+    The prompt spends a paragraph on when to describe a model and when to hand
+    one over. With examples of only one of them -- which is what this file used
+    to hold, back when the other dialect was v1 -- that paragraph is advice the
+    model has never seen carried out, and every spec comes back the same shape.
+    A deck is the surviving non-v2 dialect, so it is the one that has to be
+    demonstrated: `deck:` is four lines and easy to leave undocumented.
     """
-    dialects = {"v2" if _is_v2(yaml.safe_load(block)) else "v1"
-                for _line, block in examples}
-    assert dialects == {"v1", "v2"}
+    def dialect(spec: dict) -> str:
+        if _is_v2(spec):
+            return "v2"
+        return "deck" if "deck" in spec else "neither"
+
+    dialects = {dialect(yaml.safe_load(block)) for _line, block in examples}
+    assert dialects == {"deck", "v2"}
+
+
+def test_the_prompt_sends_every_new_spec_to_v2():
+    """Routing flipped 2026-08-16, in both planners.
+
+    This is the prompt the HTTP and MCP servers use, so it is the one an outside
+    agent (dsh, Codex, any MCP client) reaches. It used to send the four built-in
+    shapes to v1. A measured run showed the cost: v1's `pressure` carries no
+    direction, so "100 N downward" came back as an equivalent 0.25 MPa pressure,
+    which Abaqus applies along the face normal -- bending became axial
+    compression, the job finished COMPLETED, and the stress read 0.47 MPa where
+    the planner's own prediction said 15 MPa.
+
+    The advice to "stay in v1 while editing a v1 spec" went with the dialect on
+    the same day: the schema refuses those keys outright now, so a model that
+    followed it would write a spec that cannot validate. What replaces it is an
+    instruction to SAY SO — a rewrite offered is better than a silent one, which
+    would change the spec's run id and void whatever baseline it is graded
+    against.
+    """
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+    assert "for every spec that describes a model. No exceptions" in prompt
+    assert "never write those keys" in prompt
+    assert "offer to rewrite it in v2" in prompt
+    assert "0.47 MPa" in prompt and "15 MPa" in prompt
 
 
 def test_every_example_in_the_prompt_passes_the_real_schema(examples):
@@ -212,6 +244,17 @@ outputs:
 """
 
 
+# A finished .inp handed over as it stands. Schema-valid, and carries no `parts:`
+# for the v2 generator to work on.
+_DECK = """
+meta: {abaqus_release: "2021", model_name: Handover, units: mm_MPa_t}
+deck: {file: frame.inp}
+material: {name: Steel, E: 210000.0, nu: 0.3}
+outputs:
+  kpis: [{name: U_TIP, type: field_min, location: whole_model, component: U2}]
+"""
+
+
 def _planner() -> llm_planner.LLMPlanner:
     """A planner with no backend resolved -- only parse() is exercised."""
     return llm_planner.LLMPlanner(backend="template")
@@ -260,13 +303,19 @@ def test_an_absolute_file_path_is_dry_built(tmp_path):
     assert missing == [], missing
 
 
-def test_a_v1_spec_is_not_dry_built():
-    """v1 goes through a different writer (runner/build_model.py), and running
-    the v2 generator over it would refuse every correct v1 spec there is."""
-    v1 = yaml.safe_load((ROOT / "cases" / "cantilever" / "spec.yaml")
-                        .read_text(encoding="utf-8"))
-    assert not _is_v2(v1)
-    assert llm_planner._dry_build_notes(v1) == []
+def test_a_deck_spec_is_not_dry_built():
+    """`_is_v2` means "has parts:", and a deck spec has none — it hands over a
+    finished .inp and describes nothing. Running the v2 generator over one would
+    refuse every correct deck spec there is for a missing `parts:` block, so the
+    dry build has to skip it, silently and by design.
+
+    This used to be pinned with a v1 spec (cases/cantilever/spec.yaml, back when
+    it was one). That dialect is gone; deck is the surviving non-v2 one, and it
+    reaches the same branch.
+    """
+    deck = yaml.safe_load(_DECK)
+    assert not _is_v2(deck)
+    assert llm_planner._dry_build_notes(deck) == []
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +346,12 @@ def test_a_backend_that_never_answered_falls_back_to_the_template(monkeypatch):
 
     monkeypatch.setattr(llm_planner, "LLMPlanner", Unreachable)
     spec, _missing = _run(generate_spec_async("两块板绑在一起", "2021", "openai"))
-    assert spec["geometry"]["type"] == "cantilever_block"
+    # v2, like every other spec written from scratch. The template is the one
+    # spec nobody reviews before it runs, so it may not be the frozen dialect.
+    assert "geometry" not in spec and "bc_load" not in spec
+    assert [part["name"] for part in spec["parts"]] == ["Beam"]
+    assert spec["meta"]["missing_questions"], (
+        "a template answer has to say what it guessed at")
 
 
 def test_an_answer_the_builder_refuses_is_not_replaced_by_a_cantilever(monkeypatch):

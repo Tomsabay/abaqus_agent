@@ -17,13 +17,20 @@ from __future__ import annotations
 
 from typing import Any
 
-# Both dialects ship. v1 is the six-key enumerated form (geometry.type is one of
-# four), v2 is the assembly dialect. The tree has to draw either, and has to say
-# which one it drew.
-_V1_KEYS = ("geometry", "bc_load", "analysis")
+# Two dialects ship: v2 (the assembly form) and deck (a finished .inp handed
+# over as it stands). The tree has to draw either, and has to say which one it
+# drew.
+#
+# `geometry` and `bc_load` are deliberately NOT listed. They were v1's, the
+# schema refuses them now, and this set is what decides `unknown_keys` -- so
+# someone who types `geometry:` into the editor gets told the key does not
+# exist, which is the whole point of the pane. `analysis` stays: it is still a
+# legal v2 key (cpus, timeout), and treating it as a v1 marker used to send a
+# valid v2 spec whose `parts:` block was not yet typed down the v1 branch, where
+# it drew a part called "?" and a step called "Static" that the spec never said.
 _TOP_KNOWN = {"meta", "material", "materials", "parts", "assembly",
               "interactions", "steps", "conditions", "outputs",
-              "geometry", "analysis", "bc_load"}
+              "deck", "analysis"}
 
 
 def _num(value: Any) -> str:
@@ -389,45 +396,6 @@ def _output_rows(spec: dict) -> list[dict]:
     return rows
 
 
-# --- v1 ---------------------------------------------------------------------
-
-def _v1_groups(spec: dict) -> list[dict]:
-    """The enumerated dialect, drawn as the same tree so the pane never empties.
-
-    v1 has no parts and no assembly: one geometry, one material, one step. Four
-    of the shipped cases are still written this way and a tree that showed
-    nothing for them would read as a broken page.
-    """
-    geometry = spec.get("geometry") or {}
-    analysis = spec.get("analysis") or {}
-    bc_load = spec.get("bc_load") or {}
-    geo_facts = [[k, _num(v)] for k, v in sorted(geometry.items()) if k != "type"]
-    rows = [_row("geometry", "part", str(geometry.get("type") or "?"),
-                 detail="内置几何", facts=geo_facts,
-                 instance=str(geometry.get("type") or ""),
-                 path="geometry")]
-    step_facts = [[k, _num(v)] for k, v in sorted(analysis.items())]
-    cond = []
-    if bc_load:
-        facts = [[k, _num(v)] for k, v in sorted(bc_load.items())]
-        cond.append(_row("bc_load", "condition",
-                         str(bc_load.get("load_type") or "载荷"),
-                         detail=str(bc_load.get("load_face") or ""), facts=facts,
-                         path="bc_load"))
-    return [
-        {"id": "geometry", "label": "几何", "count": 1, "rows": rows},
-        {"id": "steps", "label": "分析步", "count": 1,
-         "rows": [_row("step:v1", "step",
-                       str(analysis.get("step_type") or "Static"),
-                       detail=str(analysis.get("solver") or ""),
-                       facts=step_facts, children=cond,
-                       path="analysis")]},
-        {"id": "outputs", "label": "输出",
-         "count": len(spec.get("outputs", {}).get("kpis") or []),
-         "rows": _output_rows(spec)},
-    ]
-
-
 # --- entry point ------------------------------------------------------------
 
 def build_tree(spec: dict | None) -> dict:
@@ -441,8 +409,8 @@ def build_tree(spec: dict | None) -> dict:
 
     meta = spec.get("meta") or {}
     model = str(meta.get("model_name") or "")
-    dialect = "v2" if spec.get("parts") else (
-        "v1" if any(k in spec for k in _V1_KEYS) else "unknown")
+    dialect = "deck" if spec.get("deck") else (
+        "v2" if spec.get("parts") else "unknown")
 
     materials = []
     mat_entries = ([("material", spec["material"])]
@@ -458,9 +426,22 @@ def build_tree(spec: dict | None) -> dict:
                               detail=" · ".join("%s %s" % (k, v) for k, v in facts[:3]),
                               facts=facts, path=mat_path))
 
-    if dialect == "v1":
-        groups = [{"id": "materials", "label": "材料",
-                   "count": len(materials), "rows": materials}] + _v1_groups(spec)
+    if dialect == "deck":
+        # Drawing empty `零件` and `分析步` groups here would say the model has
+        # no parts and no steps, when in fact it has a whole deck of both that
+        # this tree simply cannot see inside. One row that says so is honest;
+        # two empty groups are not.
+        deck_file = str((spec.get("deck") or {}).get("file") or "?")
+        groups = [
+            {"id": "materials", "label": "材料", "count": len(materials),
+             "rows": materials},
+            {"id": "deck", "label": "输入文件", "count": 1, "rows": [
+                _row("deck", "deck", deck_file,
+                     detail="整份 .inp 原样提交；零件/分析步/边界条件都在文件里",
+                     facts=[["file", deck_file]], path="deck")]},
+            {"id": "outputs", "label": "输出", "count": len(_output_rows(spec)),
+             "rows": _output_rows(spec)},
+        ]
     else:
         parts = _part_rows(spec)
         instances = _instance_rows(spec)

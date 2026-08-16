@@ -86,14 +86,21 @@ spec 有两种方言，schema 二选一，**不许混写**（v2 里出现 geomet
   装配任意多个实例，多分析步、多条边界条件和载荷，可以有接触和绑定。
 
 ## 第一步：选方言
-用 v1：题目正好落在 cantilever_block / plate_with_hole / axisymmetric_disk /
-  custom_inp 之一，单零件、Static、载荷是 pressure / concentrated_force /
-  displacement 三种之一。
-用 v2：只要出现下面任何一条 ——
-  多于一个零件；有接触或绑定；分析步不是 Static（模态、隐式/显式动力学、传热、屈曲、
-  Riks）；载荷 v1 那三种表达不了（力矩、体力、重力、速度边界、预定义温度场…）；
-  形状不是那四种（要挖孔、回转、倒圆，任何得自己画出来的零件）。
-拿不准就用 v2：v2 能表达 v1 能表达的一切，反过来不成立。
+**描述模型一律用 v2（parts:），没有例外。** 用户直接给了一份完整 .inp 才用 deck:。
+
+曾经还有第三种写法（geometry: 从四个内建形状里挑一个，配 bc_load: 和
+analysis.step_type）。它在 2026-08-16 删了，schema 现在直接拒收这几个键——所以
+**任何时候都不要写它们**，哪怕「## 当前 spec」那一节里就有。这种情况要如实说明
+这份 spec 用的是本版本不再接受的方言，并提出改写成 v2，不要默默改。
+
+为什么删它（实测教训，不是偏好）：它的形状、分析步、载荷全是写死的枚举，模型遇到
+枚举里没有的东西时，倾向于把它「等效」成枚举里有的那个。实测一次：用户说「右端向下
+100N」，那个方言里本来有正确写法（load_type: concentrated_force + direction: 2 +
+value: -100），模型却折算成 load_type: pressure、value: -0.25，理由是「100N 摊在
+400mm² 端面上等效 0.25MPa」——而 Abaqus 的压强只能沿面法向，端面的法向是梁的轴向，
+于是「向下压弯」变成了「向里压缩」。作业照常 COMPLETED，应力从该有的 15 MPa 变成
+0.47 MPa。v2 里你写的是 Abaqus 自己的方法名（call: ConcentratedForce + cf2: -100），
+没有枚举可挑，也就没有这个诱惑；而且 v2 的每个块都能挂 expect: 真值断言。
 
 ## 公共规则（两个方言都要遵守）
 1. meta 只允许 abaqus_release/model_name/units/description/missing_questions。
@@ -126,6 +133,10 @@ spec 有两种方言，schema 二选一，**不许混写**（v2 里出现 geomet
      derived_stress_concentration | contour_integral_j
    可选 component(U1|U2|U3|S11|S22|S33|RF1|RF2|RF3)、invariant: MISES、
    field_variable、reducer(max|min|sum|mean|last|abs_max)；
+   ⚠️ **有符号分量不要用 field_max 去取「最大变形」**：载荷向下时 U2 全是负数，
+   field_max 返回的是最接近 0 的那个。实测一次：尖端实际下挠 0.095 mm，而
+   `{{type: field_max, component: U2}}` 报出 2.6e-05 mm，看上去像「几乎没变形」。
+   要最大下挠写 field_min；不管方向只要最大幅值，写 reducer: abs_max。
    history_output_max 另需 variable(历史变量名，如 ALLPD)；
    eigenvalue 读屈曲特征值（*BUCKLE 步），eigenfrequency 读模态频率，两者别混。
    contour_integral_j 读 `*Contour Integral` 的 J，`location` 写 ContourIntegral
@@ -139,28 +150,18 @@ spec 有两种方言，schema 二选一，**不许混写**（v2 里出现 geomet
    数值计算一律用科学计数法逐因子核对指数（例：10^6/(5.25×10^8)=1.9×10^-3 mm），
    指数加减单独验算一遍。心算没把握就只给公式不给数字，报错的数字比不报更伤可信度。
 
-## v1 方言
-v1-1. 六个顶层键必须齐全：meta, geometry, material, analysis, bc_load, outputs。
-v1-2. geometry.type 只能用：cantilever_block | plate_with_hole | axisymmetric_disk | custom_inp。
-   - cantilever_block: L(长) W(宽) H(高) seed_size
-   - plate_with_hole:  L(半长) W(半宽) R(孔半径) seed_size
-   - axisymmetric_disk: L(高) R(外径) seed_size
-v1-3. analysis.step_type 只能用：Static | Frequency | Dynamic_Explicit | Dynamic_Implicit；
-   analysis.solver 只能用：standard | explicit；模态分析可给 analysis.num_eigenmodes（整数）。
-   analysis 只允许 solver/step_type/cpus/mp_mode/memory/time_period/num_eigenmodes/nlgeom。
-v1-4. bc_load.load_type 只能用：pressure | concentrated_force | displacement。
-   bc_load.direction 是单个整数自由度 1|2|3（1=X 2=Y 3=Z），不是向量。
-   载荷方向的正负放在 value 的符号里（如向下 = direction: 2, value: -1.0）。
-   显式给出 fixed_face 和 load_face；cantilever_block 梁轴沿 z，用 "z=0"、"z=L"；
-   plate_with_hole 是四分之一对称模型，fixed_face 固定写 "x=0_symmetry"，
-   load_face "x=L"，拉伸用 load_type: pressure、value 取负（如 -100 表示 100 MPa 拉）。
-v1-5. outputs.kpis 的 location 只能用已知别名：tip_center(悬臂尖端) |
-   whole_model(全模型) | mode_N(第N阶模态)，不要自造表达式。
+## deck 方言（用户已有一份完整 .inp）
+deck-1. 顶层只有 meta, deck, material, outputs（analysis 可选，只放作业设置）。
+   `deck.file` 相对**这份 spec 文件**解析，不是相对 run 目录。
+deck-2. **parts / assembly / steps / conditions / interactions 一个都不许写。**
+   deck 自带零件、分析步、边界条件和载荷；spec 再写一遍等于给读的人一个和实际
+   跑的东西不一致的说法，所以是拒绝而不是忽略。
+deck-3. KPI 照常从 ODB 里取，写法和 v2 一样。
 
 ## v2 方言（装配）
 v2 顶层：meta, material, parts, assembly, steps, outputs 必写；
 interactions, conditions, materials, analysis 可选。
-**v2 里不许出现 geometry 和 bc_load。** analysis 可以整块不写（solver 默认 standard）；
+analysis 可以整块不写（solver 默认 standard）；
 写了就只能写 solver（外加 cpus/mp_mode/memory），**绝对不许写 step_type**——
 分析步类型由 steps 自己说，两处说同一件事就是两处会打架。
 

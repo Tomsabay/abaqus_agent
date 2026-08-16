@@ -2,41 +2,84 @@ meta:
   abaqus_release: "2021"
   model_name: "PlateWithHole"
   units: "mm_MPa_t"
-  description: "2D plane-stress plate with central hole under uniaxial tension"
-
-geometry:
-  type: plate_with_hole
-  L: 100.0   # mm - half length (symmetry)
-  W: 50.0    # mm - half width (symmetry)
-  R: 10.0    # mm - hole radius
-  seed_size: 3.0
+  description: "Quarter-symmetry plane-stress plate with a corner quarter hole
+    under 100 MPa uniaxial tension; Kt is about 3 for R/W = 0.2."
 
 material:
   name: Steel
   E: 210000.0
   nu: 0.3
 
-analysis:
-  solver: standard
-  step_type: Static
-  cpus: 2
+parts:
+  - name: Plate
+    # Not a label: it decides whether the section, the element type and the mesh
+    # controls act on cells or on faces.
+    dimensionality: TWO_D_PLANAR
+    features:
+      # The closed boundary v1 hard-codes at build_model.py:518-522:
+      # (R,0)->(L,0)->(L,W)->(0,W)->(0,R)->arc back to (R,0).
+      - op: sketch
+        id: profile
+        entities:
+          - {call: Line, point1: [10.0, 0.0], point2: [100.0, 0.0]}
+          - {call: Line, point1: [100.0, 0.0], point2: [100.0, 50.0]}
+          - {call: Line, point1: [100.0, 50.0], point2: [0.0, 50.0]}
+          - {call: Line, point1: [0.0, 50.0], point2: [0.0, 10.0]}
+          - {call: ArcByCenterEnds, center: [0.0, 0.0],
+             point1: [0.0, 10.0], point2: [10.0, 0.0], direction: CLOCKWISE}
+      - {call: BaseShell, sketch: {sketch: profile}}
+      # The hole wall carries the KPI, so it has to be a named set. A plane
+      # cannot name it — its bounding box is the whole plate in x and y.
+      - {call: Set, name: {literal: HOLE_EDGE}, edges: {select: "edge@r=10.0"}}
+    section: {type: solid, material: Steel, thickness: 1.0}
+    mesh: {seed: 3.0, element: CPS4}
+    expect:
+      # L*W - pi*R^2/4 = 5000 - 78.53981634
+      area: 4921.4602
+      faces: 1
 
-bc_load:
-  fixed_face: "x=0_symmetry"
-  load_face:  "x=L"
-  load_type:  pressure
-  value: -100.0   # MPa tension
+assembly:
+  instances:
+    - {name: PH-1, part: Plate, translate: [0.0, 0.0, 0.0]}
+  expect:
+    instances: 1
+
+steps:
+  - call: StaticStep
+    name: {literal: Step-1}
+    previous: {literal: Initial}
+
+conditions:
+  - call: XsymmBC
+    name: {literal: SymX}
+    createStepName: {literal: Initial}
+    region: {set: "PH-1:edge@x=min", name: SYM_X, expect: "=1"}
+  - call: YsymmBC
+    name: {literal: SymY}
+    createStepName: {literal: Initial}
+    region: {set: "PH-1:edge@y=min", name: SYM_Y, expect: "=1"}
+  # The sign IS the direction: Abaqus pressure is positive INTO the surface, so
+  # -100 is the 100 MPa tension the case means.
+  - call: Pressure
+    name: {literal: Load-1}
+    createStepName: {literal: Step-1}
+    region: {surface: "PH-1:edge@x=max", name: LOAD_SURF, expect: "=1"}
+    magnitude: -100.0
+    distributionType: UNIFORM
 
 outputs:
+  # v1 also carries a third KPI called SCF. It is deliberately NOT ported:
+  # `derived_stress_concentration` returns a STRESS, not a factor, and the v1
+  # note beside it promises "analytical ~3.0" next to a value of ~300 MPa. That
+  # case keeps it because run_id = sha256(spec) and editing the spec would
+  # invalidate a frozen baseline (post/extract_kpis.py:505-527). A new spec is
+  # under no such obligation, and expected.json never graded SCF anyway.
   kpis:
     - name: MISES_HOLE_EDGE
       type: field_max
-      location: hole_edge_set
+      location: HOLE_EDGE
     - name: U_X_MAX
       type: field_max
       location: whole_model
       component: U1
-    - name: SCF
-      type: derived_stress_concentration
-      location: hole_edge_set
-      note: "Kt = MISES_HOLE_EDGE / nominal_stress; analytical ~3.0 for R/W=0.2"
+  field_variables: [S, E, U, RF]

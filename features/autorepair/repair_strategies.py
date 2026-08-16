@@ -75,15 +75,32 @@ def _apply_single_change(spec: dict, param: str, suggested: str) -> None:
         spec.setdefault("analysis", {})["nlgeom"] = suggested_str.upper() in ("ON", "TRUE", "YES")
 
     elif param == "seed_size":
+        # v2 has no single seed. Each part carries its own `mesh.seed`, so
+        # reseed all of them -- which is what the v1 form meant back when a
+        # spec described exactly one geometry with exactly one seed.
+        #
+        # This used to read and write `geometry.seed_size`. After v1 was
+        # removed that was two failures at once: the reduce branch found
+        # nothing and silently burned a retry on an unchanged spec, and the
+        # absolute branch CREATED a top-level `geometry` key, which the schema
+        # refuses -- turning a recoverable solver failure into SPEC_INVALID on
+        # revalidation. A deck spec has no parts and stays a no-op, correctly:
+        # a finished .inp cannot be reseeded.
+        seeded = [p["mesh"] for p in (spec.get("parts") or [])
+                  if isinstance(p, dict) and isinstance(p.get("mesh"), dict)
+                  and isinstance(p["mesh"].get("seed"), (int, float))
+                  and not isinstance(p["mesh"].get("seed"), bool)]
         if "reduce" in suggested_str.lower():
-            current = spec.get("geometry", {}).get("seed_size")
-            if current:
-                spec["geometry"]["seed_size"] = current * 0.5
+            for mesh in seeded:
+                mesh["seed"] = mesh["seed"] * 0.5
         else:
             try:
-                spec.setdefault("geometry", {})["seed_size"] = float(suggested_str)
+                value = float(suggested_str)
             except ValueError:
                 pass
+            else:
+                for mesh in seeded:
+                    mesh["seed"] = value
 
     elif param == "memory":
         spec.setdefault("analysis", {})["memory"] = suggested_str

@@ -2,38 +2,70 @@ meta:
   abaqus_release: "2021"
   model_name: "Cantilever"
   units: "mm_MPa_t"
-  description: "3D linear-elastic cantilever beam under downward tip force"
-
-geometry:
-  type: cantilever_block
-  L: 100.0   # mm
-  W: 10.0
-  H: 10.0
-  seed_size: 5.0
+  description: "10x10x100 steel cantilever, encastre at z=0, 1 N down on the one
+    node nearest the tip-face centre."
 
 material:
   name: Steel
-  E: 210000.0   # MPa
+  E: 210000.0
   nu: 0.3
 
-analysis:
-  solver: standard
-  step_type: Static
-  cpus: 1
+parts:
+  - name: Beam
+    features:
+      - op: sketch
+        id: profile
+        plane: XY
+        profile:
+          rect:
+            corner1: [0.0, 0.0]
+            corner2: [10.0, 10.0]
+      - op: extrude
+        sketch: profile
+        depth: 100.0
+    section: {type: solid, material: Steel}
+    # C3D20R, not the C3D8R default: this bar is one element through a 10 mm
+    # thickness, where a first-order reduced hex measures 92x the closed form.
+    mesh: {seed: 5.0, element: C3D20R}
+    expect:
+      volume: 10000.0
+      cells: 1
 
-bc_load:
-  fixed_face: "z=0"
-  load_face:  "z=L"
-  load_type:  concentrated_force
-  value: -1.0    # N downward at the tip center
-  direction: 2
+assembly:
+  instances:
+    - {name: Beam-1, part: Beam, translate: [0.0, 0.0, 0.0]}
+  expect:
+    instances: 1
+
+steps:
+  - call: StaticStep
+    name: {literal: Step-1}
+    previous: {literal: Initial}
+
+conditions:
+  - call: EncastreBC
+    name: {literal: Fixed}
+    createStepName: {literal: Initial}
+    region: {set: "Beam-1:face@z=min", name: FIXED_END, expect: "=1"}
+  # The whole -1 N on the ONE node nearest the tip-face centre. A face load, or
+  # the four corner nodes, is a different problem and a different U_tip — the
+  # frozen baseline this case is graded against is the single-node one.
+  - call: ConcentratedForce
+    name: {literal: Tip}
+    createStepName: {literal: Step-1}
+    region: {set: "Beam-1:node@box=4.9,4.9,99.9,5.1,5.1,100.1", name: TIP_NODES,
+             expect: "=1"}
+    cf2: -1.0
+    expect: {points: 1}
 
 outputs:
   kpis:
     - name: U_tip
       type: nodal_displacement
-      location: tip_center
+      location: TIP_NODES
       component: U2
     - name: MISES_MAX
       type: field_max
       location: whole_model
+      invariant: MISES
+  field_variables: [S, E, U, RF]

@@ -52,8 +52,13 @@ class ErrorCode(str, Enum):
 # Suggested next action for each error code (for agent self-repair)
 ERROR_SUGGESTIONS: dict[ErrorCode, str] = {
     ErrorCode.BUILD_FAILED:         "Check CAE script log; try simpler geometry or reduce mesh seed",
-    ErrorCode.UNSUPPORTED_GEOMETRY: "Use one of: cantilever_block, plate_with_hole, axisymmetric_disk, custom_inp",
-    ErrorCode.UNSUPPORTED_STEP:     "Use one of: Static, Frequency, Dynamic_Explicit, Dynamic_Implicit",
+    # These two used to list v1's four geometry types and four step types. Those
+    # enums were deleted 2026-08-16 and v2 takes Abaqus method names directly,
+    # so the old text would now hand a self-repairing agent four values the
+    # schema refuses. Nothing raises either code today; the strings are kept
+    # honest rather than deleted because stored run records may carry the codes.
+    ErrorCode.UNSUPPORTED_GEOMETRY: "Check parts[].feature against schema/spec_schema.json; shapes are constrained by the part's dimensionality",
+    ErrorCode.UNSUPPORTED_STEP:     "Use the Abaqus step method name in steps[].call (StaticStep, FrequencyStep, ExplicitDynamicsStep, ...)",
     ErrorCode.FILE_NOT_FOUND:       "Verify paths; check that build_model ran successfully",
     ErrorCode.PATH_TOO_LONG:        "Shorten workdir path to < 200 chars to stay under Abaqus 256-char limit",
     ErrorCode.SYNTAX_ERROR:         "Run syntaxcheck; fix .inp keyword errors before submitting",
