@@ -424,17 +424,21 @@ def test_library_key_validates_raw_and_still_resolves_to_numbers():
 def test_a_material_block_with_neither_a_library_nor_the_numbers_is_refused():
     """Relaxing `required` into an anyOf must not relax it away.
 
-    Worth recording what the relaxation costs: jsonschema reports an anyOf
-    miss as "... is not valid under any of the given schemas" and prints the
-    offending block, instead of the "'nu' is a required property" it used to
-    give. The block is still named, so the message is actionable, but it is
-    less specific than it was -- the price of the material block having two
-    legal shapes.
+    This used to record the cost of that relaxation: jsonschema reports an
+    anyOf miss as "... is not valid under any of the given schemas" and prints
+    the offending block back, instead of naming the missing key. The validator
+    now walks into the branches (tools/schema_validator.py), so the cost is
+    no longer paid -- and BOTH legal shapes are reported, because a block that
+    is only missing keys says nothing about which shape its author meant.
+    Naming just the nearer one would read as "you must use the library".
     """
     validate_spec = pytest.importorskip("tools.schema_validator").validate_spec
     ok, errors = validate_spec(_library_spec({"name": "Nameless"}))
     assert not ok
-    assert any("Nameless" in e for e in errors), errors
+    material = [e for e in errors if e.startswith("material")]
+    assert any("library" in e for e in material), errors
+    assert any("'E'" in e for e in material), errors
+    assert any("'nu'" in e for e in material), errors
 
 
 def test_a_key_written_beside_library_overrides_the_card_and_says_so():

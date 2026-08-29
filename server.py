@@ -161,6 +161,7 @@ class GenerateSpecRequest(BaseModel):
     llm_backend: str = "template"
     anthropic_key: str = ""   # Optional: override ANTHROPIC_API_KEY env var
     openai_key: str = ""      # Optional: override OPENAI_API_KEY env var
+    deepseek_key: str = ""    # Optional: override DEEPSEEK_API_KEY env var
 
 class ValidateSpecRequest(BaseModel):
     spec_yaml: str
@@ -372,6 +373,7 @@ async def generate_spec(req: GenerateSpecRequest):
             req.text, release, req.llm_backend,
             anthropic_key=req.anthropic_key,
             openai_key=req.openai_key,
+            deepseek_key=req.deepseek_key,
         )
         spec_yaml = yaml.dump(spec_dict, allow_unicode=True, default_flow_style=False)
         valid, errors = validate_spec(spec_dict)

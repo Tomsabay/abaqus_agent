@@ -3,7 +3,7 @@ llm_planner.py
 --------------
 LLM-powered planner: natural language → Problem Spec YAML.
 
-Supports OpenAI (GPT-4o) and Anthropic (Claude) backends.
+Supports OpenAI (GPT-4o), Anthropic (Claude) and DeepSeek backends.
 Falls back to template-based generation if no API key is set.
 """
 
@@ -20,6 +20,18 @@ from tools.errors import AbaqusAgentError, ErrorCode
 from tools.schema_validator import validate_spec
 
 PROMPT_DIR = Path(__file__).parent.parent / "prompts"
+
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+# deepseek-v4-pro over -flash: this prompt asks for a whole modelling plan in
+# one shot, which is the reasoning-heavy end of what the two are for.
+DEEPSEEK_MODEL = "deepseek-v4-pro"
+# max_tokens covers REASONING plus the answer on v4: measured on the round-4
+# gear-shaft ask, the model spent all 8000 of the old budget thinking
+# (reasoning_content 29113 chars, finish_reason "length") and returned zero
+# chars of content -- and one retry of the same ask burned through 32000 the
+# same way. Billing follows what is generated, not this cap, so the only cost
+# of headroom is worst-case latency; the documented model ceiling is 384K.
+DEEPSEEK_MAX_TOKENS = 65536
 
 
 def _relative_file_args(node) -> bool:
@@ -87,7 +99,7 @@ class LLMPlanner:
         """
         Parameters
         ----------
-        backend : "openai" | "anthropic" | "template" | "auto"
+        backend : "openai" | "anthropic" | "deepseek" | "template" | "auto"
             "auto" picks the first backend with available API key.
         """
         self.backend = self._resolve_backend(backend)
@@ -144,6 +156,8 @@ class LLMPlanner:
             return self._call_openai(prompt)
         elif self.backend == "anthropic":
             return self._call_anthropic(prompt)
+        elif self.backend == "deepseek":
+            return self._call_deepseek(prompt)
         raise AbaqusAgentError(ErrorCode.LLM_GENERATION_FAILED, f"Unknown backend: {self.backend}")
 
     def _call_openai(self, prompt: str) -> str:
@@ -178,6 +192,58 @@ class LLMPlanner:
             messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text.strip()
+
+    def _call_deepseek(self, prompt: str) -> str:
+        """DeepSeek through the OpenAI SDK, which is what DeepSeek documents.
+
+        The model name is a constant here and NOT `deepseek-chat`, because
+        `deepseek-chat` and `deepseek-reasoner` are aliases DeepSeek began
+        retiring on 2026-07-24; during the transition they point at
+        deepseek-v4-flash's non-thinking and thinking modes. Writing an alias
+        into a released tool means the tool changes behaviour on someone else's
+        schedule, so the real id is written and the override is an env var.
+        """
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise AbaqusAgentError(
+                ErrorCode.LLM_GENERATION_FAILED,
+                "openai package not installed (DeepSeek speaks the OpenAI "
+                'protocol). Run: pip install -e ".[llm]"',
+            )
+        key = os.environ.get("DEEPSEEK_API_KEY")
+        if not key:
+            raise AbaqusAgentError(
+                ErrorCode.LLM_GENERATION_FAILED,
+                "DEEPSEEK_API_KEY is not set.",
+            )
+        client = OpenAI(api_key=key, base_url=DEEPSEEK_BASE_URL)
+        response = client.chat.completions.create(
+            model=os.environ.get("ABAQUS_AGENT_DEEPSEEK_MODEL", DEEPSEEK_MODEL),
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=int(os.environ.get("ABAQUS_AGENT_DEEPSEEK_MAX_TOKENS",
+                                          DEEPSEEK_MAX_TOKENS)),
+        )
+        choice = response.choices[0]
+        text = (choice.message.content or "").strip()
+        # A thinking model that runs out of budget returns EMPTY content with
+        # finish_reason "length" -- the tokens all went to reasoning. Passing
+        # "" along yaml-loads to None and surfaces as a schema error about the
+        # whole spec being None, which points the user at their own request
+        # instead of at this knob.
+        if choice.finish_reason == "length" or not text:
+            raise AbaqusAgentError(
+                ErrorCode.LLM_GENERATION_FAILED,
+                "DeepSeek ran out of output budget before writing the spec "
+                "(finish_reason=%r, %d chars of answer): the v4 models spend "
+                "max_tokens on reasoning first. Raise "
+                "ABAQUS_AGENT_DEEPSEEK_MAX_TOKENS (current %s) or simplify "
+                "the request." % (
+                    choice.finish_reason, len(text),
+                    os.environ.get("ABAQUS_AGENT_DEEPSEEK_MAX_TOKENS",
+                                   DEEPSEEK_MAX_TOKENS)))
+        return text
 
     def _template_fallback(self, user_text: str) -> tuple[dict, list[str]]:
         """Return a default cantilever spec with missing questions.
@@ -254,6 +320,8 @@ class LLMPlanner:
             return "anthropic"
         if os.environ.get("OPENAI_API_KEY"):
             return "openai"
+        if os.environ.get("DEEPSEEK_API_KEY"):
+            return "deepseek"
         return "template"
 
 

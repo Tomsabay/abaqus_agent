@@ -381,6 +381,46 @@ def test_a_typo_in_a_v2_block_is_rejected_not_ignored(v2_spec):
 
 
 # ---------------------------------------------------------------------------
+# 3b. A rejection has to name the key
+# ---------------------------------------------------------------------------
+# Measured 2026-08-18: a planner spelled a contact's friction
+# `friction_coefficient: 0.15` instead of `property: {friction: 0.15}`. The
+# whole feedback it got was "{...the entire interaction...} is not valid under
+# any of the given schemas", which names neither the key nor the spelling.
+
+def test_a_oneof_rejection_names_the_offending_key(v2_spec):
+    spec = copy.deepcopy(v2_spec)
+    spec["interactions"][0]["friction_coefficient"] = 0.15
+    errors = _reject(spec)
+    joined = " | ".join(errors)
+    assert "friction_coefficient" in joined
+    assert "is not valid under any of the given schemas" not in joined
+
+
+def test_a_oneof_rejection_says_where(v2_spec):
+    """The index, not just the complaint: one of ten interactions is wrong."""
+    spec = copy.deepcopy(v2_spec)
+    spec["interactions"][0]["friction_coefficient"] = 0.15
+    assert any(e.startswith("interactions.0:") for e in _reject(spec))
+
+
+def test_the_path_is_not_repeated(v2_spec):
+    """A sub-error already carries its parent's path; adding it again read as
+    `interactions.0.interactions.0`, a deeper item that does not exist."""
+    spec = copy.deepcopy(v2_spec)
+    spec["interactions"][0]["friction_coefficient"] = 0.15
+    for e in _reject(spec):
+        assert "interactions.0.interactions" not in e
+
+
+def test_a_missing_required_key_still_names_the_item(v2_spec):
+    spec = copy.deepcopy(v2_spec)
+    del spec["interactions"][0]["secondary"]
+    errors = _reject(spec)
+    assert any("interactions.0" in e and "secondary" in e for e in errors)
+
+
+# ---------------------------------------------------------------------------
 # 4. The no-jsonschema fallback must agree with the schema
 # ---------------------------------------------------------------------------
 

@@ -19,14 +19,36 @@ creates the set, and aborts naming the selector that missed.
 Grammar (the authoritative definition — schema/spec_schema.json deliberately
 does not restate it):
 
-    [<instance>:]<kind>@<axis>=<place>      a plane
-    [<instance>:]<kind>@r=<number>          curvature
-    [<instance>:]<kind>@all
+    [<instance>:]<kind>@<term>[&<term>...]
+
+    term   <axis>=<place>                   a plane
+         | r=<number>                       curvature
+         | box=x0,y0,z0,x1,y1,z1            wholly inside
+         | at=x,y,z                         centred there
+         | all
 
     kind   face | faces | edge | edges | cell | cells | vertex | vertices
            node | nodes | element | elements
     axis   x | y | z
     place  min | max | <number>
+
+``&`` means AND: every term has to hold. It exists because one predicate is not
+enough to name a bolt hole. A column flange drilled four times answers
+``face@r=10`` with all four holes — same radius, that is the point of a bolt
+group — and tying one bolt to four holes is a model that meshes, solves, and is
+wrong.
+
+``at=`` is the other half of the same job, and the plane form cannot do it. A
+plane compiles to ``getByBoundingBox``, which means WHOLLY INSIDE a thin slab,
+and a hole's cylindrical wall spans its own diameter along every axis: the wall
+of a 20 dia hole centred at y=1400 runs y 1390..1410, so ``face@y=1400``
+matches it never, at any tolerance a plane can carry without swallowing the
+neighbouring hole. ``at=`` compares the entity's own bounding-box centre
+instead. So the phrase for one bolt hole is ``face@r=10&at=92,1400,0`` — "the
+radius-10 face centred there" — and the numbers in it are the ones the author
+already typed to place the bolt. The alternative already in the grammar, a
+six-number ``box=`` drawn around the hole, works and is the coordinate
+arithmetic this module exists to remove.
 
 `node` and `element` name MESH, not geometry, and they exist because an orphan
 mesh part has no geometry at all. Measured on Abaqus 2021
@@ -139,15 +161,28 @@ PLANE_REFUSED = {
 # entities where this quantity has this value". Its right-hand side is six
 # numbers, so it needs its own alternative rather than the single-value one.
 BOX_WORD = "box"
+# `at` is three numbers: where the entity is CENTRED, as opposed to `box`'s two
+# corners it has to fit inside. The word is borrowed on purpose from
+# `expect.cylinders[].at`, which already means the centre of a hole in this
+# dialect -- so the number that placed a bolt is the number that names it.
+AT_WORD = "at"
 
 _SELECTOR_RE = re.compile(
     r"""^
     (?:(?P<instance>[A-Za-z_][A-Za-z0-9_-]*)\s*:\s*)?
     (?P<kind>[A-Za-z]+)
     \s*@\s*
+    (?P<terms>\S.*)
+    $""",
+    re.VERBOSE,
+)
+
+_TERM_RE = re.compile(
+    r"""^
     (?:
         (?P<all>all)
       | box\s*=\s*(?P<box>[-+0-9.eE\s,]+)
+      | at\s*=\s*(?P<at>[-+0-9.eE\s,]+)
       | (?P<axis>[A-Za-z]+)\s*=\s*(?P<place>min|max|[-+0-9.eE]+)
     )
     $""",
@@ -167,9 +202,20 @@ class Selector:
     instance: str | None
     kind: str          # normalised singular: face / edge / cell / vertex
     plural: bool
-    axis: str | None   # 'x' | 'y' | 'z' | 'r'; None when `all`
-    place: str | None  # 'min' | 'max' | numeric string; None when `all`
+    # One (axis, place) pair per `&`-joined term, in the order written. axis is
+    # 'x' | 'y' | 'z' | 'r' | 'box'; both are None for `all`.
+    terms: tuple[tuple[str | None, str | None], ...]
     expect: str        # normalised, e.g. '>=1' or '=2'
+
+    @property
+    def axis(self) -> str | None:
+        """The first term's axis. A one-term selector is still the common case,
+        and every caller that predates `&` reads it."""
+        return self.terms[0][0]
+
+    @property
+    def place(self) -> str | None:
+        return self.terms[0][1]
 
     @property
     def attribute(self) -> str:
@@ -178,11 +224,11 @@ class Selector:
 
     @property
     def by_radius(self) -> bool:
-        return self.axis == "r"
+        return any(axis == "r" for axis, _p in self.terms)
 
     @property
     def by_box(self) -> bool:
-        return self.axis == BOX_WORD
+        return any(axis == BOX_WORD for axis, _p in self.terms)
 
     @property
     def surface_kwarg(self) -> str | None:
@@ -203,9 +249,10 @@ def parse(raw: str, expect: object = None) -> Selector:
     if not match:
         raise SelectorError(
             "cannot read the selector %r. Expected something like "
-            "'Lower:face@z=max', 'Upper:faces@y=0', 'Plate:cells@all' or "
+            "'Lower:face@z=max', 'Upper:faces@y=0', 'Plate:cells@all', "
             "'Plate:edge@box=0,-1,-1,10,1,1' (six numbers, "
-            "xMin,yMin,zMin,xMax,yMax,zMax)." % raw)
+            "xMin,yMin,zMin,xMax,yMax,zMax) or 'Col:face@r=10&at=92,1400,0' "
+            "(every '&'-joined term has to hold)." % raw)
 
     kind_word = match.group("kind").lower()
     plural = kind_word in PLURALS
@@ -214,6 +261,61 @@ def parse(raw: str, expect: object = None) -> Selector:
         raise SelectorError(
             "selector %r asks for %r; known kinds are %s (singular or plural)."
             % (raw, match.group("kind"), ", ".join(sorted(KINDS))))
+
+    terms = _parse_terms(raw, kind, match.group("terms"))
+    return Selector(
+        raw=text,
+        instance=match.group("instance"),
+        kind=kind,
+        plural=plural,
+        terms=terms,
+        expect=normalise_expect(
+            expect, default_plural=plural or terms[0][0] is None),
+    )
+
+
+def _parse_terms(raw: str, kind: str,
+                 written: str) -> tuple[tuple[str | None, str | None], ...]:
+    """Split on '&' and parse each side, refusing combinations that are empty.
+
+    A term that cannot match alongside another is refused HERE rather than left
+    to the count assertion, because the two failures read differently: a count
+    mismatch says "the model is not what you thought", and this says "the phrase
+    could not have matched whatever the model is".
+    """
+    pieces = [piece.strip() for piece in written.split("&")]
+    if any(not piece for piece in pieces):
+        raise SelectorError(
+            "selector %r has an empty term around '&'. Each side of an '&' is a "
+            "condition, e.g. 'face@r=10&y=1400'." % raw)
+
+    terms = []
+    seen = {}
+    for piece in pieces:
+        axis, place = _parse_term(raw, kind, piece)
+        if axis is None and len(pieces) > 1:
+            raise SelectorError(
+                "selector %r ANDs 'all' with something else. 'all' is every "
+                "entity of that kind, so the other term is the whole selector "
+                "-- write that one on its own." % raw)
+        if axis in seen:
+            raise SelectorError(
+                "selector %r gives %r twice, as %r and %r. Every term has to "
+                "hold at once and an entity has one %s, so this matches nothing "
+                "however the model is built." % (raw, axis, seen[axis], place, axis))
+        seen[axis] = place
+        terms.append((axis, place))
+    return tuple(terms)
+
+
+def _parse_term(raw: str, kind: str, text: str) -> tuple[str | None, str | None]:
+    match = _TERM_RE.match(text)
+    if not match:
+        raise SelectorError(
+            "cannot read the selector %r: %r is not a term. A term is 'all', an "
+            "axis and a place ('z=max', 'y=0'), a radius ('r=10'), a box "
+            "('box=0,-1,-1,10,1,1') or a centre ('at=0,0,0')."
+            % (raw, text))
 
     if match.group("all"):
         axis = place = None
@@ -229,21 +331,9 @@ def parse(raw: str, expect: object = None) -> Selector:
         # A box is not a new idea here either: `getByBoundingBox` is what every
         # other form already compiles to.
         axis = BOX_WORD
-        parts = [piece.strip() for piece in match.group("box").split(",")]
-        if len(parts) != 6:
-            raise SelectorError(
-                "selector %r gives %d number(s) to `box=`; it takes six, "
-                "xMin,yMin,zMin,xMax,yMax,zMax -- the same order as Abaqus's "
-                "own getByBoundingBox." % (raw, len([p for p in parts if p])))
-        numbers = []
-        for piece in parts:
-            try:
-                numbers.append(float(piece))
-            except ValueError:
-                raise SelectorError(
-                    "selector %r has %r in its box; every one of the six has "
-                    "to be a number. 'min' and 'max' are for the plane form -- "
-                    "a box is the corners you mean." % (raw, piece))
+        numbers = _numbers(raw, match.group("box"), "six", BOX_WORD,
+                           "xMin,yMin,zMin,xMax,yMax,zMax -- the same order as "
+                           "Abaqus's own getByBoundingBox")
         for index, letter in enumerate("xyz"):
             if numbers[index] > numbers[index + 3]:
                 raise SelectorError(
@@ -253,6 +343,11 @@ def parse(raw: str, expect: object = None) -> Selector:
                     "exists to stop." % (raw, letter, numbers[index],
                                          letter, numbers[index + 3]))
         place = ",".join(repr(value) for value in numbers)
+    elif match.group("at") is not None:
+        axis = AT_WORD
+        place = ",".join(repr(value) for value in _numbers(
+            raw, match.group("at"), "three", AT_WORD,
+            "x,y,z -- the point the entity is centred on"))
     else:
         axis = match.group("axis").lower()
         place = match.group("place")
@@ -298,15 +393,33 @@ def parse(raw: str, expect: object = None) -> Selector:
                     "selector %r has %r on the right of '='; expected a number, "
                     "'min' or 'max'." % (raw, place))
 
-    return Selector(
-        raw=text,
-        instance=match.group("instance"),
-        kind=kind,
-        plural=plural,
-        axis=axis,
-        place=place,
-        expect=normalise_expect(expect, default_plural=plural or axis is None),
-    )
+    return axis, place
+
+
+def _numbers(raw: str, written: str, wanted: str, word: str,
+             order: str) -> list[float]:
+    """The comma-separated numbers a `box=` or `at=` was given, or a refusal.
+
+    `wanted` is the count spelled out, because it reads as prose in the message
+    and the message is the whole point of refusing here rather than letting the
+    count assertion catch it later.
+    """
+    count = {"three": 3, "six": 6}[wanted]
+    parts = [piece.strip() for piece in written.split(",")]
+    if len(parts) != count:
+        raise SelectorError(
+            "selector %r gives %d number(s) to `%s=`; it takes %s, %s."
+            % (raw, len([p for p in parts if p]), word, wanted, order))
+    numbers = []
+    for piece in parts:
+        try:
+            numbers.append(float(piece))
+        except ValueError:
+            raise SelectorError(
+                "selector %r has %r in its `%s=`; every one of the %s has to be "
+                "a number. 'min' and 'max' are for the plane form -- a `%s=` is "
+                "the coordinates you mean." % (raw, piece, word, wanted, word))
+    return numbers
 
 
 def normalise_expect(expect: object, default_plural: bool) -> str:
@@ -450,6 +563,38 @@ def _sel_by_radius(seq, radius, tol):
     return picked if picked is not None else seq[0:0]
 
 
+def _sel_centred_at(seq, point, tol):
+    """Every entity whose own bounding-box centre is `point`.
+
+    Not getCentroid(): measured on Abaqus 2021, that is an estimate off the
+    facetted display geometry, and it is the wrong quantity anyway -- the
+    centroid of a half-cylinder is not on its axis. The bounding-box midpoint
+    IS on the axis for a cylindrical face, which is where a bolt hole is named.
+
+    The box comes from a one-item SLICE rather than the entity: a slice is a
+    geometry sequence and sequences are what carry getBoundingBox() (the same
+    reason _sel_bbox walks owner.faces and not owner).
+    """
+    picked = None
+    for item in seq:
+        i = item.index
+        piece = seq[i:i + 1]
+        try:
+            bb = piece.getBoundingBox()
+        except Exception:
+            continue
+        low, high = tuple(bb['low']), tuple(bb['high'])
+        near = True
+        for k in range(3):
+            if abs((low[k] + high[k]) / 2.0 - point[k]) > tol:
+                near = False
+                break
+        if not near:
+            continue
+        picked = piece if picked is None else picked + piece
+    return picked if picked is not None else seq[0:0]
+
+
 def _sel_expect_ok(count, expect):
     op = expect[:2] if expect[:2] in ('>=', '<=') else expect[:1]
     n = int(expect[len(op):])
@@ -471,6 +616,57 @@ def _sel_resolve(owner, attribute, axis, place, expect, label, scale_tol):
     plane that does not exist, Set() accepts an empty sequence, and the job
     then solves with the boundary condition applied to nothing.
     """
+    found, box = _sel_find(owner, attribute, axis, place, scale_tol)
+    return _sel_checked(found, attribute, expect, label, box)
+
+
+def _sel_resolve_and(owner, attribute, terms, expect, label, scale_tol):
+    """The entities that satisfy EVERY term -- what `&` compiles to.
+
+    Intersected by `.index` rather than by object identity: Abaqus hands back a
+    NEW wrapper each time a sequence is sliced, so `face in other_sequence` and
+    `set(seq_a) & set(seq_b)` both come back empty even when the same face is in
+    both. The index is the stable name.
+    """
+    seq = getattr(owner, attribute)
+    keep = None
+    notes = []
+    for axis, place in terms:
+        found, box = _sel_find(owner, attribute, axis, place, scale_tol)
+        notes.append(box.strip())
+        ids = set()
+        for item in found:
+            ids.add(item.index)
+        keep = ids if keep is None else (keep & ids)
+    picked = None
+    for i in sorted(keep):
+        piece = seq[i:i + 1]
+        picked = piece if picked is None else picked + piece
+    if picked is None:
+        picked = seq[0:0]
+    return _sel_checked(picked, attribute, expect, label, ' ' + ' & '.join(notes))
+
+
+def _sel_checked(found, attribute, expect, label, box):
+    count = len(found)
+    if not _sel_expect_ok(count, expect):
+        message = ('SELECTOR_MISMATCH: %s matched %d %s, expected %s. '
+                   'The build stops here rather than applying it to the wrong '
+                   'region.' % (label, count, attribute, expect))
+        _sel_log(message)
+        raise ValueError(message)
+    # The bounding box goes in the log on purpose. It is the one number that
+    # says whether an instance was measured in assembly space or in its own
+    # part space, and getting that wrong picks a real face on the wrong side of
+    # the model without matching zero. Measured on Abaqus 2021: an instance
+    # reports its box in ASSEMBLY space, so `Upper:face@y=5` means y=5 after
+    # the translate, which is what the author of the spec meant.
+    _sel_log('SELECTOR_OK: %s -> %d %s%s' % (label, count, attribute, box))
+    return found
+
+
+def _sel_find(owner, attribute, axis, place, scale_tol):
+    """One term, with no assertion attached: the entities and a note for the log."""
     seq = getattr(owner, attribute)
     box = ''
     if axis is None:
@@ -497,6 +693,13 @@ def _sel_resolve(owner, attribute, axis, place, expect, label, scale_tol):
         radius = float(place)
         found = _sel_by_radius(seq, radius, max(_SEL_TOL, radius * 1.0e-6))
         box = ' radius=%s' % radius
+    elif axis == 'at':
+        numbers = [float(piece) for piece in place.split(',')]
+        low, high = _sel_bbox(owner)
+        span = max(high[0] - low[0], high[1] - low[1], high[2] - low[2])
+        tol = max(_SEL_TOL, span * scale_tol)
+        found = _sel_centred_at(seq, numbers, tol)
+        box = ' at=%s tol=%s' % (tuple(numbers), tol)
     else:
         low, high = _sel_bbox(owner)
         box = ' bbox=%s..%s' % (low, high)
@@ -515,21 +718,7 @@ def _sel_resolve(owner, attribute, axis, place, expect, label, scale_tol):
         hi[idx] = target + tol
         found = seq.getByBoundingBox(xMin=lo[0], yMin=lo[1], zMin=lo[2],
                                      xMax=hi[0], yMax=hi[1], zMax=hi[2])
-    count = len(found)
-    if not _sel_expect_ok(count, expect):
-        message = ('SELECTOR_MISMATCH: %s matched %d %s, expected %s. '
-                   'The build stops here rather than applying it to the wrong '
-                   'region.' % (label, count, attribute, expect))
-        _sel_log(message)
-        raise ValueError(message)
-    # The bounding box goes in the log on purpose. It is the one number that
-    # says whether an instance was measured in assembly space or in its own
-    # part space, and getting that wrong picks a real face on the wrong side of
-    # the model without matching zero. Measured on Abaqus 2021: an instance
-    # reports its box in ASSEMBLY space, so `Upper:face@y=5` means y=5 after
-    # the translate, which is what the author of the spec meant.
-    _sel_log('SELECTOR_OK: %s -> %d %s%s' % (label, count, attribute, box))
-    return found
+    return found, box
 # --- end selector runtime --------------------------------------------------
 '''
 
@@ -546,14 +735,26 @@ def resolve_expression(selector: Selector, owner_expr: str,
 
     ``owner_expr`` is generated Python naming the part or instance to search,
     e.g. ``a.instances['Lower']``.
+
+    A one-term selector still emits ``_sel_resolve`` with the same arguments in
+    the same order it always did. That is deliberate: tests/test_frozen_model_
+    sections.py pins the emitted model text for the shipped cases, and routing
+    every selector through the new call would move all five hashes to say
+    nothing had changed about what they build.
     """
-    args = [
-        owner_expr,
-        repr(str(selector.attribute)),
-        repr(str(selector.axis)) if selector.axis else "None",
-        repr(str(selector.place)) if selector.place else "None",
+    tail = [
         repr(str(selector.expect)),
         repr(str(selector.raw)),
         repr(float(scale_tol)),
     ]
-    return "_sel_resolve(%s)" % ", ".join(args)
+    if len(selector.terms) == 1:
+        axis, place = selector.terms[0]
+        args = [owner_expr, repr(str(selector.attribute)),
+                repr(str(axis)) if axis else "None",
+                repr(str(place)) if place else "None"] + tail
+        return "_sel_resolve(%s)" % ", ".join(args)
+    written = ", ".join("(%r, %r)" % (str(axis), str(place))
+                        for axis, place in selector.terms)
+    args = [owner_expr, repr(str(selector.attribute)),
+            "(%s,)" % written] + tail
+    return "_sel_resolve_and(%s)" % ", ".join(args)

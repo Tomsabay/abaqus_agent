@@ -260,6 +260,7 @@ class GenerateSpecRequest(BaseModel):
     llm_backend: str = "template"
     anthropic_key: str = ""
     openai_key: str = ""
+    deepseek_key: str = ""
 
 class ValidateSpecRequest(BaseModel):
     spec_yaml: str
@@ -500,6 +501,7 @@ async def bridge_generate_spec(req: GenerateSpecRequest):
             "llm_backend": req.llm_backend,
             "anthropic_key": req.anthropic_key,
             "openai_key": req.openai_key,
+            "deepseek_key": req.deepseek_key,
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

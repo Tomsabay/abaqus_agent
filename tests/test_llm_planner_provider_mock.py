@@ -83,6 +83,65 @@ def test_anthropic_adapter_extracts_text_content(
     assert calls["request"]["messages"] == [{"role": "user", "content": "prompt"}]
 
 
+def _fake_openai_module(calls: dict, *, content, finish_reason: str):
+    class FakeCompletions:
+        def create(self, **kwargs):
+            calls["request"] = kwargs
+            return SimpleNamespace(
+                choices=[SimpleNamespace(
+                    message=SimpleNamespace(content=content),
+                    finish_reason=finish_reason,
+                )]
+            )
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str, base_url: str = ""):
+            calls["api_key"] = api_key
+            calls["base_url"] = base_url
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    return SimpleNamespace(OpenAI=FakeOpenAI)
+
+
+def test_deepseek_adapter_extracts_content(monkeypatch: pytest.MonkeyPatch) -> None:
+    from agent.llm_planner import LLMPlanner
+
+    calls: dict = {}
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-deepseek-key")
+    monkeypatch.setitem(sys.modules, "openai", _fake_openai_module(
+        calls, content="meta:\n  model_name: Mock\n", finish_reason="stop"))
+
+    planner = LLMPlanner(backend="deepseek")
+    assert planner._call_deepseek("prompt").startswith("meta:")
+    assert calls["api_key"] == "test-deepseek-key"
+    assert calls["base_url"] == "https://api.deepseek.com"
+    assert calls["request"]["model"] == "deepseek-v4-pro"
+    assert calls["request"]["max_tokens"] == 65536
+
+
+def test_deepseek_reasoning_burnout_is_refused_loudly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """finish_reason "length" with empty content is the v4 thinking models'
+    real failure shape -- measured on the round-4 gear-shaft ask, all 8000
+    tokens of the old budget went to reasoning and zero chars of answer came
+    back. Passed along, "" yaml-loads to None and the user gets a schema
+    error about their whole spec; the refusal must name the budget knob
+    instead."""
+    from agent.llm_planner import LLMPlanner
+    from tools.errors import AbaqusAgentError
+
+    calls: dict = {}
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-deepseek-key")
+    monkeypatch.setitem(sys.modules, "openai", _fake_openai_module(
+        calls, content=None, finish_reason="length"))
+
+    planner = LLMPlanner(backend="deepseek")
+    with pytest.raises(AbaqusAgentError) as exc:
+        planner._call_deepseek("prompt")
+    assert "ABAQUS_AGENT_DEEPSEEK_MAX_TOKENS" in str(exc.value)
+
+
 async def _run_generate_spec_async_env_restore(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

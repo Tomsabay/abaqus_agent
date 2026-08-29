@@ -1397,6 +1397,23 @@
             }
           },
           "additionalProperties": false
+        },
+        "polygon": {
+          "type": "object",
+          "required": [
+            "points"
+          ],
+          "description": "A closed polygon through `points`, in order; the last point is joined back to the first, so do not repeat it. This exists because rect and circle cannot draw a rolled section: an I-shape and a T-shape are the whole vocabulary of a steel frame, and adding `i_beam`/`t_stub` enums would only build the sections somebody already thought of. Cuts still refuse a polygon — cut_extrude verifies itself by looking for the cylindrical face it should have left, and a polygonal cut leaves none.",
+          "properties": {
+            "points": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "$ref": "#/definitions/vec2"
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

@@ -29,19 +29,55 @@ SRC = ROOT / "runner" / "kernel_runtime.py"
 
 
 def _chunk_names() -> list[str]:
-    """The _H_* constants, in source order -- which is the concatenation order."""
+    """The _H_* constants, in source order -- which is the concatenation order.
+
+    A chunk may be defined here or imported from a sibling module: the deck
+    reader moved to runner/kernel_deck.py when this file went past the size
+    gate. Both count, or the guarantee would be "every chunk that happens to
+    live in this file is concatenated", which is not the guarantee anyone
+    wants -- moving a chunk out would silently drop it from the checks.
+    """
     tree = ast.parse(SRC.read_text(encoding="utf-8"))
     out = []
     for node in tree.body:
-        if isinstance(node, ast.Assign):
+        if isinstance(node, ast.ImportFrom):
+            out.extend(alias.asname or alias.name
+                       for alias in node.names
+                       if (alias.asname or alias.name).startswith("_H_"))
+        elif isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name) and target.id.startswith("_H_"):
                     out.append(target.id)
     return out
 
 
+def _helpers_order() -> list[str]:
+    """The order `_HELPERS` actually concatenates in.
+
+    Source order stopped being that order the moment a chunk became an import:
+    imports sit at the top of the file, and the deck reader belongs in the
+    middle of the payload. This reads the sequence off the `_HELPERS`
+    expression, and `test_the_chunk_list_is_not_stale` is what checks the two
+    lists hold the same names.
+    """
+    def flatten(node) -> list[str]:
+        # Left-to-right, which ast.walk does NOT give: `a + b + c` nests as
+        # BinOp(BinOp(a, b), c) and a breadth-first walk yields c before a.
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            return flatten(node.left) + flatten(node.right)
+        return [node.id] if isinstance(node, ast.Name) else []
+
+    tree = ast.parse(SRC.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if (isinstance(node, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "_HELPERS"
+                        for t in node.targets)):
+            return flatten(node.value)
+    return []
+
+
 def test_the_chunks_concatenate_to_exactly_what_the_kernel_gets():
-    chunks = [getattr(kernel_runtime, name) for name in _chunk_names()]
+    chunks = [getattr(kernel_runtime, name) for name in _helpers_order()]
     assert "".join(chunks) == kernel_runtime.HELPERS
     # Reordering them would still concatenate to the same LENGTH, so the join
     # above is checked against content, and the order is checked separately.
@@ -98,3 +134,7 @@ def test_the_chunk_list_is_not_stale():
     assert joined == set(_chunk_names()), (
         "chunks defined but not concatenated: %s"
         % sorted(set(_chunk_names()) - (joined or set())))
+    # And nothing is concatenated twice, which would double a chunk of kernel
+    # source into every deck without changing the set comparison above.
+    order = _helpers_order()
+    assert len(order) == len(set(order)), order

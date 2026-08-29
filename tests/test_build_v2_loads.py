@@ -434,6 +434,40 @@ def test_the_cload_refusal_logs_before_it_raises():
     assert "_expect_fail(" in body and "print(" not in body
 
 
+def test_a_reference_point_counts_as_a_point_the_load_lands_on():
+    """A coupling's control point is not a mesh node, and the count that
+    gates concentrated loads used to miss it.
+
+    Measured 2026-08-18 on a bolted frame: the 15 kN at the column top logged
+    "LEFT_TOP_RP lands on 0 node(s)" while the deck carried
+    `*Nset, nset=LEFT_TOP_RP / 1,` and `*Cload LEFT_TOP_RP, 1, 15000.` — the
+    load was applied to exactly one point. Reading 0 there says the load went
+    nowhere, and a spec that honestly wrote `expect: {points: 1}` would have
+    been refused for disagreeing with a number that was never right.
+    """
+    assert "referencePoints" in _helper("_load_points")
+    # Both gates go through it, so the blind spot cannot come back in one of
+    # them while the other is fixed.
+    for user in ("_expect_cload", "_expect_points"):
+        body = _helper(user)
+        assert "_load_points(a," in body, user
+        assert "len(a.sets[" not in body, user
+
+
+def test_the_cload_refusal_offers_the_coupling_way_out():
+    """The shape that trips this is a load on a FACE, and dividing is not the fix.
+
+    Measured 2026-08-18: a planner asked for a bolted beam put `cf2: -30000` on
+    the end face, 527 nodes, 15.8 MN. `expect: {points: 527}` plus a division
+    would silence the refusal and still be wrong -- face nodes do not carry
+    equal area, and the count moves with the seed. Coupling the face to a
+    reference point and loading the point is the answer, so the refusal has to
+    say so; a way out that only fits the other case reads as the only way out.
+    """
+    body = _helper("_expect_cload")
+    assert "Coupling" in body and "named_set" in body
+
+
 @pytest.mark.parametrize("marker", ["CLOAD_PER_NODE", "POINTS_MISMATCH",
                                     "STEP_ORDER", "SET_DUPLICATE"])
 def test_each_refusal_names_itself_in_the_log(marker):

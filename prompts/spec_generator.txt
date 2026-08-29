@@ -70,10 +70,34 @@ plane, select the faces or the nodes that lie in it.
 
 ### Parts
 
-Named ops — `sketch`, `extrude`, `cut`, `revolve` — cover the common shapes.
+Named ops — `sketch`, `extrude`, `cut_extrude` — cover the common shapes, and
+the list is EXACTLY those three: `cut` and `revolve` are not ops (measured,
+2026-08-18: a planner taught "cut" here wrote it and the generator refused the
+spec). A revolved shape is a direct call (`BaseSolidRevolve`).
 For anything else write a direct Abaqus call: `{call: <MethodName>, ...}`,
 where every other key is a keyword argument of that method. Any method Abaqus
 has on the object is allowed; there is no list of blessed operations.
+
+A sketch `profile:` is one of exactly three forms — these key names, no
+synonyms (`radius:` is refused; the key is `r:`):
+
+    rect:    { corner1: [x, y], corner2: [x, y] }
+    circle:  { center: [x, y], r: <number> }
+    polygon: { points: [[x, y], ...] }   # closes itself; do NOT repeat point 1
+
+`cut_extrude` accepts a CIRCLE sketch only, and it proves itself by finding
+the cylindrical face it leaves behind — state it in `expect.cylinders`. A
+rectangular slot leaves nothing round to check, so it is refused; cut one with
+direct calls instead. `extrude` runs once per part: a second extrude replaces
+the body, and `cut_extrude` must come after the extrude it cuts.
+
+In `expect:`, the count keys (`cells`, `faces`, `edges`, `vertices`,
+`cylindrical_faces`) take integers — but `cylinders` is an ARRAY of the
+cylinders themselves, each `{r: <radius>, at: [x, y, z]}` with `at` the
+centre of the cylindrical face in the PART's coordinates. Writing a count
+there is refused (measured: `cylinders: 2` → "not of type 'array'"). The
+same `at` number is then how a selector names that hole
+(`face@r=<r>&at=<x>,<y>,<z>`) — one number, placed once, checked twice.
 
 A part built with direct calls MUST carry an `expect:` block stating at least
 one of volume, cells, faces, edges, vertices, cylindrical_faces, cylinders.
@@ -290,6 +314,222 @@ worse than the crash -- it becomes compression along the beam axis, the job
 finishes COMPLETED, and the stress reads 0.47 MPa where 15 MPa was due. The form
 above, on the same problem, measured 15.72 MPa.
 
+### Every part is drawn on XY and extruded along +Z; orientation is the assembly's job
+
+`plane:` takes `XY` and nothing else. The base extrude runs along +z from XY and
+`cut_extrude` drives off the z=max face, so XZ and YZ are unwritten code and a
+spec that asks for them is refused whole — measured 2026-08-18 on a bolted
+frame: `parts.2.features.0.plane: 'YZ' is not one of ['XY']`, seven times in
+one refusal.
+
+So EVERY part is modelled lying along its own +Z, whatever it will be in the
+structure, and the assembly turns it:
+
+    assembly:
+      instances:
+        - name: ColLeft          # a column already stands on Z — no rotation
+          part: Column
+          translate: [0.0, 0.0, 0.0]
+        - name: Beam             # a beam lies along X — turn its own +Z onto X
+          part: Beam
+          translate: [132.0, 0.0, 2900.0]
+          rotate: { axis: [0.0, 1.0, 0.0], angle: 90.0,
+                    origin: [132.0, 0.0, 2900.0] }
+
+Two things about `rotate` that decide whether the part lands where you meant:
+- `translate` is emitted FIRST, then `rotate`, and `origin` is a point in
+  GLOBAL coordinates (default 0,0,0 — the world origin, usually not what a
+  positioned part wants). The reliable recipe is: translate so the pivot end
+  of the part sits where the pivot belongs, then rotate about that same point.
+- The rotation carries the part's holes with it. A 16 mm plate is drawn as its
+  320 x 200 face on XY, extruded 16 along +Z, drilled along +Z, and then
+  rotated so +Z points along the bolt axis. That is how a hole gets through
+  the thickness of a plate that ends up standing vertically.
+
+This is also why a hole through the FLANGE of a rolled H section cannot be
+cut: the flange face is parallel to the extrude axis. Put the holes in flat
+plates instead and bolt plate to plate — a column-side plate and a beam-side
+end plate back to back is how a portal-frame knee is detailed anyway.
+
+**Every number in a selector is in ASSEMBLY coordinates, after translate and
+rotate.** `Plate:face@r=9&at=...` is evaluated on the INSTANCE, so the numbers
+are where the hole ended up in the world, not where it was drilled in the
+part. Measured 2026-08-18: a frame spec drilled its holes at part-local
+(±115, ±60) and wrote them into the selectors unchanged; the real build
+refused with `LeftColPlate:face@r=9&at=115.0,60.0,8.0 matched 0 faces,
+expected =1`, and nothing before CAE could have caught it, because selectors
+are resolved inside CAE.
+
+Work the number through the same rotation the instance gets. A hole drilled
+at local (115, 60) through a 16 mm plate has its cylindrical face centred at
+local (115, 60, 8); the instance is translated to (100, 0, 2900) and rotated
++90° about Y, which sends local (x, y, z) to global (z, y, -x) plus that
+origin — so the selector is `at=108,60,2785`, not `at=115,60,8`.
+
+For a part with no rotation, global = local + translate, which is why this
+never bit until a frame needed turning.
+
+### Bolts: which surface is the `main`
+
+A bolt shank passing through two plates is tied to BOTH hole walls, and the
+shank must be the `main` of both ties:
+
+    interactions:
+      - { name: Bolt1_Upper, type: tie, main: "Bolt1:face@r=10",
+          secondary: "EndPlate:face@r=11&at=70,140,10" }
+      - { name: Bolt1_Lower, type: tie, main: "Bolt1:face@r=10",
+          secondary: "Base:face@r=11&at=70,140,-15" }
+
+Written the other way round -- shank as the `secondary` of both -- the shank's
+nodes are handed to two constraints at once and Abaqus refuses the whole
+model: `OVERCONSTRAINT CHECKS: NODE 289 INSTANCE BOLT1 IS USED MORE THAN ONCE
+AS A SLAVE NODE`. A secondary surface gives up its nodes; a main surface does
+not. So the surface that appears in two ties is the one that has to be main.
+Measured 2026-08-18 on exactly this connection.
+
+A clearance hole is a GAP, and the tie tolerance has to clear it. An M20 shank
+is `@r=10` and its hole `@r=11`, so those two surfaces are 1 mm apart
+everywhere. `position_tolerance: 0.01` on that pair ties NOTHING — Abaqus
+leaves every node outside the tolerance untied, says so only as a .dat warning
+(`WILL NOT BE TIED TO THE MASTER`), and completes the job with the bolts
+missing from the load path. Measured on a two-layer plate: a 0.05 gap under a
+0.01 tolerance moved the tip 7.95x and still reported success.
+
+So the tolerance goes above the clearance plus the chord height of the faceted
+cylinder (`seed^2 / (8 r)`): shank r=10, hole r=11, seed 5 -> gap 1.0 + chord
+0.14, so `position_tolerance: 2.0`. Writing the shank at the hole radius
+instead (no clearance, tolerance 0.01) is also correct and slightly stiffer;
+what is never correct is a clearance with a tolerance under it.
+
+**A coupling's surface is a slave surface too.** `couplingType: KINEMATIC`
+constrains every node of the surface it names, exactly the way a tie secondary
+does, so a node cannot be in both. Measured 2026-08-19 on a bolted frame: the
+lateral load was coupled to the column top face while the column flange face
+was written as the `secondary` of the weld tie, and the two surfaces share the
+ring of nodes where they meet:
+
+    ***ERROR: OVERCONSTRAINT CHECKS: NODE 41707 INSTANCE LEFTCOL IS USED MORE
+    THAN ONCE AS A SLAVE NODE ... THAT NODE CANNOT BE INCLUDED IN ANY OTHER
+    CONSTRAINT INCLUDING MPCS
+
+The rule that keeps this straight: **whichever part carries a coupling, a
+`*Cload` region or a BC must be the `main` of its ties, never the secondary.**
+For a member welded to a plate that is also the load path, that means the
+MEMBER is the main and the PLATE is the secondary — which is the right way
+round anyway, since the secondary should be the finer-meshed, smaller part.
+
+**Two slave surfaces on one part must not TOUCH.** This is the rule that
+decides a bolted joint, and flipping one tie only moves the failure. A plate's
+bolt hole wall meets the plate's own face at the hole rim, so if the plate is
+the `secondary` of the weld tie AND its hole walls are the `secondary` of the
+bolt ties, the rim nodes are slaves twice — measured 2026-08-19,
+`OVERCONSTRAINT CHECKS: NODE 25 INSTANCE LEFTCOLPLATE`.
+
+So a bolted joint is a CHAIN, and main/secondary alternate along it. Each part
+hands its nodes over exactly once, and never on a surface it also lends as a
+main:
+
+    column      --main-->  column plate    secondary: the plate's back face
+    column plate --main-->  bolt           secondary: the bolt shank
+    bolt        --main-->  beam plate      secondary: that plate's hole walls
+    beam plate  --main-->  beam            secondary: the beam's end face
+
+Check it by listing, for each instance, every surface that appears as a
+`secondary`. If an instance has two and they share an edge — a face and a hole
+cut through it, a face and its own rim — the model will be refused.
+
+Two more rules from the same measurement, both about the plates:
+- **Plates that bear on each other get `type: contact`, not a tie.** Bolted
+  plates transfer load through the bolts and through bearing, and tying them
+  as well puts the ring of nodes their faces share into two constraints.
+  Friction goes in the `property` block and nowhere else — there is no
+  `friction_coefficient` key, and a spec that invents one is rejected whole:
+
+      - name: PlateBearing
+        type: contact
+        main: "Base:face@z=max"
+        secondary: "EndPlate:face@z=min"
+        property: { friction: 0.15, allow_separation: true }
+- One selector may be the `secondary` of only ONE tie. Different faces of the
+  same instance are fine (a plate tied top and bottom); the same face twice
+  is not.
+
+### A load on a FACE goes through a coupling — force as well as moment
+
+`ConcentratedForce` and `Moment` both write `*Cload`, and `*Cload` is PER NODE.
+Put `cf2: -30000` on a face and every node of that face gets 30 kN: measured
+2026-08-18, a beam end face at seed 4 holds 527 nodes, so the model carried
+15.8 MN instead of 30 kN. The build is refused before the solver
+(`CLOAD_PER_NODE: LOAD_TIP lands on 527 node(s) and the spec never said so`),
+but only because that check exists — CAE writes the deck and Abaqus completes
+the job without a warning.
+
+So a load applied to a FACE is coupled to a reference point, and the load goes
+on the point. The point is one node, so the magnitude in the spec IS the load,
+and the face stays plane instead of having its own mesh punched through:
+
+    conditions:
+      - call: Coupling
+        name: { literal: TipGrip }
+        controlPoint: { reference_point: [0.0, 0.0, 0.0], name: TIP_RP }
+        surface: { surface: "B:face@z=min", name: TIP_FACE, expect: "=1" }
+        influenceRadius: WHOLE_SURFACE
+        couplingType: KINEMATIC
+        u1: "ON"
+        u2: "ON"
+        u3: "ON"
+        ur1: "ON"
+        ur2: "ON"
+        ur3: "ON"
+      - call: ConcentratedForce
+        name: { literal: TipLoad }
+        createStepName: { literal: Static }
+        region: { named_set: TIP_RP }
+        cf2: -30000.0
+
+Put the reference point ON the face it couples (here z=0, the loaded end), not
+offset into space — an offset point turns part of the force into a moment.
+
+The other way out is `expect: {points: N}` on the region plus dividing the
+magnitude by N yourself. That is right for a handful of named corner nodes; it
+is wrong for a face, because face nodes do not carry equal area and the node
+count moves with the mesh seed.
+
+### A torque (or any moment) through a coupling — the measured form
+
+A moment about a FACE needs a reference point and a coupling; a moment on one
+node is `Moment` too, but couples through nothing. This exact form ran on a
+real Abaqus 2021 (gear-shaft, 500 N·m, solved to completion):
+
+    conditions:
+      - call: Coupling
+        name: { literal: Drive }
+        controlPoint: { reference_point: [0.0, 0.0, 300.0], name: DRIVE_RP }
+        surface: { surface: "Shaft:face@z=max", name: DRIVE_FACE, expect: "=1" }
+        influenceRadius: WHOLE_SURFACE
+        couplingType: KINEMATIC
+        u1: "ON"
+        u2: "ON"
+        u3: "ON"
+        ur1: "ON"
+        ur2: "ON"
+        ur3: "ON"
+      - call: Moment
+        name: { literal: T }
+        createStepName: { literal: Torque }
+        region: { named_set: DRIVE_RP }
+        cm3: 500000.0
+
+Two traps this form exists to avoid — a planner wrote both on its first
+attempt at this model (2026-08-18) and neither fails before CAE:
+- `{reference_point: [x,y,z], name: NAME}` creates the point AND the named
+  set in one move. Do NOT build it by hand with `call: ReferencePoint` plus
+  `call: Set` — `as:`/`{ref:}` binds the FEATURE the call returned, not the
+  ReferencePoint object a Set wants.
+- A moment is `call: Moment` with `cm1/cm2/cm3`. `ConcentratedForce` takes
+  `cf1/cf2/cf3` only; an unknown keyword stops CAE with no .inp written, the
+  same way the `tr2` example above does.
+
 ### Argument value forms (v2 direct calls)
 
 A mapping naming exactly ONE of these is resolved before the call:
@@ -321,6 +561,20 @@ on/off into booleans, so quote them: "ON", "OFF".
 
 `location:` is `whole_model` or the name of a SET. A surface is not valid
 there.
+
+`component:` is a closed list too — U1 U2 U3, S11 S22 S33, RF1 RF2 RF3 —
+and an unrecognised name is refused at validation, not guessed at (it used to
+resolve to a default index and report a real number from the wrong slot).
+Mises is NOT a component: write `invariant: MISES` (also MAX_PRINCIPAL,
+MID_PRINCIPAL, MIN_PRINCIPAL, TRESCA, PRESS, INV3), and never both
+`component:` and `invariant:` on one KPI. For a magnitude — "the largest
+displacement" with no direction meant — write `field_variable: U` and omit
+both `component:` and `invariant:`; the vector's magnitude is read. The
+`field_variable:` matters: with nothing declared the field defaults to S,
+and the KPI reports a stress magnitude under a displacement-sounding name.
+Measured from a real planning session (2026-08-18): `component: U` and
+`component: S_Mises` were both refused; `invariant: MISES` and a
+`field_variable: U` magnitude KPI were what the request meant.
 
 Do NOT reach for `field_max` on a signed component to get "the largest
 deflection". Under a downward load every U2 is negative, so `field_max` returns

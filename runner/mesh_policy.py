@@ -14,7 +14,39 @@ DEFAULT_MESH_ELEMENT by name.
 
 from __future__ import annotations
 
-from runner.spec_base import SpecError
+from runner.spec_base import SpecError, _is_generic
+
+# Abaqus/Explicit steps, by the CAE method that creates them. `Explicit` in the
+# name is not the test: TempDisplacementDynamicsStep is an Explicit step and
+# does not contain the word, and no Standard method does contain it.
+_EXPLICIT_STEP_CALLS = frozenset((
+    "ExplicitDynamicsStep",
+    "TempDisplacementDynamicsStep",
+))
+
+
+def _element_library(spec: dict) -> str:
+    """STANDARD or EXPLICIT, decided by the steps the spec declares.
+
+    Not a spec key, because a model cannot hold both: Abaqus/Standard and
+    Abaqus/Explicit steps do not coexist in one model, so there is no case where
+    an author would legitimately want the other one.
+
+    It used to be the constant "STANDARD", and that is a silent failure, not a
+    formality. Measured on Abaqus 2021 with cases/explicit_impact: the deck the
+    constant produced carried `*Element, type=C3D8R` -- the same line as the
+    frozen v1 deck -- and no `*Section Controls`, because hourglassControl is
+    only reachable on the EXPLICIT library. The job COMPLETED with no error,
+    and the reaction force came out 33501 N against the frozen 31817 N, a 5.3%
+    error on a case whose own tolerance is 5%.
+
+    Lives here rather than in build_v2 because _library_for below is allowed to
+    overrule it for one element, and a rule and its exception belong together.
+    """
+    for step_spec in spec.get("steps") or []:
+        if _is_generic(step_spec) and str(step_spec.get("call")) in _EXPLICIT_STEP_CALLS:
+            return "EXPLICIT"
+    return "STANDARD"
 
 # What a `mesh:` block with no `element:` key gets. Named rather than inlined
 # because core/element_risk.py has to warn about it by name: this is a
@@ -114,6 +146,77 @@ _WEDGE_PRIMARY = set(wedge for wedge, _ in _COMPANION.values())
 # corner nodes carry no consistent contact pressure. Named here because a spec
 # that asks for one is asking on purpose.
 _TET_PRIMARY.update(("C3D10M", "C3D10H", "C3D4H"))
+
+# The tets that DO have a family, derived from the companion table rather than
+# retyped: an element that is some hex's tet has a hex to be inferred from.
+_FAMILY_TETS = frozenset(tet for _wedge, tet in _COMPANION.values())
+
+
+def _shape_before_element(elem_codes: tuple) -> bool:
+    """Must setMeshControls come BEFORE setElementType for this element list?
+
+    Setting the shape first is always correct, and it is not the order the
+    generator has always emitted -- so it is done only where it is required.
+    Reversing it everywhere would move the eleven deck hashes
+    tests/test_frozen_model_sections.py pins and force twenty-seven
+    unreproducible run directories to rebuild; that reversal is worth doing on
+    its own, with the archiving that goes with it.
+
+    Where it IS required, measured on Abaqus 2021: a tet-only element list is
+    rejected while the region still carries the default HEX controls --
+
+        The Hex shape associated with the regions does not have a valid element
+        type. Select a type that supports the Hex shape or change the mesh
+        controls to remove the presence of hex elements.
+
+    C3D10 gets away with it because Abaqus fills the empty hex slot from its
+    own family (C3D20/C3D15/C3D10). C3D10M has no family to fill it from, which
+    is the same fact `_TET_PRIMARY.update(("C3D10M", ...))` above states: it is
+    nobody's default companion. So the test is a property of the element, not a
+    second list of names.
+    """
+    return len(elem_codes) == 1 and elem_codes[0] not in _FAMILY_TETS
+
+
+# Second-order tets. Named rather than derived because "has a 10 in it" is a
+# spelling rule, not an element property, and the next family will break it.
+_QUADRATIC_TETS = frozenset(("C3D10", "C3D10M", "C3D10H", "C3D10MH",
+                             "C3D10T", "C3D10MT"))
+
+
+def _library_for(elem_codes: tuple, library: str) -> str:
+    """STANDARD or EXPLICIT for this element list -- usually just `library`.
+
+    C3D10M is the tet Abaqus's own documentation asks for under contact, and it
+    is a legal Abaqus/Explicit element. But asking CAE for it through the
+    EXPLICIT library does not produce it. Measured on Abaqus 2021 by writing the
+    input file and reading the card back, which is the only witness that counts
+    here -- MeshElement.type answers C3D4 even for an assignment that writes
+    C3D10:
+
+        mesh.ElemType(C3D10M, elemLibrary=EXPLICIT)  -> *Element, type=C3D4
+                                                       96 nodes / 324 elements
+        mesh.ElemType(C3D10M, elemLibrary=STANDARD)  -> *Element, type=C3D10M
+                                                       577 nodes / 324 elements
+        mesh.ElemType(C3D10, elemLibrary=STANDARD)   -> *Element, type=C3D10
+
+    So the EXPLICIT library silently drops the element to a linear tet, and a
+    linear tet is several times too stiff -- a wrong answer that meshes, solves
+    and looks ordinary. The STANDARD library writes the card the deck needs, and
+    `*Dynamic, Explicit` runs C3D10M perfectly well.
+
+    The one thing the EXPLICIT library buys, and the reason _element_library
+    exists at all, is hourglassControl -- which is meaningless on C3D10M: it has
+    no reduced integration and no hourglass modes. So nothing is given up.
+
+    The substitution is checked at run time rather than trusted; see
+    _expect_second_order in the kernel runtime.
+    """
+    if (library == "EXPLICIT" and len(elem_codes) == 1
+            and elem_codes[0] in _QUADRATIC_TETS
+            and elem_codes[0] not in _FAMILY_TETS):
+        return "STANDARD"
+    return library
 
 # Which techniques each shape can be meshed with. Abaqus refuses the rest, but
 # it refuses them from inside the kernel, where the message names neither the

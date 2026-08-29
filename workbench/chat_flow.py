@@ -43,7 +43,8 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     text: str
-    backend: str = Field(default="auto", pattern="^(auto|claude_cli|template)$")
+    backend: str = Field(default="auto",
+                         pattern="^(auto|claude_cli|deepseek|template)$")
     # @-mentions. Each entry is a tree-row ref ({"ref": "part:Plate", ...}) or
     # a viewport pick ({"kind": "selector", "selector": "P:face@box=...", ...}).
     # Resolved server-side against the SAME spec text the tree drew; a ref
@@ -221,6 +222,48 @@ def _validated_text(req: ChatRequest) -> str:
     return text
 
 
+def _propose_deepseek_sync(session: dict, text: str, lang: str,
+                           selection: list[dict] | None = None,
+                           progress=None) -> tuple[dict, str, str, list]:
+    """DeepSeek plans a whole spec from the conversation's user text.
+
+    Returns (spec, spec_yaml, reply, missing) or raises AbaqusAgentError.
+    Explicitly chosen only — `auto` stays claude_cli-then-template. Two
+    reasons, both about not surprising the user: DeepSeek writes a fresh spec
+    every time and cannot edit the model on screen, so a backend that `auto`
+    silently picked would change what "改一下网格" does; and its failures must
+    be reported as its failures, not swapped for a template answer to a
+    different question (the same rule the explicit-claude branch follows).
+
+    Sync on purpose: the plain POST wraps it in a thread, and the SSE flavor
+    runs it inside _run_streaming's worker where the callbacks live.
+    """
+    from agent.llm_planner import LLMPlanner
+
+    user_texts = [m.get("text", "") for m in session.get("messages", [])
+                  if m.get("role") == "user"]
+    if text not in user_texts:
+        user_texts.append(text)
+    combined = "\n".join(user_texts)[-2000:]
+
+    if progress:
+        progress("draft")
+    ds = LLMPlanner(backend="deepseek")
+    raw = ds.call(combined)
+    spec, missing = ds.parse(raw)
+    spec_yaml = yaml.dump(spec, allow_unicode=True, default_flow_style=False,
+                          sort_keys=False)
+    reply = messages.render("planner.deepseek_used", lang)
+    if missing:
+        reply += "\n" + messages.render("planner.open_questions", lang) + \
+            "；".join(str(q) for q in missing[:5])
+    if selection:
+        reply += "\n" + messages.render(
+            "planner.deepseek_selection_unaimed", lang,
+            labels="、".join(str(item.get("label")) for item in selection))
+    return spec, spec_yaml, reply, list(missing or [])
+
+
 async def _propose(session: dict, text: str, lang: str,
                    backend: str,
                    selection: list[dict] | None = None
@@ -229,6 +272,23 @@ async def _propose(session: dict, text: str, lang: str,
     spec_dict None = hard failure."""
     current = session.get("current_spec_yaml")
     history = session.get("messages", [])
+
+    if backend == "deepseek":
+        from tools.errors import AbaqusAgentError
+        sid = session.get("session_id", "")
+
+        def _note(stage: str) -> None:
+            _PROPOSE_STAGE[sid] = stage
+
+        try:
+            spec, spec_yaml, reply, missing = await asyncio.to_thread(
+                _propose_deepseek_sync, session, text, lang, selection, _note)
+            return spec, spec_yaml, reply, missing, "deepseek"
+        except AbaqusAgentError as e:
+            return None, "", messages.render("planner.deepseek_failed", lang,
+                                             error=str(e)), [], "deepseek"
+        finally:
+            _PROPOSE_STAGE.pop(sid, None)
 
     if backend in ("auto", "claude_cli") and planner.claude_cli_available():
         sid = session.get("session_id", "")
@@ -400,7 +460,37 @@ async def chat_stream(session_id: str, req: ChatRequest):
                                            req.backend, resolved_selection,
                                            str(e))
 
+    def deepseek_work(on_stage, on_text, on_think):
+        # Same persistence rule as the claude worker: DeepSeek holds this
+        # thread for minutes, so success and failure both land on a FRESH
+        # load of the session — a disconnected client must still find the
+        # outcome in the transcript, and saving this thread's old snapshot
+        # would roll back whatever accept/reject wrote in the meantime.
+        from tools.errors import AbaqusAgentError
+        try:
+            spec, spec_yaml, reply, missing = _propose_deepseek_sync(
+                session, text, req.lang, resolved_selection, progress=on_stage)
+        except AbaqusAgentError as e:
+            fresh = store.load_session(sid) or session
+            msg = messages.render("planner.deepseek_failed", req.lang,
+                                  error=str(e))
+            fresh["messages"].append({"role": "assistant", "text": msg,
+                                      "ts": time.time(), "error": True})
+            store.save_session(fresh)
+            return "error", {"message": msg, "session": fresh}
+        fresh = store.load_session(sid) or session
+        pending = _finish_proposal(fresh, spec_yaml, reply, "deepseek", missing)
+        return "proposal", {"session": fresh, "pending": pending}
+
     async def gen():
+        if req.backend == "deepseek":
+            async for kind, payload in _run_streaming(sid, deepseek_work):
+                if kind == "outcome":
+                    status, value = payload
+                    yield _sse(status, value)
+                else:
+                    yield _sse(kind, payload)
+            return
         if not use_claude:
             if req.backend == "claude_cli":
                 reply = messages.render("planner.cli_unavailable", req.lang)

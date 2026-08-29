@@ -62,10 +62,12 @@ EXEMPT = {
         "evidence/artifact_registry.py. The 14 /api/evidence routes are the "
         "next group out; they are now thin enough to move as a router."),
     "runner/build_v2.py": (
-        2900,
-        "Was 6021. The kernel runtime, the argument grammar, the element "
-        "tables and the preview payload are out; what is left is the deck "
-        "emitters, which split next along the block list in generate_script."),
+        2740,
+        "Was 6021. Out so far: the kernel runtime, the argument grammar, the "
+        "element tables, the preview payload, the named profiles "
+        "(runner/v2_profiles.py) and the tie/contact emitters "
+        "(runner/v2_pairs.py). What is left is the rest of the deck emitters, "
+        "which split next along the block list in generate_script."),
     "mcp_bridge.py": (
         1100,
         "Was 1281. It documents itself as a proxy and is not one -- roughly 16 "

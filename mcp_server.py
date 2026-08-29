@@ -153,6 +153,7 @@ async def generate_spec(
     llm_backend: str = "template",
     anthropic_key: str = "",
     openai_key: str = "",
+    deepseek_key: str = "",
 ) -> str:
     from tools.abaqus_cmd import detect_abaqus_release
     abaqus_release = abaqus_release or detect_abaqus_release() or "unknown"
@@ -160,6 +161,7 @@ async def generate_spec(
         text, abaqus_release, llm_backend,
         anthropic_key=anthropic_key,
         openai_key=openai_key,
+        deepseek_key=deepseek_key,
     )
     spec_yaml = yaml.dump(spec_dict, allow_unicode=True, default_flow_style=False)
     valid, errors = validate_spec(spec_dict)

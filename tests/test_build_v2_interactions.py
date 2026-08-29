@@ -386,3 +386,135 @@ def test_the_schema_refuses_call_and_type_together(spec):
     spec["interactions"][0]["type"] = "tie"
     ok, _errors = _validate(spec)
     assert not ok
+
+
+# ---------------------------------------------------------------------------
+# One surface, one tie secondary
+# ---------------------------------------------------------------------------
+# Measured 2026-08-18: asked for a bolted end-plate connection, a planner
+# tied each bolt shank into both hole walls with the shank as the SECONDARY
+# of both. Abaqus refuses the whole model at the input processor --
+# "OVERCONSTRAINT CHECKS: NODE 289 INSTANCE BOLT1 IS USED MORE THAN ONCE AS A
+# SLAVE NODE" -- 18 s and one licence checkout after the spec was accepted.
+
+def _tie(name: str, main: str, secondary: str) -> dict:
+    return {"name": name, "type": "tie", "main": main, "secondary": secondary,
+            "position_tolerance": 0.01}
+
+
+def test_the_same_surface_may_not_be_the_secondary_of_two_ties(named_spec):
+    named_spec["interactions"] = [
+        _tie("Bolt1_Upper", "Upper:face@y=min", "Bolt1:face@r=10"),
+        _tie("Bolt1_Lower", "Lower:face@y=max", "Bolt1:face@r=10"),
+    ]
+    message = _refuse(named_spec)
+    assert "Bolt1:face@r=10" in message
+    assert "Bolt1_Upper" in message and "Bolt1_Lower" in message
+    # The way out has to be in the refusal, or it is only a complaint.
+    assert "main" in message
+    # Refused before the selectors are resolved, so the message is about the
+    # modelling mistake and not about an instance that does not exist yet.
+    assert "does not exist" not in message
+
+
+def test_the_refusal_ignores_whitespace_differences(named_spec):
+    named_spec["interactions"] = [
+        _tie("A", "Upper:face@y=min", "Bolt1:face@r=10"),
+        _tie("B", "Lower:face@y=max", "Bolt1:face@r=10 "),
+    ]
+    assert "Bolt1:face@r=10" in _refuse(named_spec)
+
+
+def test_two_ties_may_share_a_main(named_spec):
+    """The shank as the MAIN of both ties is the correct spelling, so the
+    check must not refuse it -- a main surface does not hand over its nodes."""
+    named_spec["interactions"] = [
+        _tie("Shared1", "Lower:face@y=max", "Upper:face@y=min"),
+        _tie("Shared2", "Lower:face@y=max", "Upper:face@y=max"),
+    ]
+    _emit(named_spec)
+
+
+def test_different_faces_of_one_instance_may_each_be_a_secondary(named_spec):
+    """A plate tied on its top and on its bottom is ordinary. Matching by
+    instance instead of by selector would refuse it."""
+    named_spec["interactions"] = [
+        _tie("T1", "Lower:face@y=max", "Upper:face@y=min"),
+        _tie("T2", "Lower:face@y=min", "Upper:face@y=max"),
+    ]
+    _emit(named_spec)
+
+
+def test_contact_pairs_are_not_subject_to_the_tie_rule(named_spec):
+    """A contact secondary is not a constrained node set, so repeating one is
+    not the overconstraint this refuses."""
+    named_spec["interactions"] = [
+        {"name": "C1", "type": "contact",
+         "main": "Lower:face@y=max", "secondary": "Upper:face@y=min"},
+        {"name": "C2", "type": "contact",
+         "main": "Lower:face@y=min", "secondary": "Upper:face@y=min"},
+    ]
+    _emit(named_spec)
+
+
+# ---------------------------------------------------------------------------
+# A clearance hole is a gap, and a tie tolerance under it ties nothing
+# ---------------------------------------------------------------------------
+# Measured 2026-08-18, same connection, next attempt: an M20 shank at r=10
+# tied into holes at r=11 with position_tolerance 0.01. The surfaces are a
+# millimetre apart everywhere, so every secondary node is outside the
+# tolerance. The .dat scanner catches it -- after the solve is paid for.
+
+def _bolt_tie(tolerance: float, r_main: float = 10.0,
+              r_sec: float = 11.0) -> dict:
+    return {"name": "Bolt1_Upper", "type": "tie",
+            "main": "Lower:face@r=%g" % r_main,
+            "secondary": "Upper:face@r=%g&at=70,140,10" % r_sec,
+            "position_tolerance": tolerance}
+
+
+def test_a_tolerance_under_the_clearance_gap_is_refused(named_spec):
+    named_spec["interactions"] = [_bolt_tie(0.01)]
+    message = _refuse(named_spec)
+    assert "Bolt1_Upper" in message
+    # The numbers a reader needs to fix it: both radii and the gap they make.
+    assert "r=10" in message and "r=11" in message
+    # A refusal without a way out is a complaint.
+    assert "position_tolerance" in message
+
+
+def test_a_tolerance_equal_to_the_gap_is_refused_too(named_spec):
+    """`WILL NOT BE TIED` is what Abaqus says for nodes AT the tolerance as
+    well; a tolerance exactly on the gap leaves nothing to spare for the
+    chord height of a faceted cylinder."""
+    named_spec["interactions"] = [_bolt_tie(1.0)]
+    assert "Bolt1_Upper" in _refuse(named_spec)
+
+
+def test_a_tolerance_above_the_gap_is_allowed(named_spec):
+    named_spec["interactions"] = [_bolt_tie(2.0)]
+    _emit(named_spec)
+
+
+def test_two_surfaces_at_the_same_radius_are_not_a_gap(named_spec):
+    """A shaft in a bore it fills is the ordinary case and has no clearance,
+    so the tightest tolerance is the right one."""
+    named_spec["interactions"] = [_bolt_tie(0.01, r_main=20.0, r_sec=20.0)]
+    _emit(named_spec)
+
+
+def test_a_computed_tolerance_is_left_alone(named_spec):
+    """Whether Abaqus's own guess covers the gap is not knowable here, and a
+    refusal that fires on a model that solves is worse than no refusal."""
+    inter = _bolt_tie(0.01)
+    del inter["position_tolerance"]
+    named_spec["interactions"] = [inter]
+    _emit(named_spec)
+
+
+def test_a_tie_between_planes_is_untouched(named_spec):
+    """Only `@r=` selectors state a radius. Everything else has no gap this
+    can compute, and must not be guessed at."""
+    named_spec["interactions"] = [
+        _tie("Flat", "Lower:face@y=max", "Upper:face@y=min")]
+    _emit(named_spec)

@@ -38,13 +38,23 @@ from runner.mesh_policy import (
     _SHAPES_FOR_SHELL,
     _TECHNIQUE_CONSTANT,
     DEFAULT_MESH_ELEMENT,
+    _element_library,
+    _library_for,
     _mesh_shape,
     _mesh_technique,
+    _shape_before_element,
 )
 from runner.preview import _preview_dump
 
 # Re-exported: build_v2.SpecError is what the rest of the tree catches.
 from runner.spec_base import SpecError, _is_generic, _parse
+from runner.v2_pairs import (
+    _contact_calls,
+    _refuse_repeated_tie_secondary,
+    _refuse_tie_gap_beyond_tolerance,
+    _tie_call,
+)
+from runner.v2_profiles import _sheet_size_entities, _sketch
 
 # ---------------------------------------------------------------------------
 # Cross-references JSON Schema cannot check
@@ -202,6 +212,15 @@ def _centroid_tol(size: float) -> float:
 # was written. Kept as a name so the two cannot drift apart.
 DEFAULT_VOLUME_TOL = 1.0e-3
 
+# The named ops, and all of them. Until this existed the dispatch in
+# _feature_lines ended in `else: # cut_extrude`, so ANY op the caller wrote --
+# `cut`, `revolve`, a misspelt `extrudee` -- became a cut_extrude without a
+# word. The schema does refuse them, but the schema is a separate gate and a
+# spec handed straight to generate_script() never passes through it. A
+# generator that only behaves when something else has already checked its input
+# is not one that refuses bad input.
+_NAMED_OPS = ("sketch", "extrude", "cut_extrude")
+
 
 def _feature_lines(part_spec: dict) -> list[str]:
     """Emit one part's feature calls, raising on anything that cannot be built."""
@@ -245,6 +264,11 @@ def _feature_lines(part_spec: dict) -> list[str]:
             continue
 
         op = feat["op"]
+        if op not in _NAMED_OPS:
+            raise SpecError(
+                "%s: %r is not an op this dialect knows. It reads: %s. Or drop "
+                "`op:` and write `call:` to reach the Abaqus method directly."
+                % (where, op, ", ".join(_NAMED_OPS)))
         if op == "sketch":
             sid = str(feat["id"])
             if sid in sketches:
@@ -307,7 +331,7 @@ def _feature_lines(part_spec: dict) -> list[str]:
             solid = True
             lines.append("p.BaseSolidExtrude(sketch=_sk_%s, depth=%r)"
                          % (sid, float(feat["depth"])))
-        else:  # cut_extrude
+        else:  # cut_extrude, and only cut_extrude: see _NAMED_OPS above
             if not solid:
                 raise SpecError(
                     "%s: cut_extrude before anything has been extruded" % where)
@@ -401,68 +425,6 @@ def _generic_sketch(where: str, part_name: str, feat: dict,
         lines.append(_generic_call("%s sketch %r entity %d" % (where, sid, j + 1),
                                    var, entity, sketches, results))
     return "\n".join(lines)
-
-
-def _sheet_size_entities(feat: dict, entities: list) -> float:
-    """The sketch canvas. Only ever the drawing grid, never the geometry.
-
-    Taken from the coordinates the entities mention so a spec does not have to
-    state it, but overridable: a sheet smaller than the profile makes CAE
-    unhappy, and there is no way to know from a bare method name which of its
-    arguments are points.
-    """
-    stated = feat.get("sheet_size")
-    if stated:
-        return float(stated)
-    span = 0.0
-    for value in _walk_numbers(entities):
-        span = max(span, abs(value))
-    return max(1.0, span * 4.0) if span else 200.0
-
-
-def _walk_numbers(value):
-    if isinstance(value, bool):
-        return
-    if isinstance(value, (int, float)):
-        yield float(value)
-    elif isinstance(value, (list, tuple)):
-        for item in value:
-            for found in _walk_numbers(item):
-                yield found
-    elif isinstance(value, dict):
-        for key, item in value.items():
-            if key in ("call", "as"):
-                continue
-            for found in _walk_numbers(item):
-                yield found
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # A quality row is a criterion plus a bound on it. Everything that is not one
@@ -928,38 +890,6 @@ def _parts(spec: dict, model: str) -> str:
     return "\n".join(lines)
 
 
-# Abaqus/Explicit steps, by the CAE method that creates them. `Explicit` in the
-# name is not the test: TempDisplacementDynamicsStep is an Explicit step and
-# does not contain the word, and no Standard method does contain it.
-_EXPLICIT_STEP_CALLS = frozenset((
-    "ExplicitDynamicsStep",
-    "TempDisplacementDynamicsStep",
-))
-
-
-def _element_library(spec: dict) -> str:
-    """STANDARD or EXPLICIT, decided by the steps the spec declares.
-
-    Not a spec key, because a model cannot hold both: Abaqus/Standard and
-    Abaqus/Explicit steps do not coexist in one model, so there is no case where
-    an author would legitimately want the other one.
-
-    It used to be the constant "STANDARD", and that is a silent failure, not a
-    formality. Measured on Abaqus 2021 with cases/explicit_impact: the deck the
-    constant produced carried `*Element, type=C3D8R` -- the same line as the
-    frozen v1 deck -- and no `*Section Controls`, because hourglassControl is
-    only reachable on the EXPLICIT library. The job COMPLETED with no error,
-    and the reaction force came out 33501 N against the frozen 31817 N, a 5.3%
-    error on a case whose own tolerance is 5%.
-    """
-    for step_spec in spec.get("steps") or []:
-        if _is_generic(step_spec) and str(step_spec.get("call")) in _EXPLICIT_STEP_CALLS:
-            return "EXPLICIT"
-    return "STANDARD"
-
-
-
-
 
 
 
@@ -1330,22 +1260,27 @@ def _one_part(part_spec: dict, library: str = "STANDARD") -> str:
             "    thicknessAssignment=FROM_SECTION)",
         ]
     if mesh_spec:
-        lines.append("p.setElementType(regions=(p.%s,), elemTypes=(" % body)
+        # Usually `library` itself. See _library_for: the EXPLICIT library turns
+        # a C3D10M request into C3D4 without a word.
+        emit_library = _library_for(tuple(elem_codes), library)
+        elem_lines = ["p.setElementType(regions=(p.%s,), elemTypes=(" % body]
         # hourglassControl goes only on the element the spec named. The
         # compatible shapes this dialect adds beside it -- the wedge and the tet
         # a free mesh falls back on -- are fully integrated and have no
         # hourglass modes to control.
-        lines += ["    mesh.ElemType(elemCode=%s, elemLibrary=%s%s)," %
-                  (code, library,
-                   ", hourglassControl=%s" % str(hourglass).upper()
-                   if hourglass and i == 0 else "")
-                  for i, code in enumerate(elem_codes)]
+        elem_lines += ["    mesh.ElemType(elemCode=%s, elemLibrary=%s%s)," %
+                       (code, emit_library,
+                        ", hourglassControl=%s" % str(hourglass).upper()
+                        if hourglass and i == 0 else "")
+                       for i, code in enumerate(elem_codes)]
         # A one-element tuple keeps its comma. Without it the kernel says
         # "elemTypes; found ElemType, expecting tuple" -- which is a loud
         # failure, but only reachable once a single-shape element exists.
         if len(elem_codes) > 1:
-            lines[-1] = lines[-1].rstrip(",")
-        lines[-1] += "))"
+            elem_lines[-1] = elem_lines[-1].rstrip(",")
+        elem_lines[-1] += "))"
+
+        control_lines = []
         technique = mesh_spec.get("technique")
         if technique or shape not in ("HEX", "QUAD"):
             # Written unconditionally off HEX because elemShape defaults to HEX,
@@ -1353,14 +1288,25 @@ def _one_part(part_spec: dict, library: str = "STANDARD") -> str:
             # Measured: HEX/STRUCTURED fails outright on a plate with a hole
             # ("Some regions cannot be Mapped") unless the part is partitioned.
             # It fails loudly, so it is left available rather than refused.
-            lines.append(
+            control_lines.append(
                 "p.setMeshControls(regions=p.%s, elemShape=%s, technique=%s)"
                 % (body, shape,
                    _TECHNIQUE_CONSTANT[_mesh_technique(name, shape, technique)]))
+
+        if control_lines and _shape_before_element(elem_codes):
+            lines += control_lines + elem_lines
+        else:
+            lines += elem_lines + control_lines
         lines.append("p.seedPart(size=%r, deviationFactor=0.1, minSizeFactor=0.1)"
                      % float(mesh_spec["seed"]))
         lines += _local_seeds(name, mesh_spec)
-        lines += ["p.generateMesh()", _mesh_check_line(part_spec)]
+        lines += ["p.generateMesh()"]
+        if emit_library != library:
+            # The substitution above is checked, not trusted: a second-order tet
+            # mesh has MORE nodes than elements and a linear one has about a
+            # fifth as many, so the downgrade this guards against cannot hide.
+            lines.append("_expect_second_order(p, %r, %r)" % (name, elem_codes[0]))
+        lines.append(_mesh_check_line(part_spec))
     elif (part_spec.get("expect") or {}).get("mesh"):
         # No declarative mesh block, so a generic call made the mesh and it
         # already exists by the time the geometry expectations have run.
@@ -1515,53 +1461,6 @@ def _local_seeds(part_name: str, mesh_spec: dict) -> list[str]:
                      % float(seed["size"]))
         lines.append("    constraint=FINER)")
     return lines
-
-
-def _sketch(part_name: str, index: int, feat: dict) -> str:
-    """Emit a sketch drawn in GLOBAL x, y.
-
-    A sketch used for the base extrude is drawn on the XY plane directly. A
-    sketch used for a cut is redrawn inside _cut() against a sketch transform,
-    because a ConstrainedSketch made without one cannot drive CutExtrude. The
-    profile is therefore also recorded as data, which is what _cut() replays.
-    """
-    profile = feat["profile"]
-    var = "_sk_%s" % str(feat["id"])
-    sheet = _sheet_size(profile)
-    lines = ["%s = m.ConstrainedSketch(name=%r, sheetSize=%r)"
-             % (var, "sk_%s_%s" % (part_name, str(feat["id"])), sheet)]
-    if "rect" in profile:
-        c1, c2 = profile["rect"]["corner1"], profile["rect"]["corner2"]
-        lines.append("%s.rectangle(point1=(%r, %r), point2=(%r, %r))"
-                     % (var, float(c1[0]), float(c1[1]), float(c2[0]), float(c2[1])))
-    else:
-        centre, radius = profile["circle"]["center"], float(profile["circle"]["r"])
-        lines.append("%s.CircleByCenterPerimeter(center=(%r, %r), point1=(%r, %r))"
-                     % (var, float(centre[0]), float(centre[1]),
-                        float(centre[0]) + radius, float(centre[1])))
-    lines.append("_SKETCHES[(%r, %r)] = %s"
-                 % (str(part_name), str(feat["id"]), _profile_data(profile)))
-    return "\n".join(lines)
-
-
-def _profile_data(profile: dict) -> str:
-    """The profile as plain data, so _cut() can redraw it on a transform."""
-    if "rect" in profile:
-        c1, c2 = profile["rect"]["corner1"], profile["rect"]["corner2"]
-        return ("{'rect': (%r, %r, %r, %r), 'circles': ()}"
-                % (float(c1[0]), float(c1[1]), float(c2[0]), float(c2[1])))
-    centre, radius = profile["circle"]["center"], float(profile["circle"]["r"])
-    return ("{'rect': None, 'circles': ((%r, %r, %r),)}"
-            % (float(centre[0]), float(centre[1]), radius))
-
-
-def _sheet_size(profile: dict) -> float:
-    if "rect" in profile:
-        c1, c2 = profile["rect"]["corner1"], profile["rect"]["corner2"]
-        span = max(abs(float(c2[0]) - float(c1[0])), abs(float(c2[1]) - float(c1[1])))
-    else:
-        span = 2.0 * float(profile["circle"]["r"])
-    return max(1.0, span * 4.0)
 
 
 def _assembly(spec: dict, model: str) -> str:
@@ -1855,10 +1754,28 @@ def _region(where: str, raw: str, expect, set_name: str, as_surface: bool) -> st
     return "a.Set(name=%r, %s=%s)" % (set_name, sel.attribute, call)
 
 
+def _is_explicit(spec: dict) -> bool:
+    """Does this spec run on Abaqus/Explicit?
+
+    Asked because `type: contact` compiles to a call only one of the two
+    solvers has. Measured on Abaqus 2021 the signatures are not the same shape:
+    SurfaceToSurfaceContactExp takes neither `thickness` nor `adjustMethod`,
+    both of which the Standard call needs. Emitting the Standard call into an
+    Explicit model is not a near-miss; it is a model that cannot be built.
+
+    Delegates to _element_library rather than re-reading the steps, because the
+    element library and the contact class disagreeing would be a model half on
+    each solver -- and the second copy of a rule is where that starts.
+    """
+    return _element_library(spec) == "EXPLICIT"
+
+
 def _interactions(spec: dict, model: str) -> str:
     entries = spec.get("interactions", []) or []
     if not entries:
         return ""
+    _refuse_repeated_tie_secondary(entries)
+    _refuse_tie_gap_beyond_tolerance(entries)
     lines = ["",
              "# --- Interactions ----------------------------------------------------------"]
     results: set = set()
@@ -1876,7 +1793,8 @@ def _interactions(spec: dict, model: str) -> str:
         if inter["type"] == "tie":
             lines.append(_tie_call(name, inter, main_set, sec_set))
         else:
-            lines.extend(_contact_calls(name, inter, main_set, sec_set))
+            lines.extend(_contact_calls(name, inter, main_set, sec_set,
+                                        _is_explicit(spec)))
     return "\n".join(lines)
 
 
@@ -2269,74 +2187,6 @@ def _interaction_expect(where: str, inter: dict, surfaces: list) -> list[str]:
             % (where, pair[0], pair[1],
                "None" if low is None else repr(float(low)),
                "None" if high is None else repr(float(high)))]
-
-
-def _tie_call(name: str, inter: dict, main_set: str, sec_set: str) -> str:
-    if inter.get("property"):
-        raise SpecError(
-            "interaction %r is a tie but carries a `property` block. A tie is a "
-            "constraint, not a contact interaction — it has no friction and no "
-            "normal behaviour, so those settings would be silently discarded."
-            % name)
-
-    tolerance = inter.get("position_tolerance")
-    # positionToleranceMethod=COMPUTED lets Abaqus pick, and anything outside
-    # the tolerance is left untied with only a warning in the .dat. Stating a
-    # tolerance is therefore the only way to know the pair bound.
-    if tolerance is None:
-        tol_args = "positionToleranceMethod=COMPUTED,"
-    else:
-        tol_args = ("positionToleranceMethod=SPECIFIED, positionTolerance=%r,"
-                    % float(tolerance))
-    return ("_tie(m, %r, a.surfaces[%r], a.surfaces[%r],\n"
-            "     %s adjust=%s, tieRotations=ON, thickness=ON)"
-            % (name, main_set, sec_set, tol_args,
-               "ON" if inter.get("adjust") else "OFF"))
-
-
-def _contact_calls(name: str, inter: dict, main_set: str, sec_set: str) -> list[str]:
-    prop = inter.get("property") or {}
-    friction = float(prop.get("friction", 0.0) or 0.0)
-    separation = prop.get("allow_separation", True)
-    prop_name = name.upper() + "_PROP"
-
-    lines = [
-        "m.ContactProperty(%r)" % prop_name,
-        "m.interactionProperties[%r].NormalBehavior(" % prop_name,
-        "    pressureOverclosure=HARD, allowSeparation=%s,"
-        % ("ON" if separation else "OFF"),
-        "    constraintEnforcementMethod=DEFAULT)",
-    ]
-    if friction > 0.0:
-        lines += [
-            "m.interactionProperties[%r].TangentialBehavior(" % prop_name,
-            "    formulation=PENALTY, directionality=ISOTROPIC,",
-            "    slipRateDependency=OFF, pressureDependency=OFF,",
-            "    temperatureDependency=OFF, dependencies=0,",
-            "    table=((%r, ),), shearStressLimit=None," % friction,
-            "    maximumElasticSlip=FRACTION, fraction=0.005,",
-            "    elasticSlipStiffness=None)",
-        ]
-    else:
-        # Spelled out rather than left to the default. FRICTIONLESS is what
-        # Abaqus assumes when no tangential behaviour is defined, but a reader
-        # of the deck cannot tell "frictionless on purpose" from "nobody
-        # thought about friction", and those are different models.
-        lines += [
-            "m.interactionProperties[%r].TangentialBehavior(formulation=FRICTIONLESS)"
-            % prop_name,
-        ]
-    lines.append(
-        "_contact(m, %r, a.surfaces[%r], a.surfaces[%r],\n"
-        "         createStepName='Initial', sliding=%s, thickness=ON,\n"
-        "         interactionProperty=%r, adjustMethod=NONE,\n"
-        "         initialClearance=OMIT, datumAxis=None, clearanceRegion=None)"
-        % (name, main_set, sec_set,
-           "SMALL" if str(inter.get("sliding", "small")) == "small" else "FINITE",
-           prop_name))
-    return lines
-
-
 
 
 def _generic_step(index: int, entry: dict, results: set,

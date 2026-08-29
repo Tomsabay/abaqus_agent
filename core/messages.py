@@ -153,5 +153,33 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "zh": "claude CLI 不可用（未安装或不在 PATH）。",
         "en": "The claude CLI is not available (not installed, or not on PATH).",
     },
+    # Says what ran, not what it sounds like. `_dry_build_notes` calls
+    # `generate_script`, which COMPILES the CAE script and never starts CAE --
+    # so every selector in the spec is still unresolved at this point.
+    # Measured 2026-08-18: a frame proposal announced "模型试建" and then failed
+    # the real build on `LeftColPlate:face@r=9&at=115,60,8 matched 0 faces`,
+    # because `at=` is in assembly coordinates and the spec used part-local
+    # ones. Nothing before CAE could have known. Claiming a build here is the
+    # NG-12 mistake in the product's own voice.
+    "planner.deepseek_used": {
+        "zh": "已由 DeepSeek 生成 spec 提案（云端 LLM），提案已通过 schema 校验、KPI 干检"
+              "与建模脚本生成。注意：脚本只是生成，没有启动 CAE，选择器要到真机建模时"
+              "才解析——选错面这类问题在这一步看不出来。",
+        "en": "Proposed a spec with DeepSeek (cloud LLM); the proposal passed the schema, "
+              "the KPI dry check, and the model script compiled. Note the script was only "
+              "generated — CAE was not started, so every selector is still unresolved and a "
+              "selector that matches nothing cannot be seen at this stage.",
+    },
+    "planner.deepseek_failed": {
+        "zh": "DeepSeek 规划失败：{error}",
+        "en": "DeepSeek planning failed: {error}",
+    },
+    "planner.deepseek_selection_unaimed": {
+        "zh": "已看到你 @ 的：{labels}。DeepSeek 每次从头生成整份 spec、看不到当前模型，"
+              "@ 引用只有 Claude 后端能精确落到对象上。",
+        "en": "Saw your @-mentions: {labels}. DeepSeek writes a whole spec from scratch and "
+              "does not see the current model; only the Claude backend can aim an edit at "
+              "an object.",
+    },
 
 }

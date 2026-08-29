@@ -68,6 +68,13 @@ def normalize_plots(data: dict | list | None, kpis: list[dict] | None = None) ->
 
 def validate_recipe(kpis: list[dict]) -> tuple[bool, list[str]]:
     """Validate normalized KPI specs without requiring Abaqus."""
+    # The extractor's own tables, not a copy: a host-side list would drift the
+    # first time the extractor learns a component, and then this gate would
+    # refuse a KPI the extractor reads (or wave through one it refuses).
+    # post.extract_kpis imports only stdlib at module level, so importing it
+    # here does not need Abaqus.
+    from post.extract_kpis import _INVARIANT_ATTR, _component_index
+
     errors = []
     if not isinstance(kpis, list) or not kpis:
         errors.append("recipe must contain at least one KPI")
@@ -90,6 +97,26 @@ def validate_recipe(kpis: list[dict]) -> tuple[bool, list[str]]:
 
         if kpi.get("reducer") and kpi["reducer"] not in SUPPORTED_REDUCERS:
             errors.append(f"{prefix}.reducer is unsupported: {kpi['reducer']}")
+
+        # Same refusals the extractor makes, moved to before the solve. It
+        # used to take a completed run to hear them: a planner that wrote
+        # `component: Mises` passed the schema, the dry build, the solve --
+        # and was refused at extraction, 26 minutes after the mistake.
+        component = kpi.get("component")
+        invariant = kpi.get("invariant")
+        if component is not None and invariant:
+            errors.append(
+                f"{prefix} gives both invariant {invariant!r} and component "
+                f"{component!r}; state the one quantity meant")
+        elif component is not None:
+            try:
+                _component_index(component)
+            except KeyError as exc:
+                errors.append(f"{prefix}: {exc.args[0]}")
+        elif invariant and str(invariant).upper() not in _INVARIANT_ATTR:
+            errors.append(
+                f"{prefix}.invariant {invariant!r} is not one of "
+                + ", ".join(sorted(_INVARIANT_ATTR)))
 
     return not errors, errors
 

@@ -103,6 +103,23 @@ def test_the_no_abaqus_refusal_is_actionable_in_both_languages():
         assert "PATH" in text, lang
 
 
+def test_the_planner_does_not_claim_a_model_it_never_built():
+    """`_dry_build_notes` compiles the CAE script; it never starts CAE.
+
+    So every selector in a fresh proposal is still unresolved. Measured
+    2026-08-18: a frame proposal announced a trial build and then failed the
+    real one on `at=` coordinates that matched no face — nothing before CAE
+    could have known. A reader who believes the announcement stops checking,
+    which is the whole cost of the overstatement.
+    """
+    for lang in ("en", "zh"):
+        text = M.render("planner.deepseek_used", lang)
+        assert "试建" not in text, text
+        assert "dry model build" not in text.lower(), text
+        # And it has to say what is still unchecked, not merely avoid lying.
+        assert ("选择器" in text) or ("selector" in text.lower()), text
+
+
 def test_no_key_still_offers_a_second_solver():
     """A leftover CalculiX sentence would promise a backend that is gone."""
     stale = [k for k in M.CATALOGUE if k.startswith("ccx.")]

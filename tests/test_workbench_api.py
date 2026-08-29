@@ -1308,3 +1308,76 @@ def test_chat_selection_reaches_the_claude_prompt(client, monkeypatch):
     # The resolved FRAGMENT rides the prompt, not just the row's label — that is
     # the whole point of resolving at send time against the spec the tree drew.
     assert "name: Beam" in captured["prompt"].split("## 用户选中", 1)[1]
+
+
+# ── DeepSeek backend ──────────────────────────────────────────────────
+# Round 4 of the full-flow audit: the first planner a user without a local
+# claude CLI can actually pick. LLMPlanner.call is the one network seam, so
+# these patch exactly that and let parse() run for real — the canned answer
+# still has to survive the schema, the KPI dry check and the dry build.
+
+def test_chat_deepseek_proposes_and_names_its_backend(client, monkeypatch):
+    from agent.llm_planner import LLMPlanner
+    monkeypatch.setattr(LLMPlanner, "call", lambda self, text: _VALID_SPEC_YAML)
+
+    sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
+    data = _chat(client, sid, "帮我建一个悬臂梁", backend="deepseek")
+    assert data["pending"] is not None
+    assert data["pending"]["backend"] == "deepseek"
+    assert "TestBeam" in data["pending"]["spec_yaml"]
+    assert "DeepSeek" in data["session"]["messages"][-1]["text"]
+
+
+def test_chat_deepseek_failure_is_reported_not_templated(client, monkeypatch):
+    """An explicit backend's failure is that backend's failure. Degrading to
+    the template engine would answer a different question than the one asked —
+    the same rule the explicit-claude branch already follows."""
+    from agent.llm_planner import LLMPlanner
+    from tools.errors import AbaqusAgentError, ErrorCode
+
+    def boom(self, text):
+        raise AbaqusAgentError(ErrorCode.LLM_GENERATION_FAILED,
+                               "DEEPSEEK_API_KEY is not set.")
+    monkeypatch.setattr(LLMPlanner, "call", boom)
+
+    sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
+    data = _chat(client, sid, "帮我建一个悬臂梁", backend="deepseek")
+    assert data["pending"] is None
+    last = data["session"]["messages"][-1]
+    assert last.get("error") is True
+    assert "DEEPSEEK_API_KEY" in last["text"]
+
+
+def test_chat_deepseek_bad_kpi_is_refused_at_proposal_time(client, monkeypatch):
+    """The KPI gate fires in the chat, not 26 minutes into a solve. The canned
+    answer is the mistake deepseek-v4-pro actually made on its first probe:
+    `component: Mises` — the schema passes it, the extractor refuses it."""
+    from agent.llm_planner import LLMPlanner
+    poisoned = _VALID_SPEC_YAML.replace("component: U2}", "component: Mises}")
+    assert "component: Mises" in poisoned
+    monkeypatch.setattr(LLMPlanner, "call", lambda self, text: poisoned)
+
+    sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
+    data = _chat(client, sid, "帮我建一个悬臂梁", backend="deepseek")
+    assert data["pending"] is None
+    last = data["session"]["messages"][-1]
+    assert last.get("error") is True
+    assert "invariant, not a component" in last["text"]
+
+
+def test_chat_stream_deepseek_emits_terminal_proposal(client, monkeypatch):
+    from agent.llm_planner import LLMPlanner
+    monkeypatch.setattr(LLMPlanner, "call", lambda self, text: _VALID_SPEC_YAML)
+
+    sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
+    resp = client.post(f"/api/workbench/sessions/{sid}/chat/stream",
+                       json={"text": "帮我建一个悬臂梁", "backend": "deepseek"})
+    assert resp.status_code == 200
+    events = _events(resp)
+    assert [e for e, _ in events] == ["stage", "proposal"]
+    assert events[0][1] == {"stage": "draft"}
+    final = events[-1][1]
+    assert final["pending"]["backend"] == "deepseek"
+    # Persisted by the worker — a dropped connection must not lose the proposal.
+    stored = client.get(f"/api/workbench/sessions/{sid}").json()
+    assert stored["pending"]["proposal_id"] == final["pending"]["proposal_id"]

@@ -52,10 +52,10 @@ _QUARTER_PLATE_CONDITIONS = (
 
 async def generate_spec_async(
     text: str, release: str, backend: str,
-    anthropic_key: str = "", openai_key: str = "",
+    anthropic_key: str = "", openai_key: str = "", deepseek_key: str = "",
 ) -> tuple[dict, list]:
     """Generate spec from NL text, using LLM or template."""
-    if backend in ("anthropic", "openai"):
+    if backend in ("anthropic", "openai", "deepseek"):
         from agent.llm_planner import LLMPlanner
         env_backup = {}
         if backend == "anthropic" and anthropic_key:
@@ -64,6 +64,9 @@ async def generate_spec_async(
         elif backend == "openai" and openai_key:
             env_backup["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY", "")
             os.environ["OPENAI_API_KEY"] = openai_key
+        elif backend == "deepseek" and deepseek_key:
+            env_backup["DEEPSEEK_API_KEY"] = os.environ.get("DEEPSEEK_API_KEY", "")
+            os.environ["DEEPSEEK_API_KEY"] = deepseek_key
         try:
             # Only the CALL is allowed to fall through. It fails when there is
             # no key, no package or no network -- the model never answered, and
