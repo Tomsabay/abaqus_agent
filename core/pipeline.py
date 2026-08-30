@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Awaitable, Callable
 
 import yaml
@@ -40,6 +41,16 @@ STAGES = [
 # ── Stage descriptions for progress display ───────────────────────
 
 STAGE_DESCS = {s[0]: s[1] for s in STAGES}
+# Stages the orchestrator reports outside the fixed seven. Without a desc the
+# UI's 「当前阶段」 label falls back to the raw stage id.
+STAGE_DESCS.update({
+    "compare_kpis":         "KPI 基准比对",
+    "dat_integrity":        ".dat 完整性检查",
+    "export_odb_images":    "导出 ODB 云图",
+    "export_odb_animation": "导出动画",
+    "autorepair":           "自动修复",
+    "parametric_sweep":     "参数扫掠",
+})
 
 
 def _warning_lines(val) -> list[dict]:
@@ -68,6 +79,31 @@ def _warning_lines(val) -> list[dict]:
     if count <= 0:
         return []
     return [{"level": "warn", "text": "⚠ %d warnings" % count}]
+
+
+_ABS_PATH_RE = re.compile(r"^(?:[A-Za-z]:[\\/]|[\\/])")
+
+
+def _display_path(val) -> str:
+    """Shorten an absolute path to `<dir>/<file>` for the log panel.
+
+    The log panel is narration and it ends up in screenshots; a full path
+    carries the operator's user name and disk layout. The full path stays in
+    the run record under `stages`, where someone debugging can still find it.
+    """
+    text = str(val)
+    if not _ABS_PATH_RE.match(text):
+        return text
+    p = PureWindowsPath(text)
+    if not p.name:
+        return text
+    return "%s/%s" % (p.parent.name, p.name) if p.parent.name else p.name
+
+
+def _display_val(val) -> str:
+    if isinstance(val, (list, tuple)):
+        return "、".join(_display_path(item) for item in val)
+    return _display_path(val)
 
 
 async def _run_pipeline_real(
@@ -99,12 +135,26 @@ async def _run_pipeline_real(
         logs = []
 
         # Convert orchestrator progress data to log entries
-        if isinstance(data, dict):
+        if isinstance(data, dict) and stage == "autorepair" and "attempt" in data:
+            logs.append({"level": "warn",
+                         "text": f"自动修复：第 {data['attempt']}/{data.get('max', '?')} 次重试"})
+        elif isinstance(data, dict) and stage == "parametric_sweep" and "total" in data:
+            # sweep_engine reports (completed count, total, last status);
+            # count 0 is the pre-flight call, count == total the wrap-up.
+            idx, total = data.get("index", 0), data["total"]
+            sweep_status = data.get("status", "")
+            if not idx:
+                logs.append({"level": "info", "text": f"参数扫掠：共 {total} 个样本"})
+            elif idx == total and sweep_status == "completed":
+                logs.append({"level": "ok", "text": f"✓ 参数扫掠完成：{total} 个样本"})
+            else:
+                logs.append({"level": "info", "text": f"样本 {idx}/{total}：{sweep_status}"})
+        elif isinstance(data, dict):
             for key, val in data.items():
                 if key == "ok" and val:
                     logs.append({"level": "ok", "text": f"✓ {stage} 完成"})
                 elif key == "inp":
-                    logs.append({"level": "ok", "text": f"INP_WRITTEN: {val}"})
+                    logs.append({"level": "ok", "text": f"INP_WRITTEN: {_display_path(val)}"})
                 elif key == "warnings":
                     logs += _warning_lines(val)
                 elif key == "cache_reason":
@@ -128,6 +178,25 @@ async def _run_pipeline_real(
                 elif key == "refusals":
                     for reason in val:
                         logs.append({"level": "error", "text": f"拒绝求解：{reason}"})
+                elif key == "errors":
+                    # monitor_job's verdict carries an `errors` list on every
+                    # poll; before this branch an empty one printed `errors: []`.
+                    for err in (val or []):
+                        logs.append({"level": "error", "text": f"✗ {err}"})
+                elif key == "images":
+                    for img in (val or []):
+                        logs.append({"level": "ok", "text": f"✓ 云图导出：{_display_path(img)}"})
+                elif key == "frames":
+                    logs.append({"level": "ok", "text": f"✓ 动画导出：{val} 帧"})
+                elif key == "integrity_count":
+                    if not val:
+                        logs.append({"level": "ok", "text": "✓ .dat 完整性检查：无告警"})
+                    else:
+                        logs.append({"level": "warn",
+                                     "text": f"⚠ .dat 完整性告警 {val} 条（详见结果页的适用范围）"})
+                elif key == "findings":
+                    for fid in (val or []):
+                        logs.append({"level": "warn", "text": f"  - {fid}"})
                 elif key == "status":
                     logs.append({"level": "info", "text": f"status: {val}"})
                 elif key == "kpis":
@@ -144,11 +213,16 @@ async def _run_pipeline_real(
                     else:
                         logs.append({"level": "ok" if val else "error",
                                      "text": f"{label}: {'PASS' if val else 'FAIL'}"})
-                elif key not in ("attempt", "max", "index", "total"):
-                    logs.append({"level": "info", "text": f"{key}: {val}"})
+                elif key not in ("attempt", "max", "index", "total",
+                                 "progress_pct", "last_increment", "last_time",
+                                 "odb_exists", "details"):
+                    logs.append({"level": "info", "text": f"{key}: {_display_val(val)}"})
 
         if not logs:
-            logs = [{"level": "info", "text": f"{stage}: {data}" if data else f"{stage}..."}]
+            # No raw dict dump here: the structured data already lives in the
+            # run record, and `monitor_job: {'errors': [], 'odb_exists': True…}`
+            # on screen is what this rewrite exists to remove.
+            logs = [{"level": "info", "text": f"{stage}..."}]
 
         # Determine progress percentage
         if stage in _STAGE_ORDER:

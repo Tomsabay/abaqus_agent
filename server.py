@@ -39,7 +39,7 @@ from typing import Any, AsyncGenerator
 import yaml
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -245,6 +245,19 @@ class CaseMemoryDiffRequest(BaseModel):
 
 @app.get("/")
 def root():
+    # The workbench is the product; the desktop shell already opens /workbench
+    # directly. The old Copilot MVP page — with its internal gate diagnostics
+    # on screen — used to greet every browser user here. It moved to /copilot.
+    wb = FRONTEND_DIR / "workbench.html"
+    if wb.exists():
+        return RedirectResponse(url="/workbench", status_code=307)
+    return {"status": "ok", "message": "Abaqus Agent API running"}
+
+
+@app.get("/copilot")
+def copilot_page():
+    """The pre-workbench Copilot MVP page (plugin bridge, benchmark, evidence
+    panels). Kept reachable for the internal tools it hosts."""
     index = FRONTEND_DIR / "index.html"
     if index.exists():
         return FileResponse(str(index))

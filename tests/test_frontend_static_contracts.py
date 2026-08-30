@@ -543,7 +543,9 @@ def test_the_two_surfaces_link_to_each_other():
 
     assert 'href="/workbench"' in index, (
         "the product's main surface was unreachable from its own home page")
-    assert 'href="/"' in workbench, "no way back to the tools page"
+    # The tools page lives at /copilot since / became the workbench. A link
+    # to "/" here would be a self-loop through the redirect.
+    assert 'href="/copilot"' in workbench, "no way back to the tools page"
 
 
 def test_the_workbench_empty_state_offers_a_way_in():

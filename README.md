@@ -47,7 +47,7 @@ takes upwards of an hour.
 ```bash
 pip install -e ".[dev]"
 python server.py
-# open http://127.0.0.1:8000 -> 01 Abaqus/CAE Copilot -> ▶ 播放真实录像
+# open http://127.0.0.1:8000/copilot -> ▶ 播放真实录像
 ```
 
 The replay shows the full loop: plan cards typing out, action chips flipping, the model tree
@@ -55,11 +55,10 @@ growing, real viewport PNGs, a genuine stale-lock failure with its diagnosis car
 one-click fix, and the final KPIs (max displacement 0.1286 mm, max Mises 9.58 MPa).
 On a machine with Abaqus, `python scripts/record_copilot_replay.py` re-records it live.
 
-The same server also hosts the **workbench** at
-[`http://127.0.0.1:8000/workbench`](http://127.0.0.1:8000/workbench): write or
-edit a spec, watch the stages run, and read the KPIs and the 3D preview. It is
-the direct view of the pipeline, where the Copilot page is the conversational
-one.
+[`http://127.0.0.1:8000`](http://127.0.0.1:8000) opens the **workbench** — the
+product itself: describe a model in natural language, review the generated
+`spec.yaml` diff, accept it, watch the stages run, and read the KPIs and the 3D
+preview. The Copilot replay page above lives at `/copilot`.
 
 ## Why This Exists
 

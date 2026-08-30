@@ -79,7 +79,7 @@ window.I18N = window.I18N || (function () {
           data-i18n-attr="title:lang.toggle.hint,aria-label:lang.toggle.hint"></button>
   <!-- The way back. These two pages used to have no link between them in
        either direction. -->
-  <a class="topbar-link" href="/" data-i18n-attr="title:top.tools.hint"><span data-i18n="top.tools"></span> ↗</a>
+  <a class="topbar-link" href="/copilot" data-i18n-attr="title:top.tools.hint"><span data-i18n="top.tools"></span> ↗</a>
   <div class="led-group">
     <div class="led" id="led-server"><i></i><span data-i18n="led.server"></span></div>
     <div class="led" id="led-abaqus"><i></i>Abaqus</div>
@@ -355,7 +355,18 @@ const STAGE_SHORT = {
   physics_contracts: () => t('stage.physics_contracts'),
 };
 const STAGE_ORDER = Object.keys(STAGE_SHORT);
-const stageShort = (sid) => (STAGE_SHORT[sid] ? STAGE_SHORT[sid]() : sid);
+// Stages the backend reports beyond the fixed seven. They get console log
+// lines but no chip in the progress row (STAGE_ORDER stays the pipeline).
+const STAGE_EXTRA_SHORT = {
+  compare_kpis: () => t('stage.compare_kpis'),
+  dat_integrity: () => t('stage.dat_integrity'),
+  export_odb_images: () => t('stage.export_odb_images'),
+  export_odb_animation: () => t('stage.export_odb_animation'),
+  autorepair: () => t('stage.autorepair'),
+  parametric_sweep: () => t('stage.parametric_sweep'),
+};
+const stageShort = (sid) => (STAGE_SHORT[sid] ? STAGE_SHORT[sid]()
+  : STAGE_EXTRA_SHORT[sid] ? STAGE_EXTRA_SHORT[sid]() : sid);
 // REFUSED is terminal: the run looked at the spec and declined to solve it.
 // Omitting it left such a run spinning forever — finishWatch never fired and
 // showRun kept drawing the progress bar.
@@ -1672,7 +1683,12 @@ function applyRunUpdate(payload) {
   }
   const body = $('console-body');
   let appended = false;
-  for (const sid of STAGE_ORDER) {
+  // Fixed pipeline stages first, then whatever else the run reported
+  // (dat_integrity, export_odb_images, …) — their logs were silently
+  // dropped before because this loop only walked STAGE_ORDER.
+  const extraStages = Object.keys(payload.stages || {})
+    .filter((sid) => !STAGE_SHORT[sid]);
+  for (const sid of [...STAGE_ORDER, ...extraStages]) {
     const st = (payload.stages || {})[sid];
     if (!st) continue;
     const logs = st.logs || [];

@@ -30,15 +30,14 @@ Abaqus Agent 跑在你自己的 Abaqus 授权环境里。内核是确定性的�
 ```bash
 pip install -e ".[dev]"
 python server.py
-# open http://127.0.0.1:8000 -> 01 Abaqus/CAE Copilot -> ▶ 播放真实录像
+# open http://127.0.0.1:8000/copilot -> ▶ 播放真实录像
 ```
 
 回放走完整个闭环：计划卡片逐字打出、动作状态翻转、模型树生长、真实视口 PNG、一次真实的 stale-lock 失败连同它的诊断卡片、一键修复，以及最终 KPI（最大位移 0.1286 mm，最大 Mises 应力 9.58 MPa）。在装了 Abaqus 的机器上，`python scripts/record_copilot_replay.py` 可以重新实录一遍。
 
-同一个服务还挂着 **workbench**，在
-[`http://127.0.0.1:8000/workbench`](http://127.0.0.1:8000/workbench)：直接写或改
-spec、看各阶段跑、读 KPI 和 3D 预览。Copilot 那页是对话式的入口，这页是管线本身的
-直接视图。
+[`http://127.0.0.1:8000`](http://127.0.0.1:8000) 打开的就是 **workbench**——产品
+本体：用自然语言描述模型、审核生成的 `spec.yaml` diff、接受后看各阶段跑、读 KPI
+和 3D 预览。上面那页 Copilot 回放在 `/copilot`。
 
 ## 为什么做这个
 
