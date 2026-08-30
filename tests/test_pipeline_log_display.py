@@ -151,6 +151,29 @@ def test_exported_images_render_short_names():
     assert not any("D:\\" in t for t in texts)
 
 
+def test_exported_image_records_render_path_not_dict_repr():
+    """The exporter sends records, not paths — the real shape from a real run."""
+    record = {"name": "u_magnitude", "bytes": 24208, "component": None,
+              "invariant": "MAGNITUDE", "path": "u_magnitude.png",
+              "field_variable": "U"}
+    run = _drive_pipeline([("export_odb_images", {"images": [record]})])
+    texts = _texts(run, "export_odb_images")
+    assert "✓ 云图导出：u_magnitude.png" in texts
+    assert not any("{'" in t for t in texts)
+
+
+def test_contract_check_count_zero_is_not_a_log_line():
+    run = _drive_pipeline([
+        ("physics_contracts", {"passed": None, "checks": 0, "caveat": "没有加载到任何 physics contract"}),
+    ])
+    texts = _texts(run, "physics_contracts")
+    assert not any("checks" in t for t in texts)
+    assert any("NOT GRADED" in t for t in texts)
+
+    graded = _drive_pipeline([("physics_contracts", {"passed": True, "checks": 3})])
+    assert "契约检查 3 项" in _texts(graded, "physics_contracts")
+
+
 def test_autorepair_is_a_sentence_not_a_dict_repr():
     run = _drive_pipeline([("autorepair", {"attempt": 1, "max": 2})])
     assert _texts(run, "autorepair") == ["自动修复：第 1/2 次重试"]

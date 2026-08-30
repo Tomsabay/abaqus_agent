@@ -184,8 +184,21 @@ async def _run_pipeline_real(
                     for err in (val or []):
                         logs.append({"level": "error", "text": f"✗ {err}"})
                 elif key == "images":
+                    # Items are exporter records ({'name','path','bytes',…}),
+                    # not plain paths — measured on a real run, where the
+                    # first version put the whole dict repr on screen.
                     for img in (val or []):
-                        logs.append({"level": "ok", "text": f"✓ 云图导出：{_display_path(img)}"})
+                        name = ((img.get("path") or img.get("name") or "")
+                                if isinstance(img, dict) else img)
+                        if name:
+                            logs.append({"level": "ok",
+                                         "text": f"✓ 云图导出：{_display_path(name)}"})
+                elif key == "checks":
+                    # physics_contracts sends checks=0 alongside NOT GRADED;
+                    # `checks: 0` under a line that already says nothing ran
+                    # is noise. A real count is worth a line.
+                    if val:
+                        logs.append({"level": "info", "text": f"契约检查 {val} 项"})
                 elif key == "frames":
                     logs.append({"level": "ok", "text": f"✓ 动画导出：{val} 帧"})
                 elif key == "integrity_count":
