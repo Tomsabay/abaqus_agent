@@ -159,6 +159,24 @@ def get_session(session_id: str):
     return session
 
 
+async def _run_then_record(run_id: str, runs: dict, session_id: str) -> None:
+    """run_pipeline, then write the run's terminal state into the session file.
+
+    _enrich_runs copies terminal state (status, KPIs, verdicts) into the
+    session record so it survives a restart — but until this wrapper existed,
+    enrichment only ran when something polled get_session while this process
+    was still alive. A run that finished after the window closed was never
+    enriched: the record stayed PENDING on disk forever, and once RUNS
+    emptied /api/run/{id} 404s, so the KPIs became unreachable. Measured
+    2026-09-01 on the packaged GUI: solve COMPLETED, backend restarted,
+    history showed an eternal PENDING with nothing behind it.
+    """
+    await run_pipeline(run_id, runs)
+    session = store.load_session(session_id)
+    if session and _enrich_runs(session):
+        store.save_session(session)
+
+
 @router.post("/api/workbench/sessions/{session_id}/accept")
 async def accept(session_id: str, req: AcceptRequest, background_tasks: BackgroundTasks):
     runs = _runs_store()
@@ -221,7 +239,7 @@ async def accept(session_id: str, req: AcceptRequest, background_tasks: Backgrou
         "finished_at": None,
         "progress_pct": 0,
     }
-    background_tasks.add_task(run_pipeline, run_id, runs)
+    background_tasks.add_task(_run_then_record, run_id, runs, session_id)
 
     session["current_spec_yaml"] = spec_yaml
     session["pending"] = None

@@ -158,6 +158,30 @@ def test_accept_runs_pipeline_and_syncs_session(client, wb, monkeypatch, abaqus_
     assert record["animation"] == "anim.mp4"
 
 
+def test_run_terminal_state_reaches_disk_without_any_poll(client, wb, monkeypatch, abaqus_present):
+    """A run that finishes after the window closes must still land on disk.
+
+    Enrichment used to run only inside get_session, so a solve that completed
+    with nobody polling left an eternal PENDING record — and once the process
+    restarted, /api/run/{id} 404s and the KPIs were unreachable (measured
+    2026-09-01 on the packaged GUI). Deliberately no GET here: the assertion
+    is against the session FILE, exactly what a restarted backend would read.
+    """
+    from workbench import routes, store
+
+    monkeypatch.setattr(routes, "run_pipeline", _fake_pipeline_completed)
+    sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
+    _chat(client, sid, "悬臂梁 100x10x10，末端 1N")
+    resp = client.post(f"/api/workbench/sessions/{sid}/accept", json={})
+    assert resp.status_code == 200, resp.text
+
+    on_disk = store.load_session(sid)
+    record = on_disk["runs"][0]
+    assert record["status"] == "COMPLETED"
+    assert record["kpis"]["U_tip"]["value"] == pytest.approx(-1.9e-3)
+    assert record["visuals"] == ["Model_mises.png"]
+
+
 def test_accept_without_pending_409(client):
     sid = client.post("/api/workbench/sessions", json={}).json()["session_id"]
     assert client.post(f"/api/workbench/sessions/{sid}/accept", json={}).status_code == 409
